@@ -9,3 +9,4 @@ Infinity Engine Library for BIF file format
 ##  BIF File Format
 
 - [BIF v1](https://gibberlings3.github.io/iesdp/file_formats/ie_formats/bif_v1.htm)
+- [BIF v1.1](https://witcher.fandom.com/wiki/KEY_BIF_V1.1_format)
