@@ -1,0 +1,72 @@
+/*****************************************************************************
+* ie_rim.hsl - Created by fearless
+* 
+* Structure definitions for the Bioware .rim file format 
+* Jade Empire / Kotor I & II
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 15/11/2015 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Bioware RIM File Format") ;
+#pragma fileextensions(".rim") ;
+#pragma byteorder(little_endian);
+#pragma maxarray(65536)
+#pragma hide()
+
+/*****************************************************************************
+* RIM_HEADER
+*****************************************************************************/
+typedef struct tagRIM_HEADER {
+    CHAR Signature[4];
+    // RIM
+    #pragma verify match_var_int("Signature[0]", "0x52")
+    #pragma verify match_var_int("Signature[1]", "0x49")
+    #pragma verify match_var_int("Signature[2]", "0x4D")
+    #pragma verify match_var_int("Signature[3]", "0x20")
+
+	CHAR Version[4];
+	// V1.0
+	DWORD Unknown;
+	DWORD NoFileEntries;
+	DWORD FileEntriesOffset;
+    CHAR Reserved[100];
+} RIM_HEADER ;
+
+
+/*****************************************************************************
+* FileEntry Record Definition
+*****************************************************************************/
+typedef struct tagFILEENTRY
+{
+    CHAR ResourceName[16];
+    DWORD FileResourceType;
+    DWORD FileResourceID;
+	DWORD FileResourceDataOffset;
+	DWORD FileResourceSize;
+
+} FILEENTRY ;
+
+
+/*****************************************************************************
+* Actual RIM File Structure as defined
+*****************************************************************************/
+#pragma show()
+struct RIMV1.0
+{
+    #pragma lockAt(0)
+    RIM_HEADER RIM_Header ;
+    FILEENTRY RIM_FILE_ENTRIES[RIM_Header.NoFileEntries];
+    struct RIM_FILE_DATA {
+        blob FileData[ __getDocSize() - ( __getSizeOf(RIM_FILE_ENTRIES) + __getSizeOf(RIM_Header) )];
+    };    
+}; 
+
+
+

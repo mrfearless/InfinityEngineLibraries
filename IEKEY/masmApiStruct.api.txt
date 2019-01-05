@@ -1,0 +1,29 @@
+;-----------------------------------------------------------------------------------------------------
+; LTLT IEKEY Additions 09/04/2016
+;
+; Paste this text at the end of \Radasm\Masm\masmApiStruct.api to add these to Radasm
+;
+;-----------------------------------------------------------------------------------------------------
+KEY_HEADER_V11,Signature,Version,BifEntriesCount,ResEntriesCount,dwNull,OffsetBifEntries,OffsetResEntries,BuildYear,BuildDay,dwNulls
+KEY_HEADER_V1,Signature,Version,BifEntriesCount,ResEntriesCount,OffsetBifEntries,OffsetResEntries
+KEY_HEADER,Signature,Version,BifEntriesCount,ResEntriesCount,OffsetBifEntries,OffsetResEntries
+BIF_ENTRY,LengthBifFile,OffsetBifFilename,LengthBifFilename,BifLocation
+BIF_ENTRY_V11,LengthBifFile,OffsetBifFilename,LengthBifFilename
+RES_ENTRY,ResourceName,ResourceType,ResourceLocator
+RES_ENTRY_V11,ResourceName,ResourceType,ResourceLocator,ResourceFlags
+RES_ENTRY_V1_WIDE,ResourceName,ResourceType,ResourceLocator
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

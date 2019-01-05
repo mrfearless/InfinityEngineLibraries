@@ -1,0 +1,73 @@
+/*****************************************************************************
+* ie_bifc.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .bif file format 
+* Only for BIFCV1.0 Compressed signatures
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 15/11/2015 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine BIFCV1.0 Compressed File Format") ;
+#pragma fileextensions(".bif") ;
+#pragma byteorder(little_endian);
+#pragma maxarray(3430)
+#pragma hide()
+
+/*****************************************************************************
+* BIFC_HEADER - BIFC V1.0 Compressed BIFF
+*****************************************************************************/
+typedef struct tagBIFC_HEADER
+{
+    CHAR Signature[4];
+    // BIF
+    #pragma verify match_var_int("Signature[0]", "0x42")
+    #pragma verify match_var_int("Signature[1]", "0x49")
+    #pragma verify match_var_int("Signature[2]", "0x46")
+    #pragma verify match_var_int("Signature[3]", "0x43")
+    
+    CHAR Version[4];
+    // V1.0
+    #pragma verify match_var_int("Version[0]", "0x56")
+    #pragma verify match_var_int("Version[1]", "0x31")
+    #pragma verify match_var_int("Version[2]", "0x2E")
+    #pragma verify match_var_int("Version[3]", "0x30")
+
+    DWORD UncompressedSize;
+} BIFC_HEADER;
+
+
+/*****************************************************************************
+* BIFC_BLOCK - BIFC V1.0 Compressed Data Block
+*****************************************************************************/
+typedef struct tagBIFC_BLOCK
+{
+    DWORD UncompressedSize;
+    DWORD CompressedSize;
+    blob CompressedData[CompressedSize];
+} BIFC_BLOCK ;
+
+
+#pragma show()
+
+/*****************************************************************************
+* Actual BIF File Structure as defined
+*****************************************************************************/
+#pragma show()
+struct BIFCV1.0
+{
+    #pragma lockAt(0)
+    BIFC_HEADER BIFC_Header ;
+    BIFC_BLOCK BIFC_Block[4096];
+    
+    //struct BIFC_Data {
+    //   BIFC_BLOCK Block;
+    //} [1024];
+}; 
+

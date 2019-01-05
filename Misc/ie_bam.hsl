@@ -1,0 +1,78 @@
+/*****************************************************************************
+* ie_bam.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .bam file format 
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 03/01/11 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine BAM File Format") ;
+#pragma fileextensions(".bam;.bamu;") ;
+#pragma byteorder(little_endian);
+
+
+/*****************************************************************************
+* Frame Data Type Definition
+*****************************************************************************/
+#pragma hide()
+typedef struct FRAME
+{
+	WORD FrameWidth;
+	WORD FrameHeight;
+	SHORT FrameCenterXCoordinate;
+	SHORT FrameCenterYCoordinate;
+	struct FrameDataInfo
+	{
+		unsigned long FrameDataOffset : 30;
+		unsigned long Compressed : 1;
+	} ;
+} FRAME ;
+#pragma show()
+
+
+/*****************************************************************************
+* Cycle Entry Data Type Definition
+*****************************************************************************/
+
+typedef struct CYCLE
+{
+	WORD CycleFrameIndiciesCount;
+	WORD CycleFrameFirstIndex;
+
+} CYCLE ;
+
+
+
+/*****************************************************************************
+* Actual BAM File Structure as defined
+*****************************************************************************/
+#pragma show()
+struct BAM
+{
+	#pragma lockAt(0)
+	CHAR Signature[4];
+	//DWORD Signature;
+	#pragma verify match_var_str("Signature", "BAM ")
+	CHAR Version[4];
+	#pragma verify match_var_str("Version", "V1  ")	
+	
+	WORD FrameCount;
+	UBYTE CycleCount;
+	UBYTE ColourIndex;
+	DWORD FrameEntriesOffset;
+	DWORD PaletteOffset;
+	DWORD FrameLookupOffset;
+
+
+	FRAME FrameEntry[ushortAt(addrof(FrameCount))];
+	CYCLE CycleEntry[ushortAt(addrof(CycleCount))];
+
+}; 
+

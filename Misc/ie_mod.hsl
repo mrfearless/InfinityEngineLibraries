@@ -1,0 +1,90 @@
+/*****************************************************************************
+* ie_mod.hsl - Created by fearless
+* 
+* Structure definitions for the Bioware .mod file format 
+* Jade Empire / Kotor I & II
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+* MOD is an ERF file format
+*****************************************************************************
+* Revision History:
+*
+* 15/11/2015 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Bioware MOD File Format") ;
+#pragma fileextensions(".mod") ;
+#pragma byteorder(little_endian);
+#pragma maxarray(65536)
+#pragma hide()
+
+/*****************************************************************************
+* MOD_HEADER
+*****************************************************************************/
+typedef struct tagMOD_HEADER {
+    CHAR Signature[4];
+    // MOD
+    #pragma verify match_var_int("Signature[0]", "0x4D")
+    #pragma verify match_var_int("Signature[1]", "0x4F")
+    #pragma verify match_var_int("Signature[2]", "0x44")
+    #pragma verify match_var_int("Signature[3]", "0x20")
+
+	CHAR Version[4];
+	// V1.0
+	DWORD LanguageCount;
+    DWORD LocalizedStringSize;
+	DWORD EntryCount;
+    DWORD OffsetToLocalizedString;
+    DWORD OffsetToKeyList;
+    DWORD OffsetToResourceList;
+    DWORD BuildYear;
+    DWORD BuildDay;
+    DWORD DescriptionStrRef;
+    blob Reserved[116];
+} MOD_HEADER ;
+
+
+/*****************************************************************************
+* KeyEntry Record Definition (ERF Key List)
+*****************************************************************************/
+typedef struct tagKEYENTRY
+{
+    CHAR ResourceName[16];
+    DWORD ResourceID;
+    WORD ResourceType;
+    WORD Unused;
+} KEYENTRY ;
+
+/*****************************************************************************
+* ResEntry Record Definition (ERF Resource List)
+*****************************************************************************/
+typedef struct tagRESENTRY
+{
+    DWORD ResourceOffset;
+    DWORD ResourceSize;
+} RESENTRY ;
+
+
+
+/*****************************************************************************
+* Actual MOD File Structure as defined
+*****************************************************************************/
+#pragma show()
+struct MODV1.0
+{
+    #pragma lockAt(0)
+    MOD_HEADER MOD_Header ;
+    struct LOCALIZED_STRING_LIST {
+        blob LocalizedStringList[MOD_Header.OffsetToKeyList - MOD_Header.OffsetToLocalizedString];
+    };
+    KEYENTRY MOD_KEY_ENTRIES[MOD_Header.EntryCount];
+    RESENTRY MOD_RES_ENTRIES[MOD_Header.EntryCount];
+    struct MOD_RESOURCE_DATA {
+        blob FileData[ __getDocSize() - ( MOD_Header.OffsetToResourceList + __getSizeOf(MOD_RES_ENTRIES) )];
+    };    
+}; 
+
+
+

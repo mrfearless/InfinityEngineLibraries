@@ -1,0 +1,89 @@
+/*****************************************************************************
+* ie_bam.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .bam file format 
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 03/01/11 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine BAM File Format") ;
+#pragma fileextensions(".bam;.bamu;") ;
+#pragma byteorder(little_endian);
+
+
+/*****************************************************************************
+* Frame Data Type Definition
+*****************************************************************************/
+#pragma show()
+typedef struct FRAME
+{
+	WORD FrameWidth;
+	WORD FrameHeight;
+	WORD FrameCenterXCoordinate;
+	WORD FrameCenterYCoordinate;
+ 	WORD DataBlockStartIndex;
+	WORD DataBlockCount;
+
+} FRAME ;
+#pragma show()
+
+
+/*****************************************************************************
+* Cycle Entry Data Type Definition
+*****************************************************************************/
+#pragma show()
+typedef struct CYCLE
+{
+	WORD CycleFrameIndiciesCount;
+	WORD CycleFrameFirstIndex;
+
+} CYCLE ;
+#pragma show()
+
+
+/*****************************************************************************
+* Data Blocks Entry Data Type Definition
+*****************************************************************************/
+#pragma show()
+typedef struct DATABLOCK
+{
+	DWORD PVRZPage;
+	DWORD SourceXCoord;
+	DWORD SourceYCoord;
+	DWORD Width;
+	DWORD Height;
+	DWORD TargetXCoord;
+	DWORD TargetYCoord;
+
+} DATABLOCK ;
+#pragma show()
+
+
+/*****************************************************************************
+* Actual BAM File Structure as defined
+*****************************************************************************/
+#pragma show()
+struct BAM
+{
+	#pragma lockAt(0)
+	CHAR Signature[4];
+	CHAR Version[4];
+	DWORD FrameCount;
+	DWORD CycleCount;
+	DWORD DataBlockCount;
+	DWORD FrameEntriesOffset;
+	DWORD CycleEntriesOffset;
+	DWORD DataBlocksOffset;
+
+	CYCLE CycleEntry[CycleCount];
+	FRAME FrameEntry[FrameCount];
+	DATABLOCK DataBlock[DataBlockCount]; 
+}; 
+

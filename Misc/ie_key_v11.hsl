@@ -1,0 +1,98 @@
+/*****************************************************************************
+* ie_bam.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .key file format 
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 15/11/2015 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine KEY V1.1 File Format") ;
+#pragma fileextensions(".key;") ;
+#pragma byteorder(little_endian);
+
+#pragma hide()
+/*****************************************************************************
+* BIFENTRY
+*****************************************************************************/
+
+typedef struct BIFENTRY
+{
+	DWORD BifFileLength;
+	DWORD BifFilenameOffset;
+	DWORD BifFilenameLength;
+
+} BIFENTRY ;
+
+
+
+/*****************************************************************************
+* RESENTRY_V11
+*****************************************************************************/
+
+typedef struct RESENTRY
+{
+	CHAR ResourceName[16];
+	WORD ResourceType;
+    DWORD ResourceLocator;
+    DWORD ResourceFlags;
+
+} RESENTRY ;
+
+
+/*****************************************************************************
+* KEY_V11_HEADER
+*****************************************************************************/
+typedef struct tagKEY_V11_HEADER {
+    CHAR Signature[4];
+    // KEY
+
+    #pragma verify match_var_int("Signature[0]", "0x4B")
+    #pragma verify match_var_int("Signature[1]", "0x45")
+    #pragma verify match_var_int("Signature[2]", "0x4B")    
+    #pragma verify match_var_int("Signature[3]", "0x20")
+
+    CHAR Version[4];
+    // V1.1
+    #pragma verify match_var_int("Version[0]", "0x56")
+    #pragma verify match_var_int("Version[1]", "0x31")
+    #pragma verify match_var_int("Version[2]", "0x2E")
+    #pragma verify match_var_int("Version[3]", "0x31")
+
+
+    DWORD NoBifEntries;
+    DWORD NoResEntries;
+    DWORD dwNull;
+    DWORD BifEntriesOffset;
+    DWORD ResEntriesOffset;
+    DWORD BuildYear;
+    DWORD BuildDay;
+    CHAR dwNulls[32];
+    
+    //BIFENTRY_V11 BIFEntries[NoBIFEntries];
+    //blob BifFileNameArray[RESEntriesOffset - BIFEntriesOffset];
+    //RESENTRY_V11 RESEntries[NoRESEntries];
+
+} KEY_V11_HEADER; 
+
+#pragma show()
+/*****************************************************************************
+* KEY_V11
+*****************************************************************************/
+struct KEY_V11
+{
+    #pragma lockAt(0)
+    KEY_V11_HEADER KEY_V11_Header ;
+    BIFENTRY FileEntries[KEY_V11_Header.NoBifEntries];
+    //blob Files[KEY_V11_Header.ResEntriesOffset - ( __getSizeOf(FileEntries) + __getSizeOf(KEY_V11_Header) )];
+    struct BifFilenamesArray {
+        blob Files[KEY_V11_Header.ResEntriesOffset - ( __getSizeOf(FileEntries) + __getSizeOf(KEY_V11_Header) )];
+    };
+    RESENTRY ResEntries[KEY_V11_Header.NoResEntries];
+} ;

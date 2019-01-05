@@ -1,0 +1,36 @@
+;-----------------------------------------------------------------------------------------------------
+; LTLT IEKEY Additions 09/04/2016
+;
+; Paste this text at the end of \Radasm\Masm\masmApiCall.api to add these to Radasm
+;
+;-----------------------------------------------------------------------------------------------------
+IEKEYOpen,lpszKeyFilename,dwOpenMode
+IEKEYMem,pKEYInMemory,lpszKeyFilename,dwKeyFilesize,dwOpenMode
+IEKEYClose,hIEKEY
+IEKEYSave,hIEKEY
+IEKEYTotalBifEntries,hIEKEY
+IEKEYTotalResEntries,hIEKEY
+IEKEYHeader,hIEKEY
+IEKEYBifEntries,hIEKEY
+IEKEYResEntries,hIEKEY
+IEKEYBifFilenamesEntries,hIEKEY
+IEKEYBifEntry,hIEKEY,nBifEntry
+IEKEYResEntry,hIEKEY,nResEntry
+IEKEYBifFilename,hIEKEY,nBifEntry
+IEKEYFileName,hIEKEY
+IEKEYVersion,hIEKEY 
+IEKEYFindBifFilenameEntry,hIEKEY,lpszBifFilename
+IEKEYFindResource,hIEKEY,nBifEntry,dwResourceIndex,dwResourceType
+IEKEYFindResourceV11,hIEKEY,nBifEntry,dwResourceIndex,dwResourceType
+IEKEYFindResourceByResRef,hIEKEY,nResRef
+IEKEYAddBifEntry,hIEKEY,lpszBifFilename,dwBifFilesize,dwBifLocation
+IEKEYAddResEntry
+IEKEYWideResName,hIEKEY 
+IEKEYBifEntryFileOffset,hIEKEY,nBifEntry,lpBifEntriesSize
+IEKEYResEntryFileOffset,hIEKEY,nResEntry,lpResEntriesSize
+IEKEYBifFilenamesOffset,hIEKEY,lpBifFilenamesSize
+IEKEYFileSize,hIEKEY
+
+
+
+

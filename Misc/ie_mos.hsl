@@ -1,0 +1,89 @@
+/*****************************************************************************
+* ie_mos.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .mos file format 
+
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 15/11/2015 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine MOS V1 File Format") ;
+#pragma fileextensions(".mos") ;
+#pragma byteorder(little_endian);
+
+#pragma hide()
+
+/*****************************************************************************
+* RGBQUAD for Palette
+*****************************************************************************/
+typedef struct RGBQUAD
+{
+	DWORD ARGB;
+
+} RGBQUAD ;
+
+/*****************************************************************************
+* MOS_V1_HEADER
+*****************************************************************************/
+typedef struct tagMOS_V1_HEADER {
+	//#pragma lockAt(0)
+	CHAR Signature[4]; // MOS
+	#pragma verify match_var_int("Signature[0]", "0x4D")
+	#pragma verify match_var_int("Signature[1]", "0x4F")
+    #pragma verify match_var_int("Signature[2]", "0x53")
+	#pragma verify match_var_int("Signature[3]", "0x20")
+    
+	CHAR Version[4]; // V1
+	#pragma verify match_var_int("Version[0]", "0x56")
+    #pragma verify match_var_int("Version[1]", "0x31")
+    #pragma verify match_var_int("Version[2]", "0x20")
+    #pragma verify match_var_int("Version[3]", "0x20")
+
+	WORD Width;
+	WORD Height;
+    WORD Columns;
+    WORD Rows;
+    DWORD BlockSize;
+    DWORD PailettesOffset;
+} MOS_V1_HEADER ;
+
+/*****************************************************************************
+* MOS_V1_PALETTE
+*****************************************************************************/
+typedef struct tagMOS_V1_PALETTE
+{
+    RGBQUAD MOSPalette[256];
+} MOS_V1_PALETTE ;
+
+#pragma show()
+/*****************************************************************************
+* MOS_V1
+*****************************************************************************/
+struct MOS_V1
+{
+    #pragma lockAt(0)
+    MOS_V1_HEADER MOS_V1_Header ;
+    MOS_V1_PALETTE MOS_V1_Palette ;
+    DWORD MOS_V1_TileOffsets[MOS_V1_Header.Columns * MOS_V1_Header.Rows];
+    struct MOS_V1_TileData {
+        blob TileData[__getDocSize() - ( __getAddrOf(MOS_V1_TileOffsets) + __getSizeOf(MOS_V1_TileOffsets) )];
+    };
+} ;
+
+/*****************************************************************************
+* MOS_V1 AutoParse Function
+*****************************************************************************/
+/*function AutoParse_MOS_V1
+{
+    UQWord pos = 0 ;
+    UQWord end = __getDocSize() ;
+
+    pos += __addStructureAt(pos, "MOS_V1", "") ;
+}*/

@@ -1,0 +1,132 @@
+/*****************************************************************************
+* ie_bam.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .key file format 
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 15/11/2015 - fearless - Reorganised and added support for wide resource 
+*                         entries, like found in NWN .key files
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine KEY V1 File Format") ;
+#pragma fileextensions(".key;") ;
+#pragma byteorder(little_endian);
+#pragma maxarray(65536)
+#pragma hide()
+/*****************************************************************************
+* Bif Entry Data Type Definition
+*****************************************************************************/
+typedef struct tagBIFENTRY
+{
+	DWORD BifFileLength;
+	DWORD BifFilenameOffset;
+	WORD BifFilenameLength;
+	WORD BifLocation;
+
+} BIFENTRY ;
+
+
+
+/*****************************************************************************
+* Resource Entry Data Type Definition
+*****************************************************************************/
+typedef struct tagRESENTRY
+{
+	CHAR ResourceName[8];
+	WORD ResourceType;
+    DWORD ResourceLocator;
+
+} RESENTRY ;
+
+typedef struct tagRESENTRY_WIDE
+{
+	CHAR ResourceName[16];
+	WORD ResourceType;
+    DWORD ResourceLocator;
+
+} RESENTRY_WIDE ;
+
+
+/*****************************************************************************
+* KEY_V1_HEADER
+*****************************************************************************/
+typedef struct tagKEY_V1_HEADER {
+    CHAR Signature[4];
+    // KEY
+    #pragma verify match_var_int("Signature[0]", "0x4B")
+    #pragma verify match_var_int("Signature[1]", "0x45")
+    #pragma verify match_var_int("Signature[2]", "0x59")
+    #pragma verify match_var_int("Signature[3]", "0x20")
+    
+    CHAR Version[4];
+    // V1
+    #pragma verify match_var_int("Version[0]", "0x56")
+    #pragma verify match_var_int("Version[1]", "0x31")
+    #pragma verify match_var_int("Version[2]", "0x20")
+    #pragma verify match_var_int("Version[3]", "0x20")
+
+    DWORD NoBifEntries;
+    DWORD NoResEntries;
+    DWORD BifEntriesOffset;
+    DWORD ResEntriesOffset;
+
+} KEY_V1_HEADER; 
+
+#pragma show()
+/*****************************************************************************
+* KEY_V1
+*****************************************************************************/
+struct KEY_V1
+{
+    #pragma lockAt(0)
+    KEY_V1_HEADER KEY_V1_Header ;
+    
+    if (KEY_V1_Header.BifEntriesOffset > 24)
+    {    
+        struct ExtendedHeader {
+            blob ExtendedHeaderData[KEY_V1_Header.BifEntriesOffset - __getSizeOf(KEY_V1_Header)];
+        };
+    };
+    BIFENTRY FileEntries[KEY_V1_Header.NoBifEntries];
+    //blob Files[KEY_V1_Header.ResEntriesOffset - ( __getSizeOf(FileEntries) + __getSizeOf(KEY_V1_Header) )];
+    
+    if (KEY_V1_Header.BifEntriesOffset > 24)
+    {
+        struct BifFilenamesArray {
+            blob Files[KEY_V1_Header.ResEntriesOffset - ( __getSizeOf(FileEntries) + KEY_V1_Header.BifEntriesOffset)];
+        };
+    };
+    if (KEY_V1_Header.BifEntriesOffset == 24)
+    {
+        struct BifFilenamesArray {
+            blob Files[KEY_V1_Header.ResEntriesOffset - ( __getSizeOf(FileEntries) + __getSizeOf(KEY_V1_Header) )];
+        };
+    };
+    
+    if (KEY_V1_Header.BifEntriesOffset > 24)
+    {
+        RESENTRY_WIDE ResEntries[KEY_V1_Header.NoResEntries];
+    };   
+    if (KEY_V1_Header.BifEntriesOffset == 24)
+    {
+        RESENTRY ResEntries[KEY_V1_Header.NoResEntries];
+    };
+ 
+} ;
+
+/*****************************************************************************
+* KEY_V1 AutoParse Function
+*****************************************************************************/
+/*function AutoParse_KEY_V1
+{
+    UQWord pos = 0 ;
+    UQWord end = __getDocSize() ;
+    __setCaretPos(0);
+    pos += __addStructureAt(pos, "KEY_V1", "") ;
+}*/

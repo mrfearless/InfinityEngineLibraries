@@ -1,0 +1,22 @@
+bak/
+*.undo
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.bak
+DebugLogLIB.asm
+DebugLogLIB.obj
+Docs/
+Help/
+Distribution/
+Old version/
+DebugLog/
+Images/
+template/
+downloads/
+screenshots/
+wiki/
+version/
+go.bat
+

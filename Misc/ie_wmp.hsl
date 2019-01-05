@@ -1,0 +1,130 @@
+/*****************************************************************************
+* ie_wmp.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .wmp file format 
+* Only for WMPV1 signatures
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 10/04/12 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine WMP File Format") ;
+#pragma fileextensions(".wmp") ;
+#pragma byteorder(little_endian);
+
+
+/*****************************************************************************
+* AreaEntry Record Definition
+*****************************************************************************/
+#pragma hide()
+typedef struct AREAENTRY
+{
+ 	CHAR AreaResRef[8];
+ 	CHAR AreaNameShort[8];
+ 	CHAR AreaNameLong[32];
+ 	DWORD AreaStatus;
+ 	DWORD BAMFileSequence;
+	DWORD XCoord;
+	DWORD YCoord;
+	DWORD CaptionNameStrRef;
+	DWORD TooltipNameStrRef;
+	CHAR LoadingScreenMOS[8];
+	DWORD LinkIndexNorth;
+	DWORD LinkCountNorth;
+	DWORD LinkIndexWest;
+	DWORD LinkCountWest;
+	DWORD LinkIndexSouth;
+	DWORD LinkCountSouth;
+	DWORD LinkIndexEast;
+	DWORD LinkCountEast;
+	CHAR AEUnknown1[128];
+} AREAENTRY ;
+#pragma show()
+
+/*****************************************************************************
+* AreaLinkEntry Record Definition
+*****************************************************************************/
+#pragma hide()
+typedef struct AREALINKENTRY
+{
+	DWORD DestinationAreaIndex;
+	CHAR EntryPoint[32];
+	DWORD TravelTime;
+	DWORD DefaultEntryLocation;
+	CHAR RandomEncounterArea1ResRef[8];
+	CHAR RandomEncounterArea2ResRef[8];
+	CHAR RandomEncounterArea3ResRef[8];
+	CHAR RandomEncounterArea4ResRef[8];
+	CHAR RandomEncounterArea5ResRef[8];
+	DWORD RandomEncounterChance;
+	CHAR ALEUnknown1[128];
+} AREALINKENTRY ;
+#pragma show()
+
+
+
+/*****************************************************************************
+* WorldmapEntry Record Definition
+*****************************************************************************/
+#pragma hide()
+typedef struct WORLDMAPENTRY
+{
+	CHAR BackgroundResourceRef[8];
+	DWORD Width;
+	DWORD Height;
+	DWORD MapNumber;
+	DWORD AreaNameStrRef;
+	DWORD WMEUnknown1;
+	DWORD WMEUnknown2;
+	DWORD NoAreaEntries;
+	DWORD AreaEntriesOffset;
+	DWORD AreaLinkEntriesOffset;
+	DWORD NoAreaLinkEntries;
+	CHAR MapIconsBAM[8];
+	CHAR WMEUnknown3[128];
+} WORLDMAPENTRY ;
+#pragma show()
+
+
+
+/*****************************************************************************
+* Actual BIF File Structure as defined
+*****************************************************************************/
+#pragma show()
+struct WMP
+{
+	#pragma lockAt(0)
+	CHAR Signature[4];
+	//DWORD Signature;
+	#pragma verify match_var_str("Signature", "WMAP")
+	CHAR Version[4];
+	#pragma verify match_var_str("Version", "V1.0")	
+	
+	DWORD NoWorldmapEntries;
+	DWORD WorldmapEntriesOffset;
+	
+	CHAR BackgroundResourceRef[8];
+	DWORD Width;
+	DWORD Height;
+	DWORD MapNumber;
+	DWORD AreaNameStrRef;
+	DWORD WMEUnknown1;
+	DWORD WMEUnknown2;
+	DWORD NoAreaEntries;
+	DWORD AreaEntriesOffset;
+	DWORD AreaLinkEntriesOffset;
+	DWORD NoAreaLinkEntries;
+	CHAR MapIconsBAM[8];
+	CHAR WMEUnknown3[128];	
+
+	/*struct WORLDMAPENTRY WorldmapEntries[ushortAt(addrof(NoWorldmapEntries))];*/
+	struct AREAENTRY AreaEntries[ushortAt(addrof(NoAreaEntries))];
+	struct AREALINKENTRY AreaLinkEntries[ushortAt(addrof(NoAreaLinkEntries))];
+}; 
+

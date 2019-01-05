@@ -1,0 +1,14 @@
+;-----------------------------------------------------------------------------------------------------
+; LTLT IEKEY Additions 09/04/2016
+;
+; Paste this text at the end of \Radasm\Masm\masmApiConst.api to add these to Radasm
+;
+;-----------------------------------------------------------------------------------------------------
+2IEKEYOpen,IEKEY_OPEN_EXCLUSIVE,IEKEY_OPEN_READONLY
+4IEKEYMem,IEKEY_OPEN_EXCLUSIVE,IEKEY_OPEN_READONLY
+
+
+
+
+
+

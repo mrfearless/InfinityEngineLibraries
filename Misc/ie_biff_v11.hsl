@@ -1,0 +1,75 @@
+/*****************************************************************************
+* ie_biff_v11.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .bif file format 
+* Only for uncompressed BIFFV1.1 signatures
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 15/11/2015 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine BIFFV1.1 File Format") ;
+#pragma fileextensions(".bif") ;
+#pragma byteorder(little_endian);
+#pragma maxarray(65536)
+#pragma hide()
+
+/*****************************************************************************
+* BIFF_HEADER
+*****************************************************************************/
+typedef struct tagBIFF_HEADER {
+    CHAR Signature[4];
+    // BIFF
+    #pragma verify match_var_int("Signature[0]", "0x42")
+    #pragma verify match_var_int("Signature[1]", "0x49")
+    #pragma verify match_var_int("Signature[2]", "0x46")
+    #pragma verify match_var_int("Signature[3]", "0x46")
+
+    CHAR Version[4];
+    // V1.1
+    #pragma verify match_var_int("Version[0]", "0x56")
+    #pragma verify match_var_int("Version[1]", "0x31")
+    #pragma verify match_var_int("Version[2]", "0x2E")
+    #pragma verify match_var_int("Version[3]", "0x31")
+	
+	DWORD NoFileEntries;
+	DWORD NoTileEntries;
+	DWORD FileEntriesOffset;
+} BIFF_HEADER ;
+
+
+/*****************************************************************************
+* FileEntry V1.1 Record Definition
+*****************************************************************************/
+struct FILEENTRY
+{
+	DWORD FileResourceLocator;
+    DWORD FileResourceFlags;
+	DWORD FileResourceDataOffset;
+	DWORD FileResourceSize;
+	WORD FileResourceType;
+	WORD FileResourceUnknown;
+} FILEENTRY ;
+#pragma show()
+
+
+/*****************************************************************************
+* Actual BIF File Structure as defined
+*****************************************************************************/
+#pragma show()
+struct BIFFV1.1
+{
+    #pragma lockAt(0)
+    BIFF_HEADER BIFF_Header ;
+    FILEENTRY BIF_FILE_ENTRIES[BIFF_Header.NoFileEntries];
+    struct BIFF_FILE_DATA {
+        blob FileData[ __getDocSize() - ( __getSizeOf(BIF_FILE_ENTRIES) + __getSizeOf(BIFF_Header) )];
+    };
+}; 
+

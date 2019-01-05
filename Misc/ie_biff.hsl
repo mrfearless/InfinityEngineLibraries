@@ -1,0 +1,85 @@
+/*****************************************************************************
+* ie_biff.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .bif file format 
+* Only for uncompressed BIFFV1 signatures
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 15/11/2015 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine BIFF File Format") ;
+#pragma fileextensions(".bif") ;
+#pragma byteorder(little_endian);
+#pragma maxarray(65536)
+#pragma hide()
+
+
+/*****************************************************************************
+* BIFF_HEADER
+*****************************************************************************/
+typedef struct tagBIFF_HEADER {
+    CHAR Signature[4];
+    // BIFF
+    #pragma verify match_var_int("Signature[0]", "0x42")
+    #pragma verify match_var_int("Signature[1]", "0x49")
+    #pragma verify match_var_int("Signature[2]", "0x46")
+    #pragma verify match_var_int("Signature[3]", "0x46")
+
+	CHAR Version[4];
+	
+	DWORD NoFileEntries;
+	DWORD NoTileEntries;
+	DWORD FileEntriesOffset;
+} BIFF_HEADER ;
+
+
+/*****************************************************************************
+* FileEntry Record Definition
+*****************************************************************************/
+typedef struct tagFILEENTRY
+{
+	DWORD FileResourceLocator;
+	DWORD FileResourceDataOffset;
+	DWORD FileResourceSize;
+	WORD FileResourceType;
+	WORD FileResourceUnknown;
+} FILEENTRY;
+
+
+/*****************************************************************************
+* TileEntry Record Definition
+*****************************************************************************/
+typedef struct tagTILEENTRY
+{
+	DWORD TileResourceLocator;
+	DWORD TileResourceDataOffset;
+	DWORD TileResourceCount;
+	DWORD TileResourceSize;
+	WORD TileResourceType;
+	WORD TileResourceUnknown;
+} TILEENTRY;
+#pragma show()
+
+
+/*****************************************************************************
+* Actual BIF File Structure as defined
+*****************************************************************************/
+#pragma show()
+struct BIFFV1
+{
+    #pragma lockAt(0)
+    BIFF_HEADER BIFF_Header ;
+    FILEENTRY BIF_FILE_ENTRIES[BIFF_Header.NoFileEntries];
+    TILEENTRY BIF_TILE_ENTRIES[BIFF_Header.NoTileEntries];
+    struct BIFF_FILE_OR_TILE_DATA {
+        blob FileData[ __getDocSize() - ( __getSizeOf(BIF_FILE_ENTRIES) + __getSizeOf(BIFF_Header) )];
+    };    
+}; 
+
