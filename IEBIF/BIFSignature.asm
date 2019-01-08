@@ -4,11 +4,14 @@
 .model flat,stdcall
 option casemap:none
 
+include IEBIF.inc
+
 BIFSignature      PROTO :DWORD
 
 .CODE
 
 
+IEBIF_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; Checks the BIF signatures to determine if they are valid and if BAM file is compressed
 ;-----------------------------------------------------------------------------------------

@@ -65,7 +65,7 @@ IEBIFFileSize               PROTO :DWORD                    ; hIEBIF. Returns in
 IEBIFFileCompression        PROTO :DWORD                    ; hIEBIF. Returns in eax 0 no bif, 1 = BIFF, 2 = BIF V1.0, 3 = BIFCV1.0, 4 = BIF V1.1
 IEBIFVersion                PROTO :DWORD                    ; hIEBIF. Returns in eax 0 no bif, 1 = BIFF, 2 = BIF V1.0, 3 = BIFCV1.0, 4 = BIF V1.1
 
-IEBIFFindKeyFile            PROTO :DWORD, :DWORD            ; Returns true if key file found or false otherwise
+IEBIFFindKeyFile            PROTO :DWORD, :DWORD            ; lpszBifFilePath, lpszKeyFilePath, Returns true if key file found or false otherwise
 
 ; Extract file/tile
 IEBIFExtractFile            PROTO :DWORD, :DWORD, :DWORD    ; hIEBIF, nFileEntry, lpszOutputFilename. Returns in eax size of file extracted or -1 if failed
@@ -197,6 +197,15 @@ ENDIF
 
 
 .CONST
+
+IEBIF_ALIGN                 TEXTEQU <ALIGN 16>
+IEBIF_MODE_WRITE            EQU 0
+IEBIF_MODE_READONLY         EQU 1
+IEBIF_COMPRESS_MODE_BIF_    EQU 0
+IEBIF_COMPRESS_MODE_BIFC    EQU 1
+IEBIF_BIF_FORMAT_BIFV10     EQU 0
+IEBIF_BIF_FORMAT_BIFV11     EQU 1
+
 ; IEBIFUncompress return values
 BU_SUCCESS                  EQU 0
 BU_BIF_INVALID              EQU -1

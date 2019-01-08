@@ -1,0 +1,32 @@
+;------------------------------------------------------------------------------------------------
+; IEBIF Additions 
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+; Paste this text at the end of \Radasm\masm\masmApiCall.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+IEBIFOpen,lpszBifFilename,dwOpenMode
+IEBIFLargeFileMapping,hBIFLargeFileToMap,LargeBifMemMapHandle,dwBIFFilesize,dwBIFFilesizeHigh,dwOpenMode,lpdwBIFLargeMapping
+IEBIFMem,pBIFInMemory,lpszBifFilename,dwBifFilesize,dwBifFilesizeHigh,dwOpenMode,dwBIFLargeMapping
+IEBIFClose,hIEBIF
+IEBIFSave,hIEBIF
+IEBIFHeader,hIEBIF
+IEBIFFileEntry,hIEBIF,nFileEntry
+IEBIFTileEntry,hIEBIF,nTileEntry
+IEBIFFileEntries,hIEBIF
+IEBIFTileEntries,hIEBIF
+IEBIFPeekFileSignature,hIEBIF,nFileEntry
+IEBIFTotalFileEntries,hIEBIF
+IEBIFTotalTileEntries,hIEBIF
+IEBIFFileName,hIEBIF
+IEBIFFileNameOnly,hIEBIF,lpszFileNameOnly
+IEBIFFileSize,hIEBIF
+IEBIFFileCompression,hIEBIF
+IEBIFVersion,hIEBIF
+IEBIFFindKeyFile,lpszBifFilePath,lpszKeyFilePath
+IEBIFExtractFile,hIEBIF,nFileEntry,lpszOutputFilename
+IEBIFExtractTile,hIEBIF,nTileEntry,lpszOutputFilename
+IEBIFUncompressBIF,lpszBifInputFilename,lpszBifOutputFilename
+IEBIFCompressBIF,lpszBifInputFilename,lpszBifOutputFilename,dwCompressedFormat
+IEBIFNewBif,lpszNewBifFilename,dwBifFormat

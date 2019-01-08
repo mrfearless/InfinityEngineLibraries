@@ -20,20 +20,14 @@ include IEBIF.inc
 
 ;USE_BIF_EXTENSION_FOR_UNCOMPRESSBIF EQU 1
 
-;DEBUGLOG EQU 1
-IFDEF DEBUGLOG
-    include .\DebugLog\DebugLogLIB.asm
-ENDIF
-
 ;DEBUG32 EQU 1
-
-IFDEF DEBUG32
-    PRESERVEXMMREGS equ 1
-    includelib M:\Masm32\lib\Debug32.lib
-    DBG32LIB equ 1
-    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
-    include M:\Masm32\include\debug32.inc
-ENDIF
+;IFDEF DEBUG32
+;    PRESERVEXMMREGS equ 1
+;    includelib M:\Masm32\lib\Debug32.lib
+;    DBG32LIB equ 1
+;    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
+;    include M:\Masm32\include\debug32.inc
+;ENDIF
 
 BIFUncompressBIF_       PROTO :DWORD, :DWORD
 BIFUncompressBIFC       PROTO :DWORD, :DWORD
@@ -47,6 +41,8 @@ UncompressBIFExt        DB ".bif",0
 
 .CODE
 
+
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; Uncompress specified bif file name
 ;-------------------------------------------------------------------------------------
@@ -71,7 +67,7 @@ IEBIFUncompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilename
     ; ---------------------------------------------------------------------------------------------------------------------------
     ; Input File
     ; ---------------------------------------------------------------------------------------------------------------------------
-    Invoke CreateFile, lpszBifFilenameIN, GENERIC_READ, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL ; readonly
+    Invoke CreateFile, lpszBifFilenameIN, GENERIC_READ, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL ; readonly
     .IF eax == INVALID_HANDLE_VALUE
         mov eax, BU_BIF_INPUTFILE_OPEN
         ret
@@ -173,7 +169,7 @@ IEBIFUncompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilename
     
     ; check for .cbf extension, if we have it we change it to .bif
     
-    Invoke CreateFile, Addr szBifFilenameOUT, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, NULL    
+    Invoke CreateFile, Addr szBifFilenameOUT, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, NULL    
     .IF eax == INVALID_HANDLE_VALUE
         Invoke GlobalFree, ptrUncompressedData
         Invoke UnmapViewOfFile, BifMemMapPtrIN
@@ -244,6 +240,7 @@ IEBIFUncompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilename
 IEBIFUncompressBIF ENDP
 
 
+IEBIF_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; Uncompresses BIF_ file to an area of memory that we allocate for the exact size of data
 ;-----------------------------------------------------------------------------------------
@@ -274,7 +271,7 @@ BIFUncompressBIF_ PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD
 ;    DbgDump pBIF, 20d
 ;    PrintDec BIF__UncompressedSize
 ;    PrintDec BIF__CompressedSize
-    Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, BIF__UncompressedSize
+    Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, BIF__UncompressedSize
     .IF eax != NULL
         ;PrintText 'alloc ok'
         mov dest, eax
@@ -308,6 +305,7 @@ BIFUncompressBIF_ PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD
 BIFUncompressBIF_ endp
 
 
+IEBIF_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; Uncompresses BIFC file to an area of memory that we allocate for the exact size of data
 ;-----------------------------------------------------------------------------------------
@@ -331,7 +329,7 @@ BIFUncompressBIFC PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD
     add eax, ebx
     mov BlockHeader, eax
     
-    Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, BIFC_UncompressedSize
+    Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, BIFC_UncompressedSize
     .IF eax != NULL
         mov dest, eax
         mov UncompressedData, eax

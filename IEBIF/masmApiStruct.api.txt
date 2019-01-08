@@ -1,0 +1,20 @@
+;--------------------------------------------------------------------------------------------------
+; IEBIF Additions 
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+; Paste this text at the end of \Radasm\masm\masmApiStruct.api to add these to Radasm
+;
+;--------------------------------------------------------------------------------------------------
+BIF_HEADER_V1,Signature,Version,FileEntriesCount,TileEntriesCount,OffsetFileEntries
+BIF_HEADER_V11,Signature,Version,FileEntriesCount,TileEntriesCount,OffsetFileEntries
+BIF_HEADER_V12,Signature,Version,FileEntriesCount,OffsetFileEntries
+BIF__HEADER,Signature,Version,FilenameLength,Filename
+BIF__HEADER_DATA,UncompressedSize,CompressedSize,CompressedData
+BIFC_HEADER,Signature,Version,UncompressedSize
+BIFC_BLOCK,UncompressedSize,CompressedSize,CompressedData
+FILE_ENTRY,ResourceLocator,ResourceOffset,ResourceSize,ResourceType,Unknown
+FILE_ENTRY_V1,ResourceLocator,ResourceOffset,ResourceSize,ResourceType,Unknown
+FILE_ENTRY_V11,ResourceLocator,ResourceFlags,ResourceOffset,ResourceSize,ResourceType,Unknown
+FILE_ENTRY_V12,ResourceLocator,ResourceFlags,ResourceOffset,ResourceSize,ResourceType,Unknown
+TILE_ENTRY,ResourceLocator,ResourceOffset,TilesCount,TileSize,ResourceType,Unknown

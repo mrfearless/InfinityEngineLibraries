@@ -6,6 +6,7 @@ option casemap:none
 
 include masm32.inc
 includelib masm32.lib
+include IEBIF.inc
 
 BIFJustFname            PROTO :DWORD, :DWORD
 
@@ -13,6 +14,7 @@ BIFJustFname            PROTO :DWORD, :DWORD
 .CODE
 
 
+IEBIF_ALIGN
 ;**************************************************************************
 ; Strip path name to just filename Without extention
 ;**************************************************************************

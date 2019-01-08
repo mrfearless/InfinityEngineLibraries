@@ -72,21 +72,14 @@ include IETIS.inc ; added to add support to extract tiles and create new TISV1_H
 
 include IEBIF.inc
 
-
-;DEBUGLOG EQU 1
-IFDEF DEBUGLOG
-    include .\DebugLog\DebugLogLIB.asm
-ENDIF
-
 ;DEBUG32 EQU 1
-
-IFDEF DEBUG32
-    PRESERVEXMMREGS equ 1
-    includelib M:\Masm32\lib\Debug32.lib
-    DBG32LIB equ 1
-    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
-    include M:\Masm32\include\debug32.inc
-ENDIF
+;IFDEF DEBUG32
+;    PRESERVEXMMREGS equ 1
+;    includelib M:\Masm32\lib\Debug32.lib
+;    DBG32LIB equ 1
+;    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
+;    include M:\Masm32\include\debug32.inc
+;ENDIF
 
 
 EXTERNDEF BIFSignature      :PROTO :DWORD
@@ -94,8 +87,6 @@ EXTERNDEF BIFUncompressBIF_ :PROTO :DWORD, :DWORD
 EXTERNDEF BIFUncompressBIFC :PROTO :DWORD, :DWORD
 EXTERNDEF BIFJustFname      :PROTO :DWORD, :DWORD
 
-;BIFCopyMemory           PROTO :DWORD, :DWORD, :DWORD
-;BIFutoa_ex              PROTO :DWORD, :DWORD
 BIFCalcLargeFileView    PROTO :DWORD, :DWORD, :DWORD, :DWORD
 BIFOpenLargeMapView     PROTO :DWORD, :DWORD, :DWORD
 BIFCloseLargeMapView    PROTO :DWORD
@@ -123,7 +114,6 @@ BIF_HEADER_V11          STRUCT
     OffsetFileEntries   DD 0 ; 0x0010   4 (dword)       Offset (from start of file) to resource (file) table
 BIF_HEADER_V11          ENDS
 ENDIF
-
 
 IFNDEF BIF__HEADER
 BIF__HEADER             STRUCT
@@ -180,7 +170,6 @@ FILE_ENTRY_V11          STRUCT
 FILE_ENTRY_V11          ENDS
 ENDIF
 
-
 IFNDEF TILE_ENTRY
 TILE_ENTRY              STRUCT
     ResourceLocator     DD 0 ; 0x0000   4 (dword)       Resource locator. The IE resource manager uses 32-bit values as a 'resource index', which codifies the source of the resource as well as which source it refers to. The layout of this value is below. bits 31-20: source index (the ordinal value giving the index of the corresponding BIF entry) bits 19-14: tileset index bits 13- 0: non-tileset file index (any 12 bit value, so long as it matches the value used in the BIF file)
@@ -191,8 +180,6 @@ TILE_ENTRY              STRUCT
     Unknown             DW 0 ; 0x0012   2 (word)        Unknown
 TILE_ENTRY              ENDS
 ENDIF
-
-
 
 IFNDEF BIFINFO
 BIFINFO                 STRUCT
@@ -246,9 +233,8 @@ ENDIF
 
 
 .CONST
-;============================================
-; IE Resource Types
-;--------------------------------------------
+IEMODE_WRITE            EQU 0
+IEMODE_READONLY         EQU 1
 
 
 
@@ -259,19 +245,10 @@ BIFFV11Header           db "BIFFV1.1",0
 BIFCHeader              db "BIF V1.0",0
 BIFCV1Header            db "BIFCV1.0",0
 BIFXHeader              db 12 dup (0)
-
 ;UnknownExt              db ".???",0
-
 ;TLKExt                  db ".tlk",0
 KEYExt                  db ".key",0
-
-
 szHex                   db '0x',0
-
-
-
-; FindFirstFile structure
-;W32FD                  WIN32_FIND_DATA {}
 szWitcherVoices_        db 'voices_',0
 szWitcherLang_          db 'lang_',0
 szChitinKey             db 'chitin.key',0
@@ -285,14 +262,12 @@ szTimes                 db 'x',0
 szUnderscore            db '_',0
 
 .DATA?
-IFDEF DEBUG32
-    DbgVar              dd ?
-ENDIF
 
 
 .CODE
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFOpen - Returns handle in eax of opened bif file. NULL if could not alloc enough mem
 ;-------------------------------------------------------------------------------------
@@ -306,30 +281,18 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
     LOCAL BIFMemMapPtr:DWORD
     LOCAL pBIF:DWORD
     LOCAL BIFLargeMapping:DWORD
-    
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFOpen", DEBUGLOG_FUNCTION, 2
-    ENDIF
-    .IF dwOpenMode == 1 ; readonly
-        Invoke CreateFile, lpszBifFilename, GENERIC_READ, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
-    .ELSE
-        Invoke CreateFile, lpszBifFilename, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
+
+    .IF dwOpenMode == IEMODE_READONLY ; readonly
+        Invoke CreateFile, lpszBifFilename, GENERIC_READ, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
+    .ELSE ; IEMODE_WRITE
+        Invoke CreateFile, lpszBifFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
     .ENDIF
-    ;PrintDec eax
+
     .IF eax == INVALID_HANDLE_VALUE
         mov eax, NULL
         ret
     .ENDIF
-    
     mov hBIFFile, eax
-;    Invoke BIFSignature, hBIFFile
-;    mov SigReturn, eax
-;    .IF eax == 0 ; not a valid bif file
-;        ;PrintText 'BIFOpen::Not A Valid BIF'
-;        Invoke CloseHandle, hBIFFile
-;        mov eax, FALSE
-;        ret
-;    .ENDIF
     mov BIFLargeMapping, FALSE
 
     Invoke GetFileSize, hBIFFile, Addr BIFFilesizeHigh
@@ -345,16 +308,13 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
     ;---------------------------------------------------                
     ; File Mapping: Create file mapping for main .bif
     ;---------------------------------------------------
-    .IF dwOpenMode == 1 ; readonly
+    .IF dwOpenMode == IEMODE_READONLY ; readonly
         Invoke CreateFileMapping, hBIFFile, NULL, PAGE_READONLY, 0, 0, NULL ; Create memory mapped file
     .ELSE
         Invoke CreateFileMapping, hBIFFile, NULL, PAGE_READWRITE, 0, 0, NULL ; Create memory mapped file
     .ENDIF   
     .IF eax == NULL
         ;PrintText 'Mapping Failed'
-        IFDEF DEBUGLOG
-        DebugLogMsg "CreateFileMapping Failed", DEBUGLOG_INFO, 3
-        ENDIF
         Invoke CloseHandle, hBIFFile
         mov eax, NULL
         ret
@@ -363,21 +323,8 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
     
     .IF BIFFilesize > 20000000h || BIFFilesizeHigh > 0 ; 2^29 = 536870912 = 536,870,912 bytes = 536MB
     ;.IF BIFFilesize > 10000000h || BIFFilesizeHigh > 0 ; 2^28 = 268435456 = 268,435,456 bytes = 268MB
-    
-        IFDEF DEBUG32
-        PrintText "File > 536MB, switching to LargeFileMapping"
-        ENDIF
-    
-        IFDEF DEBUGLOG
-        DebugLogMsg "File greater than 536MB, switching to LargeFileMapping", DEBUGLOG_INFO, 3
-        ENDIF    
-    
         Invoke IEBIFLargeFileMapping, hBIFFile, BIFMemMapHandle, BIFFilesize, BIFFilesizeHigh, dwOpenMode, Addr BIFLargeMapping
         .IF eax == NULL
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEBIFLargeFileMapping Failed", DEBUGLOG_INFO, 3
-            ENDIF        
-        
             Invoke CloseHandle, BIFMemMapHandle
             Invoke CloseHandle, hBIFFile
             mov eax, NULL
@@ -385,32 +332,14 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
             ; otherwise we have a MemMapHandle to save
         .ENDIF
     .ELSE
-        .IF dwOpenMode == 1 ; readonly
+        .IF dwOpenMode == IEMODE_READONLY ; readonly
             Invoke MapViewOfFileEx, BIFMemMapHandle, FILE_MAP_READ, 0, 0, 0, NULL
         .ELSE
             Invoke MapViewOfFileEx, BIFMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0, NULL
         .ENDIF
         .IF eax == NULL
-            
-            IFDEF DEBUGLOG
-            Invoke GetLastError
-            DebugLogValue "eax", eax
-            ENDIF
-            ;PrintText 'Mapping View Failed'
-            IFDEF DEBUGLOG
-            DebugLogMsg "MapViewOfFileEx Failed", DEBUGLOG_INFO, 3
-            ENDIF          
-    
-            IFDEF DEBUGLOG
-            DebugLogMsg "Calling IEBIFLargeFileMapping", DEBUGLOG_INFO, 3
-            ENDIF
-        
             Invoke IEBIFLargeFileMapping, hBIFFile, BIFMemMapHandle, BIFFilesize, BIFFilesizeHigh, dwOpenMode, Addr BIFLargeMapping
             .IF eax == NULL
-                IFDEF DEBUGLOG
-                DebugLogMsg "IEBIFLargeFileMapping Failed", DEBUGLOG_INFO, 3
-                ENDIF        
-            
                 Invoke CloseHandle, BIFMemMapHandle
                 Invoke CloseHandle, hBIFFile
                 mov eax, NULL
@@ -423,7 +352,7 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
 
     Invoke BIFSignature, BIFMemMapPtr ;hBIFFile
     mov SigReturn, eax
-    ;PrintDec SigReturn
+
     .IF SigReturn == 0 ; not a valid bif file
         Invoke UnmapViewOfFile, BIFMemMapPtr
         Invoke CloseHandle, BIFMemMapHandle
@@ -433,15 +362,15 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
     
     .ELSEIF SigReturn == 1 || SigReturn == 4; BIFF V1.0 or BIFF V1.1
         Invoke IEBIFMem, BIFMemMapPtr, lpszBifFilename, BIFFilesize, BIFFilesizeHigh, dwOpenMode, BIFLargeMapping
-        mov hIEBIF, eax
-        .IF hIEBIF == NULL
+        .IF eax == NULL
             Invoke UnmapViewOfFile, BIFMemMapPtr
             Invoke CloseHandle, BIFMemMapHandle
             Invoke CloseHandle, hBIFFile
             mov eax, NULL
             ret    
         .ENDIF
-        .IF dwOpenMode == 0 ; write (default)
+        mov hIEBIF, eax
+        .IF dwOpenMode == IEMODE_WRITE ; write (default)
             Invoke UnmapViewOfFile, BIFMemMapPtr
             Invoke CloseHandle, BIFMemMapHandle
             Invoke CloseHandle, hBIFFile
@@ -452,7 +381,7 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
             mov eax, hBIFFile
             mov [ebx].BIFINFO.BIFFileHandle, eax
         .ENDIF
-            
+
     .ELSEIF SigReturn == 2  ; BIF_V1.0
         Invoke BIFUncompressBIF_, BIFMemMapPtr, Addr BIFFilesize
         .IF eax == 0
@@ -469,15 +398,17 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
         Invoke CloseHandle, BIFMemMapHandle
         Invoke CloseHandle, hBIFFile
         Invoke IEBIFMem, pBIF, lpszBifFilename, BIFFilesize, BIFFilesizeHigh, dwOpenMode, BIFLargeMapping
-        mov hIEBIF, eax
-        .IF hIEBIF == NULL
+        .IF eax == NULL
             ;PrintText 'IEBIFMem Failed'
-            Invoke GlobalFree, pBIF
+            .IF pBIF != NULL
+                Invoke GlobalFree, pBIF
+            .ENDIF
             mov eax, NULL
             ret
         .ENDIF
+        mov hIEBIF, eax
         ;PrintText 'IEBIFMem Ok'
-        
+
     .ELSEIF SigReturn == 3 ; BIFCV1.0
         Invoke BIFUncompressBIFC, BIFMemMapPtr, Addr BIFFilesize
         .IF eax == 0
@@ -492,30 +423,25 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
         Invoke CloseHandle, BIFMemMapHandle
         Invoke CloseHandle, hBIFFile        
         Invoke IEBIFMem, pBIF, lpszBifFilename, BIFFilesize, BIFFilesizeHigh, dwOpenMode, Addr BIFLargeMapping
-        mov hIEBIF, eax
-        .IF hIEBIF == NULL
-            Invoke GlobalFree, pBIF
+         .IF eax == NULL
+            .IF pBIF != NULL
+                Invoke GlobalFree, pBIF
+            .ENDIF
             mov eax, NULL
             ret
         .ENDIF
+        mov hIEBIF, eax
     .ENDIF
     ; save original version to handle for later use so we know if orignal file opened was standard BIFF or a compressed BIF_ or BIFC file, if 0 then it was in mem so we assume BIFF
     mov ebx, hIEBIF
     mov eax, SigReturn
     mov [ebx].BIFINFO.BIFVersion, eax
-    
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFOpen::Finished", DEBUGLOG_INFO, 2
-    ENDIF
     mov eax, hIEBIF
-    
-    IFDEF DEBUG32
-        PrintDec hIEBIF
-    ENDIF
     ret
 IEBIFOpen ENDP
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFLargeFileMapping - For files close to 1GB or higher normal memory mapping will
 ; fail - so we need to attempt to do the following:
@@ -544,16 +470,9 @@ IEBIFLargeFileMapping PROC USES EBX EDX hBIFLargeFileToMap:DWORD, LargeBifMemMap
     LOCAL LargeBifHeaderSize:DWORD
     LOCAL dwAdjustedLargeBifHeaderSize:DWORD
 
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFLargeFileMapping", DEBUGLOG_FUNCTION, 2
-    ENDIF   
-    
     Invoke GetSystemInfo, Addr sysinfo
     mov eax, sysinfo.dwAllocationGranularity
     mov dwAllocationGranularity, eax
-    IFDEF DEBUG32
-        PrintDec eax
-    ENDIF
     
     .IF dwOpenMode == 1 ; readonly
         Invoke MapViewOfFileEx, LargeBifMemMapHandle, FILE_MAP_READ, 0, 0, dwAllocationGranularity, NULL
@@ -561,9 +480,6 @@ IEBIFLargeFileMapping PROC USES EBX EDX hBIFLargeFileToMap:DWORD, LargeBifMemMap
         Invoke MapViewOfFileEx, LargeBifMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, dwAllocationGranularity, NULL
     .ENDIF
     .IF eax == NULL
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEBIFLargeFileMapping::MapViewOfFileEx::1 Failed", DEBUGLOG_INFO, 3
-        ENDIF        
         ;Invoke CloseHandle, LargeBifMemMapHandle
         ;Invoke CloseHandle, hBIFFile
         mov ebx, lpdwBIFLargeMapping
@@ -623,38 +539,12 @@ IEBIFLargeFileMapping PROC USES EBX EDX hBIFLargeFileToMap:DWORD, LargeBifMemMap
         mov ebx, dwAllocationGranularity
         div ebx ; Divides LargeBifHeaderSize by dwAllocationGranularity. EAX = quotient and EDX = remainder (modulo).
         .IF edx > 0 ; we have a remainder, so calc to add dwAllocationGranularity to LargeBifHeaderSize - remainder
-            ;PrintDec eax
-            ;PrintDec edx
             mov ebx, LargeBifHeaderSize
             sub ebx, edx
-            ;PrintDec ebx
-            ;PrintDec eax
             add ebx, dwAllocationGranularity
             mov dwAdjustedLargeBifHeaderSize, ebx 
         .ENDIF
-        IFDEF DEBUG32
-            PrintDec TotalFileEntries
-            PrintDec TotalTileEntries
-            PrintDec FileEntriesSize
-            PrintDec TileEntriesSize
-            PrintDec dwAllocationGranularity
-            PrintDec LargeBifHeaderSize
-            PrintDec dwAdjustedLargeBifHeaderSize
-        ENDIF
-
-        IFDEF DEBUGLOG
-        DebugLogValue "TotalFileEntries", TotalFileEntries, 3
-        DebugLogValue "TotalTileEntries", TotalTileEntries, 3
-        DebugLogValue "FileEntriesSize", FileEntriesSize, 3
-        DebugLogValue "TileEntriesSize", TileEntriesSize, 3 
-        DebugLogValue "dwAllocationGranularity", dwAllocationGranularity, 3
-        DebugLogValue "LargeBifHeaderSize", LargeBifHeaderSize, 3
-        DebugLogValue "dwAdjustedLargeBifHeaderSize", dwAdjustedLargeBifHeaderSize, 3
-        ENDIF
-
-
         Invoke UnmapViewOfFile, LargeBifMemMapPtr ; close map as we dont need it now
-        
         ; check LargeBifHeaderSize is ok with allocation granularity
         
         .IF dwOpenMode == 1 ; readonly
@@ -663,9 +553,6 @@ IEBIFLargeFileMapping PROC USES EBX EDX hBIFLargeFileToMap:DWORD, LargeBifMemMap
             Invoke MapViewOfFileEx, LargeBifMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, dwAdjustedLargeBifHeaderSize, NULL
         .ENDIF
         .IF eax == NULL
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEBIFLargeFileMapping::MapViewOfFileEx::2 Failed", DEBUGLOG_INFO, 3
-            ENDIF          
             mov ebx, lpdwBIFLargeMapping
             mov eax, FALSE
             mov [ebx], eax        
@@ -673,11 +560,6 @@ IEBIFLargeFileMapping PROC USES EBX EDX hBIFLargeFileToMap:DWORD, LargeBifMemMap
             ret
         .ENDIF
         mov LargeBifMemMapPtr, eax
-        
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEBIFLargeFileMapping::Finished", DEBUGLOG_INFO, 2
-        ENDIF        
-        
         mov ebx, lpdwBIFLargeMapping
         mov eax, TRUE
         mov [ebx], eax
@@ -686,26 +568,21 @@ IEBIFLargeFileMapping PROC USES EBX EDX hBIFLargeFileToMap:DWORD, LargeBifMemMap
         
     .ELSE
         Invoke UnmapViewOfFile, LargeBifMemMapPtr
-        
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEBIFLargeFileMapping::Finished Not BIF V1 or BIF V1.1", DEBUGLOG_INFO, 2
-        ENDIF             
         mov ebx, lpdwBIFLargeMapping
         mov eax, FALSE
         mov [ebx], eax           
         mov eax, NULL
         ret
     .ENDIF
-
     ret
-
 IEBIFLargeFileMapping endp
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFMem - Returns handle in eax of opened bif file that is already loaded into memory. NULL if could not alloc enough mem
 ;-------------------------------------------------------------------------------------
-IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFilesize:DWORD, dwBIFFilesizeHigh, dwOpenMode:DWORD, dwBIFLargeMapping:DWORD
+IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFilesize:DWORD, dwBIFFilesizeHigh:DWORD, dwOpenMode:DWORD, dwBIFLargeMapping:DWORD
     LOCAL hIEBIF:DWORD
     LOCAL BIFMemMapPtr:DWORD
     LOCAL TotalFileEntries:DWORD
@@ -718,19 +595,14 @@ IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFi
     ;LOCAL TileBifInfoExSize:DWORD
     LOCAL Version:DWORD
     
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFMem", DEBUGLOG_FUNCTION, 2
-    ENDIF
     mov eax, pBIFInMemory
     mov BIFMemMapPtr, eax       
-    
+
     ;----------------------------------
     ; Alloc mem for our IEBIF Handle
     ;----------------------------------
-    Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, SIZEOF BIFINFO
+    Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, SIZEOF BIFINFO
     .IF eax == NULL
-        ;PrintText 'GlobalAlloc'
-        mov eax, NULL
         ret
     .ENDIF
     mov hIEBIF, eax
@@ -758,10 +630,9 @@ IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFi
     ;----------------------------------
     ; BIF Header
     ;----------------------------------
-    .IF dwOpenMode == 0
-        Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, SIZEOF BIF_HEADER_V1
+    .IF dwOpenMode == IEMODE_WRITE
+        Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, SIZEOF BIF_HEADER_V1
         .IF eax == NULL
-            ;PrintText 'BIF Header dwOpenMode == 0'
             Invoke GlobalFree, hIEBIF
             mov eax, NULL
             ret
@@ -784,36 +655,18 @@ IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFi
     mov Version, eax
     .IF Version == 1 || Version == 4
     .ELSE
-        ;PrintText 'BIFSignature not 1 or 4'
-        mov ebx, hIEBIF
-        mov eax, [ebx].BIFINFO.BIFHeaderPtr
-        Invoke GlobalFree, eax
+        ; added 07/01/2019
+        .IF dwOpenMode == IEMODE_WRITE
+            mov ebx, hIEBIF
+            mov eax, [ebx].BIFINFO.BIFHeaderPtr
+            .IF eax != 0
+                Invoke GlobalFree, eax
+            .ENDIF
+        .ENDIF
         Invoke GlobalFree, hIEBIF
         mov eax, NULL    
         ret
     .ENDIF
-
-    ;PrintDec Version
-    ;DbgDump BIFMemMapPtr, 8d
-    ;----------------------------------
-    ; Double check file in mem is BIFF
-    ;----------------------------------
-;    Invoke RtlZeroMemory, Addr BIFXHeader, SIZEOF BIFXHeader
-;    Invoke RtlMoveMemory, Addr BIFXHeader, BIFMemMapPtr, 8d
-;    .IF Version == 4 ; BIFF V1.1
-;        Invoke szCmp, Addr BIFXHeader, Addr BIFFV11Header
-;    .ELSE
-;        Invoke szCmp, Addr BIFXHeader, Addr BIFFV1Header
-;    .ENDIF
-;    .IF eax == 0 ; no match  
-;        PrintText 'no match'  
-;        mov ebx, hIEBIF
-;        mov eax, [ebx].BIFINFO.BIFHeaderPtr
-;        Invoke GlobalFree, eax
-;        Invoke GlobalFree, hIEBIF
-;        mov eax, NULL    
-;        ret
-;    .ENDIF
 
     ;----------------------------------
     ; File & Tile Counts, Offsets & Sizes
@@ -853,23 +706,20 @@ IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFi
     mov eax, FileEntriesSize
     add eax, OffsetFileEntries ;SIZEOF BIF_HEADER_V1
     mov OffsetTileEntries, eax
-    
-    IFDEF DEBUGLOG
-    DebugLogValue "TotalFileEntries", TotalFileEntries, 3
-    DebugLogValue "TotalTileEntries", TotalTileEntries, 3
-    DebugLogValue "FileEntriesSize", FileEntriesSize, 3
-    DebugLogValue "TileEntriesSize", TileEntriesSize, 3    
-    ENDIF
+
     ;----------------------------------
     ; File Entries
     ;----------------------------------
     .IF TotalFileEntries > 0
-        .IF dwOpenMode == 0
-            Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, FileEntriesSize
+        .IF dwOpenMode == IEMODE_WRITE
+            Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, FileEntriesSize
             .IF eax == NULL
+                ; added 07/01/2019
                 mov ebx, hIEBIF
                 mov eax, [ebx].BIFINFO.BIFHeaderPtr
-                Invoke GlobalFree, eax    
+                .IF eax != 0
+                    Invoke GlobalFree, eax
+                .ENDIF
                 Invoke GlobalFree, hIEBIF
                 mov eax, NULL    
                 ret
@@ -899,15 +749,19 @@ IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFi
     ; Tile Entries
     ;----------------------------------
     .IF TotalTileEntries > 0
-        .IF dwOpenMode == 0
-            Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, TileEntriesSize
+        .IF dwOpenMode == IEMODE_WRITE
+            Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, TileEntriesSize
             .IF eax == NULL
                 mov ebx, hIEBIF
                 mov eax, [ebx].BIFINFO.BIFFileEntriesPtr
-                Invoke GlobalFree, eax
+                .IF eax != 0
+                    Invoke GlobalFree, eax
+                .ENDIF
                 mov ebx, hIEBIF
                 mov eax, [ebx].BIFINFO.BIFHeaderPtr
-                Invoke GlobalFree, eax    
+                .IF eax != 0
+                    Invoke GlobalFree, eax
+                .ENDIF   
                 Invoke GlobalFree, hIEBIF
                 mov eax, NULL    
                 ret
@@ -931,269 +785,99 @@ IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFi
         mov [ebx].BIFINFO.BIFTileEntriesPtr, 0
         mov [ebx].BIFINFO.BIFTileEntriesSize, 0
     .ENDIF
-    
-;    ;----------------------------------
-;    ; Alloc space for FileEntries ResourceNames
-;    ;----------------------------------
-;    .IF TotalFileEntries > 0
-;        mov eax, TotalFileEntries
-;        mov ebx, SIZEOF BIFINFOEX
-;        mul ebx
-;        mov FileBifInfoExSize, eax
-;        IFDEF DEBUGLOG
-;        DebugLogValue "FileBifInfoExSize", FileBifInfoExSize, 3
-;        ENDIF
-;        Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, FileBifInfoExSize
-;        .IF eax == NULL
-;            mov ebx, hIEBIF
-;            mov eax, [ebx].BIFINFO.BIFTileEntriesPtr
-;            Invoke GlobalFree, eax    
-;            mov ebx, hIEBIF
-;            mov eax, [ebx].BIFINFO.BIFFileEntriesPtr
-;            Invoke GlobalFree, eax
-;            mov ebx, hIEBIF
-;            mov eax, [ebx].BIFINFO.BIFHeaderPtr
-;            Invoke GlobalFree, eax    
-;            Invoke GlobalFree, hIEBIF
-;            mov eax, NULL    
-;            ret
-;        .ENDIF
-;        mov ebx, hIEBIF
-;        mov [ebx].BIFINFO.BIFFileBifInfoExPtr, eax
-;        IFDEF DEBUGLOG
-;        DebugLogValue "BIFFileBifInfoExPtr", eax, 3
-;        ENDIF
-;        mov eax, FileBifInfoExSize
-;        mov [ebx].BIFINFO.BIFFileBifInfoExSize, eax
-;    .ELSE
-;        mov ebx, hIEBIF
-;        mov [ebx].BIFINFO.BIFFileBifInfoExPtr, 0
-;        mov [ebx].BIFINFO.BIFFileBifInfoExSize, 0
-;    .ENDIF
-;    
-;    ;----------------------------------
-;    ; Alloc space for TileEntries ResourceNames
-;    ;----------------------------------
-;    .IF TotalTileEntries > 0
-;        mov eax, TotalTileEntries
-;        mov ebx, SIZEOF BIFINFOEX
-;        mul ebx
-;        mov TileBifInfoExSize, eax
-;        IFDEF DEBUGLOG
-;        DebugLogValue "TileBifInfoExSize", TileBifInfoExSize, 3
-;        ENDIF
-;        Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, TileBifInfoExSize
-;        .IF eax == NULL
-;            mov ebx, hIEBIF
-;            mov eax, [ebx].BIFINFO.BIFFileBifInfoExPtr
-;            Invoke GlobalFree, eax
-;            mov ebx, hIEBIF
-;            mov eax, [ebx].BIFINFO.BIFTileEntriesPtr
-;            Invoke GlobalFree, eax    
-;            mov ebx, hIEBIF
-;            mov eax, [ebx].BIFINFO.BIFFileEntriesPtr
-;            Invoke GlobalFree, eax
-;            mov ebx, hIEBIF
-;            mov eax, [ebx].BIFINFO.BIFHeaderPtr
-;            Invoke GlobalFree, eax    
-;            Invoke GlobalFree, hIEBIF
-;            mov eax, NULL    
-;            ret
-;        .ENDIF
-;        mov ebx, hIEBIF
-;        mov [ebx].BIFINFO.BIFTileBifInfoExPtr, eax
-;        IFDEF DEBUGLOG
-;        DebugLogValue "BIFTileBifInfoExPtr", eax, 3
-;        ENDIF
-;        mov eax, TileBifInfoExSize
-;        mov [ebx].BIFINFO.BIFTileBifInfoExSize, eax
-;    .ELSE
-;        mov ebx, hIEBIF
-;        mov [ebx].BIFINFO.BIFTileBifInfoExPtr, 0
-;        mov [ebx].BIFINFO.BIFTileBifInfoExSize, 0
-;    .ENDIF
-    IFDEF DEBUG32
-        PrintDec TotalFileEntries
-        PrintDec TotalTileEntries
-    ENDIF
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFMem::Finished", DEBUGLOG_INFO, 2
-    ENDIF
     mov eax, hIEBIF
     ret
 IEBIFMem ENDP
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFClose - Frees memory used by control data structure
 ;-------------------------------------------------------------------------------------
 IEBIFClose PROC PUBLIC USES EBX hIEBIF:DWORD
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFClose", DEBUGLOG_FUNCTION, 2
-    ENDIF
     .IF hIEBIF == NULL
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEBIFClose::hIEBIF==NULL", DEBUGLOG_INFO, 3
-        ENDIF
         mov eax, 0
         ret
     .ENDIF
 
     mov ebx, hIEBIF
     mov eax, [ebx].BIFINFO.BIFOpenMode
-    .IF eax == 0 ; Write Mode
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEBIFClose::Read/Write Mode", DEBUGLOG_INFO, 3
-        ENDIF
+    .IF eax == IEMODE_WRITE ; Write Mode
         mov ebx, hIEBIF
         mov eax, [ebx].BIFINFO.BIFHeaderPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEBIFClose::GlobalFree-BIFHeaderPtr::Success", DEBUGLOG_INFO, 3
-            ENDIF
         .ENDIF
     
         mov ebx, hIEBIF
         mov eax, [ebx].BIFINFO.BIFFileEntriesPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEBIFClose::GlobalFree-BIFFileEntriesPtr::Success", DEBUGLOG_INFO, 3
-            ENDIF
         .ENDIF
     
         mov ebx, hIEBIF
         mov eax, [ebx].BIFINFO.BIFTileEntriesPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEBIFClose::GlobalFree-BIFTileEntriesPtr::Success", DEBUGLOG_INFO, 3
-            ENDIF
         .ENDIF
     .ENDIF
     
-    ; all modes alloc mem for file/tile names so free mem
-;    mov ebx, hIEBIF
-;    mov eax, [ebx].BIFINFO.BIFFileBifInfoExPtr
-;    .IF eax != NULL
-;        IFDEF DEBUGLOG
-;        DebugLogValue "IEBIFClose::GlobalFree-BIFFileBifInfoExPtr", eax, 3
-;        ENDIF
-;        Invoke GlobalFree, eax
-;        IFDEF DEBUGLOG
-;        DebugLogMsg "IEBIFClose::GlobalFree-BIFFileBifInfoExPtr::Success", DEBUGLOG_INFO, 3
-;        ENDIF
-;    .ENDIF
-;
-;    mov ebx, hIEBIF
-;    mov eax, [ebx].BIFINFO.BIFTileBifInfoExPtr
-;    .IF eax != NULL
-;        IFDEF DEBUGLOG
-;        DebugLogValue "IEBIFClose::GlobalFree-BIFTileBifInfoExPtr", eax, 3
-;        ENDIF
-;        Invoke GlobalFree, eax
-;        IFDEF DEBUGLOG
-;        DebugLogMsg "IEBIFClose::GlobalFree-BIFTileBifInfoExPtr::Success", DEBUGLOG_INFO, 3
-;        ENDIF
-;    .ENDIF
-    
     mov ebx, hIEBIF
     mov eax, [ebx].BIFINFO.BIFVersion
-    ;PrintDec eax
-    IFDEF DEBUGLOG
-    DebugLogValue "IEBIFClose::BIFVersion", eax, 3
-    ENDIF
     .IF eax == 0 ; non BIFF
         ; do nothing
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEBIFClose::BIFVersion::0 - NONE", DEBUGLOG_INFO, 3
-        ENDIF
-        
+
     .ELSEIF eax == 1 ; BIFF - straight raw biff, so if  opened in readonly, unmap file, otherwise free mem
         ;PrintText 'BIFF'
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEBIFClose::BIFVersion:: BIFF", DEBUGLOG_INFO, 3
-        ENDIF
-        
         mov ebx, hIEBIF
         mov eax, [ebx].BIFINFO.BIFOpenMode
-        .IF eax == 1 ; Read Only
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEBIFClose::BIFVersion:: BIFF (Read Only)", DEBUGLOG_INFO, 3
-            ENDIF
+        .IF eax == IEMODE_READONLY ; Read Only
             ;PrintText 'Read Only'
             mov ebx, hIEBIF
             mov eax, [ebx].BIFINFO.BIFMemMapPtr
             .IF eax != NULL
                 Invoke UnmapViewOfFile, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IEBIFClose::UnmapViewOfFile-BIFMemMapPtr::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
-                      
+
             mov ebx, hIEBIF
             mov eax, [ebx].BIFINFO.BIFMemMapHandle
             .IF eax != NULL
                 Invoke CloseHandle, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IEBIFClose::CloseHandle-BIFMemMapHandle::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
-            
+
             mov ebx, hIEBIF
             mov eax, [ebx].BIFINFO.BIFFileHandle
             .IF eax != NULL
                 Invoke CloseHandle, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IEBIFClose::CloseHandle-BIFFileHandle::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
-                     
-        .ELSE ; free mem if write mode
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEBIFClose::BIFVersion:: BIFF (Read / Write)", DEBUGLOG_INFO, 3
-            ENDIF
+
+        .ELSE ; free mem if write mode IEMODE_WRITE
             ;PrintText 'Read/Write'
             mov ebx, hIEBIF
             mov eax, [ebx].BIFINFO.BIFMemMapPtr
             .IF eax != NULL
                 Invoke GlobalFree, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IEBIFClose::GlobalFree-BIFMemMapPtr::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
         .ENDIF
     .ELSE ; BIF_ or BIFC in read or write mode uncompresed biff in memory needs to be cleared
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEBIFClose::BIFVersion:: - BIF_ or BIFC", DEBUGLOG_INFO, 3
-        ENDIF
         ;PrintText 'BIF_ or BIFC'
         mov ebx, hIEBIF
         mov eax, [ebx].BIFINFO.BIFMemMapPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEBIFClose::GlobalFree-BIFMemMapPtr::Success", DEBUGLOG_INFO, 3
-            ENDIF
         .ENDIF
     .ENDIF
     
     mov eax, hIEBIF
     .IF eax != NULL
         Invoke GlobalFree, eax
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEBIFClose::GlobalFree-hIEBIF::Success", DEBUGLOG_INFO, 3
-        ENDIF
     .ENDIF
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFClose::Finished", DEBUGLOG_INFO, 2
-    ENDIF 
     mov eax, 0
     ret
 IEBIFClose ENDP
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFHeader - Returns in eax a pointer to header or -1 if not valid
 ;-------------------------------------------------------------------------------------
@@ -1208,6 +892,7 @@ IEBIFHeader PROC PUBLIC USES EBX hIEBIF:DWORD
 IEBIFHeader ENDP
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFileEntry - Returns in eax a pointer to the specified file entry or -1 
 ;-------------------------------------------------------------------------------------
@@ -1253,6 +938,7 @@ IEBIFFileEntry PROC PUBLIC USES EBX hIEBIF:DWORD, nFileEntry:DWORD
 IEBIFFileEntry ENDP
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFTileEntry - Returns in eax a pointer to the specified tile entry or -1 
 ;-------------------------------------------------------------------------------------
@@ -1289,6 +975,7 @@ IEBIFTileEntry PROC PUBLIC USES EBX hIEBIF:DWORD, nTileEntry:DWORD
 IEBIFTileEntry ENDP
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFTotalFileEntries - Returns in eax the total no of file entries
 ;-------------------------------------------------------------------------------------
@@ -1299,11 +986,16 @@ IEBIFTotalFileEntries PROC PUBLIC USES EBX hIEBIF:DWORD
     .ENDIF
     mov ebx, hIEBIF
     mov ebx, [ebx].BIFINFO.BIFHeaderPtr
-    mov eax, [ebx].BIF_HEADER_V1.FileEntriesCount
+    .IF ebx != 0
+        mov eax, [ebx].BIF_HEADER_V1.FileEntriesCount
+    .ELSE
+        mov eax, 0
+    .ENDIF
     ret
 IEBIFTotalFileEntries ENDP
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFTotalTileEntries - Returns in eax the total no of tile entries
 ;-------------------------------------------------------------------------------------
@@ -1314,11 +1006,16 @@ IEBIFTotalTileEntries PROC PUBLIC USES EBX hIEBIF:DWORD
     .ENDIF
     mov ebx, hIEBIF
     mov ebx, [ebx].BIFINFO.BIFHeaderPtr
-    mov eax, [ebx].BIF_HEADER_V1.TileEntriesCount
+    .IF ebx != 0
+        mov eax, [ebx].BIF_HEADER_V1.TileEntriesCount
+    .ELSE
+        mov eax, 0
+    .ENDIF
     ret
 IEBIFTotalTileEntries ENDP
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFileEntries - Returns in eax a pointer to file entries or -1 if not valid
 ;-------------------------------------------------------------------------------------
@@ -1333,6 +1030,7 @@ IEBIFFileEntries PROC PUBLIC USES EBX hIEBIF:DWORD
 IEBIFFileEntries ENDP
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFTileEntries - Returns in eax a pointer to tile entries or -1 if not valid
 ;-------------------------------------------------------------------------------------
@@ -1347,6 +1045,7 @@ IEBIFTileEntries PROC PUBLIC USES EBX hIEBIF:DWORD
 IEBIFTileEntries ENDP
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; Peek at resource files actual signature - helps to determine actual resource type
 ; returns in eax SIG dword and ebx the version dword. -1 eax, -1 ebx if not valid entry or iebif handle
@@ -1429,13 +1128,11 @@ IEBIFPeekFileSignature PROC PUBLIC hIEBIF:DWORD, nFileEntry:DWORD
         mov ebx, dword ptr [eax+4] ; save ebx first for the version dword
         mov eax, dword ptr [eax] ; overwrite eax with the sig dword
     .ENDIF
-
-
     ret
-
 IEBIFPeekFileSignature endp
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFileName - returns in eax pointer to zero terminated string contained filename that is open or -1 if not opened, 0 if in memory ?
 ;-------------------------------------------------------------------------------------
@@ -1453,24 +1150,16 @@ IEBIFFileName PROC PUBLIC USES EBX hIEBIF:DWORD
         mov eax, -1
     .ELSE
         mov eax, BifFilename
-        ;IFDEF DEBUG32
-        ;    mov DbgVar, eax
-        ;    PrintStringByAddr DbgVar
-        ;ENDIF
     .ENDIF
-    ;IFDEF DEBUG32
-    ;    PrintDec eax
-    ;ENDIF
     ret
-
 IEBIFFileName endp
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFileNameOnly - returns in eax true or false if it managed to pass to the buffer pointed at lpszFileNameOnly, the stripped filename without extension
 ;-------------------------------------------------------------------------------------
 IEBIFFileNameOnly PROC PUBLIC USES EBX hIEBIF:DWORD, lpszFileNameOnly:DWORD
-    
     Invoke IEBIFFileName, hIEBIF
     .IF eax == -1
         mov eax, FALSE
@@ -1478,13 +1167,12 @@ IEBIFFileNameOnly PROC PUBLIC USES EBX hIEBIF:DWORD, lpszFileNameOnly:DWORD
     .ENDIF
     
     Invoke BIFJustFname, eax, lpszFileNameOnly
-    
     mov eax, TRUE
     ret
-
 IEBIFFileNameOnly endp
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFileSize - returns low order in eax, high order in ebx of size of file or eax = -1, ebx = 0
 ;-------------------------------------------------------------------------------------
@@ -1498,10 +1186,10 @@ IEBIFFileSize PROC PUBLIC hIEBIF:DWORD
     mov eax, [ebx].BIFINFO.BIFFilesize
     mov ebx, [ebx].BIFINFO.BIFFilesizeHigh
     ret
-
 IEBIFFileSize endp
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFindKeyFile - returns in eax true if found, or false otherwise
 ;-------------------------------------------------------------------------------------
@@ -1514,14 +1202,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
 
     Invoke BIFJustFname, lpszBifFilePath, Addr szKeyFileName; strip to just filename without extension
     Invoke GetPathOnly, lpszBifFilePath, Addr szKeyFilePath
-    ;Invoke szCopy, Addr szCurrentKeyFilePath, Addr szKeyFilePath
-    
-    ; check for current file.key first
-    ;PrintText 'Check for bif.key file'
-;   Invoke szCopy, Addr szKeyFilePath, Addr szCurrentKeyFilePath
-;   Invoke szCatStr, Addr szCurrentKeyFilePath, Addr szBackslash
-;    Invoke szCatStr, Addr szCurrentKeyFilePath, Addr szKeyFileName 
-;    Invoke szCatStr, Addr szCurrentKeyFilePath, Addr KEYExt    
 
     ;---------------------------------------------------------------------------------------------------
     ; look for bifname.key first, starting at current level and going down each level till end of string
@@ -1531,7 +1211,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
     mov CurrentPos, eax
     
     .WHILE eax != 0
-        ;PrintDec CurrentPos
         lea ebx, szKeyFilePath ;szCurrentKeyFilePath
         add ebx, CurrentPos
         
@@ -1547,8 +1226,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
         .ENDW
         
         .IF CurrentPos != 0
-            ;PrintText 'Found Backslash at'
-            ;PrintDec CurrentPos
             lea ebx, szKeyFilePath ;szCurrentKeyFilePath
             add ebx, CurrentPos
             mov [ebx], byte ptr 0 ; null our \ for the moment   
@@ -1561,13 +1238,7 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
             lea ebx, szKeyFilePath ;szCurrentKeyFilePath
             add ebx, CurrentPos
             mov [ebx], byte ptr '\' ; restore our \ 
-            
-            IFDEF DEBUG32
-                lea eax, szCurrentKeyFilePath
-                mov DbgVar, eax
-                PrintStringByAddr DbgVar
-            ENDIF
-            
+
             ; check for chitin.key
             Invoke exist, Addr szCurrentKeyFilePath
             .IF eax == 1 ; exists
@@ -1586,12 +1257,7 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
         .ENDIF
     .ENDW
     ;---------------------------------------------------------------------------------------------------
-    
-    
-    
-    
 
-    
     ;---------------------------------------------------------------------------------------------------
     ; look for bifname00.key - stripping off double 00s if found
     ;---------------------------------------------------------------------------------------------------
@@ -1601,7 +1267,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
     add ebx, eax ; at end of name
     sub ebx, 2
     movzx eax, word ptr [ebx]
-    ;PrintDec eax
     .IF eax == '00' ; we have a witcher style bif
         movzx eax, byte ptr [ebx-1]
         .IF al == '_'
@@ -1609,20 +1274,19 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
         .ELSE
             mov [ebx], byte ptr 0h ; null out string here
         .ENDIF
-        
+
         ; added for witcher specific bifs: voices_X_00.bif use lang_X.key files
         Invoke InString, 1, Addr szKeyFileName, Addr szWitcherVoices_
         .IF eax != 0 
             Invoke szRep, Addr szKeyFileName, Addr szCurrentKeyFilePath, Addr szWitcherVoices_, Addr szWitcherLang_
             Invoke szCopy, Addr szCurrentKeyFilePath, Addr szKeyFileName
         .ENDIF
-        
+
         Invoke szLen, Addr szKeyFilePath ;szCurrentKeyFilePath
         mov LenKeyPath, eax
         mov CurrentPos, eax
         
         .WHILE eax != 0
-            ;PrintDec CurrentPos
             lea ebx, szKeyFilePath ;szCurrentKeyFilePath
             add ebx, CurrentPos
             
@@ -1638,8 +1302,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
             .ENDW
             
             .IF CurrentPos != 0
-                ;PrintText 'Found Backslash at'
-                ;PrintDec CurrentPos
                 lea ebx, szKeyFilePath ;szCurrentKeyFilePath
                 add ebx, CurrentPos
                 mov [ebx], byte ptr 0 ; null our \ for the moment
@@ -1652,13 +1314,7 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
                 lea ebx, szKeyFilePath ;szCurrentKeyFilePath
                 add ebx, CurrentPos
                 mov [ebx], byte ptr '\' ; restore our \ 
-                
-                IFDEF DEBUG32
-                    lea eax, szCurrentKeyFilePath
-                    mov DbgVar, eax
-                    PrintStringByAddr DbgVar
-                ENDIF
-                
+
                 ; check for chitin.key
                 Invoke exist, Addr szCurrentKeyFilePath
                 .IF eax == 1 ; exists
@@ -1678,16 +1334,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
         .ENDW   
     .ENDIF
 
-
-    
-;    Invoke exist, Addr szCurrentKeyFilePath
-;    .IF eax == 1 ; exists
-;        Invoke szCopy, Addr szCurrentKeyFilePath, lpszKeyFilePath
-;        mov eax, TRUE
-;        ret
-;    .ENDIF
-;   
-;   
     ;---------------------------------------------------------------------------------------------------
     ; look for chitin.key
     ;---------------------------------------------------------------------------------------------------
@@ -1696,7 +1342,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
     mov CurrentPos, eax
     
     .WHILE eax != 0
-        ;PrintDec CurrentPos
         lea ebx, szKeyFilePath ;szCurrentKeyFilePath
         add ebx, CurrentPos
         
@@ -1712,8 +1357,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
         .ENDW
         
         .IF CurrentPos != 0
-            ;PrintText 'Found Backslash at'
-            ;PrintDec CurrentPos
             lea ebx, szKeyFilePath ;szCurrentKeyFilePath
             add ebx, CurrentPos
             mov [ebx], byte ptr 0 ; null our \ for the moment
@@ -1725,13 +1368,7 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
             lea ebx, szKeyFilePath ;szCurrentKeyFilePath
             add ebx, CurrentPos
             mov [ebx], byte ptr '\' ; restore our \ 
-            
-            IFDEF DEBUG32
-                lea eax, szCurrentKeyFilePath
-                mov DbgVar, eax
-                PrintStringByAddr DbgVar
-            ENDIF
-            
+
             ; check for chitin.key
             Invoke exist, Addr szCurrentKeyFilePath
             .IF eax == 1 ; exists
@@ -1750,8 +1387,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
         .ENDIF
     .ENDW
 
-
-
     ;---------------------------------------------------------------------------------------------------
     ; look for main.key
     ;---------------------------------------------------------------------------------------------------
@@ -1759,7 +1394,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
     mov CurrentPos, eax
     
     .WHILE eax != 0
-        ;PrintDec CurrentPos
         lea ebx, szKeyFilePath ;szCurrentKeyFilePath
         add ebx, CurrentPos
         
@@ -1788,12 +1422,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
             add ebx, CurrentPos
             mov [ebx], byte ptr '\' ; restore our \ 
 
-            IFDEF DEBUG32
-                lea eax, szCurrentKeyFilePath
-                mov DbgVar, eax
-                PrintStringByAddr DbgVar
-            ENDIF
-            
             Invoke exist, Addr szCurrentKeyFilePath
             .IF eax == 1 ; exists
                 Invoke szCopy, Addr szCurrentKeyFilePath, lpszKeyFilePath
@@ -1811,7 +1439,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
         .ENDIF
     .ENDW
 
-
     ;---------------------------------------------------------------------------------------------------
     ; look for mod.key
     ;---------------------------------------------------------------------------------------------------
@@ -1819,7 +1446,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
     mov CurrentPos, eax
     
     .WHILE eax != 0
-        ;PrintDec CurrentPos
         lea ebx, szKeyFilePath ;szCurrentKeyFilePath
         add ebx, CurrentPos
         
@@ -1848,12 +1474,6 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
             add ebx, CurrentPos
             mov [ebx], byte ptr '\' ; restore our \ 
 
-            IFDEF DEBUG32
-                lea eax, szCurrentKeyFilePath
-                mov DbgVar, eax
-                PrintStringByAddr DbgVar
-            ENDIF
-            
             Invoke exist, Addr szCurrentKeyFilePath
             .IF eax == 1 ; exists
                 Invoke szCopy, Addr szCurrentKeyFilePath, lpszKeyFilePath
@@ -1871,18 +1491,15 @@ IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWO
         .ENDIF
     .ENDW
 
-
-    
     ; not found bifname.key, bifname00.key, chitin.key or main.key
     mov ebx, lpszKeyFilePath
     mov [ebx], byte ptr 0
     mov eax, FALSE
     ret
-
 IEBIFFindKeyFile endp
 
 
-
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFExtractFile - returns in eax size of file extracted or -1 if failed
 ;-------------------------------------------------------------------------------------
@@ -1903,10 +1520,6 @@ IEBIFExtractFile PROC PUBLIC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutput
     LOCAL LargeFileMapping:DWORD
     LOCAL dwOpenMode:DWORD
 
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFExtractFile", DEBUGLOG_FUNCTION, 2
-    ENDIF
-    
     .IF hIEBIF == NULL
         mov eax, -1
         ret
@@ -2001,19 +1614,15 @@ IEBIFExtractFile PROC PUBLIC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutput
         add eax, ebx
         mov ResourceData, eax
     .ENDIF
-    ;PrintDec FileEntryOffset
-    ;PrintDec ResourceOffset
-    ;PrintDec ResourceSize
-    ;PrintDec ResourceData
-    
+
     ; Create file to write data to, map it to memory and then write resource data to it, then close memmap and file
-    Invoke CreateFile, lpszOutputFilename, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_WRITE_THROUGH, NULL
+    Invoke CreateFile, lpszOutputFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_WRITE_THROUGH, NULL
     .IF eax == INVALID_HANDLE_VALUE
         mov eax, -1
         ret
     .ENDIF
     mov hOutputFile, eax
-    ;PrintDec hOutputFile
+
     Invoke CreateFileMapping, hOutputFile, NULL, PAGE_READWRITE, 0, ResourceSize, NULL
     .IF eax == NULL
         Invoke CloseHandle, hOutputFile
@@ -2021,7 +1630,7 @@ IEBIFExtractFile PROC PUBLIC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutput
         ret
     .ENDIF
     mov MemMapHandle, eax
-    ;PrintDec MemMapHandle
+
     Invoke MapViewOfFile, MemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0
     .IF eax == NULL
         Invoke CloseHandle, MemMapHandle
@@ -2030,24 +1639,10 @@ IEBIFExtractFile PROC PUBLIC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutput
         ret        
     .ENDIF
     mov MemMapPtr, eax
-    
-    
-    ;PrintDec MemMapPtr
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFExtractFile::RtlMoveMemory", DEBUGLOG_INFO, 3
-    ENDIF    
-        IFDEF DEBUG32
-            PrintDec ResourceSize
-            PrintDec ResourceData
-        ENDIF
-        
+
     Invoke RtlMoveMemory, MemMapPtr, ResourceData, ResourceSize
     ;Invoke BIFCopyMemory, MemMapPtr, ResourceData, ResourceSize
-    
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFExtractFile::UnmapViewOfFile", DEBUGLOG_INFO, 3
-    ENDIF    
-    
+
     .IF LargeFileMapping == TRUE
         Invoke BIFCloseLargeMapView, hIEBIF
         ;Invoke UnmapViewOfFile, LargeMemMapPtr
@@ -2057,17 +1652,13 @@ IEBIFExtractFile PROC PUBLIC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutput
     Invoke UnmapViewOfFile, MemMapPtr
     Invoke CloseHandle, MemMapHandle 
     Invoke CloseHandle, hOutputFile
-    
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEBIFExtractFile::Finished", DEBUGLOG_INFO, 2
-    ENDIF
-        
+ 
     mov eax, ResourceSize
     ret
-
 IEBIFExtractFile endp
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFExtractTile - returns in eax size of tile extracted or -1 if failed
 ;-------------------------------------------------------------------------------------
@@ -2109,8 +1700,7 @@ IEBIFExtractTile PROC PUBLIC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutput
     mov ebx, TileSize
     mul ebx    
     mov ResourceSize, eax
-    
-    
+
     .IF LargeFileMapping == TRUE    
         Invoke BIFOpenLargeMapView, hIEBIF, ResourceSize, ResourceOffset
         .IF eax == NULL
@@ -2131,14 +1721,13 @@ IEBIFExtractTile PROC PUBLIC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutput
     ;PrintDec ResourceSize
     ;PrintDec ResourceData
     
-    Invoke CreateFile, lpszOutputFilename, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_WRITE_THROUGH, NULL
+    Invoke CreateFile, lpszOutputFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_WRITE_THROUGH, NULL
     .IF eax == INVALID_HANDLE_VALUE
         mov eax, -1
         ret
     .ENDIF
     mov hOutputFile, eax
-    ;PrintDec hOutputFile
-    
+
     ; update TISV1_HEADER for our new extracted tile
     lea ebx, TISV1Header
     mov eax, TilesCount
@@ -2157,7 +1746,7 @@ IEBIFExtractTile PROC PUBLIC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutput
         ret
     .ENDIF
     mov MemMapHandle, eax
-    ;PrintDec MemMapHandle
+
     Invoke MapViewOfFile, MemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0
     .IF eax == NULL
         Invoke CloseHandle, MemMapHandle
@@ -2166,10 +1755,7 @@ IEBIFExtractTile PROC PUBLIC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutput
         ret        
     .ENDIF
     mov MemMapPtr, eax
-    
-    
-    ;PrintDec MemMapPtr
-    
+
     Invoke RtlMoveMemory, MemMapPtr, Addr TISV1Header, SIZEOF TISV1_HEADER
     mov ebx, MemMapPtr
     add ebx, SIZEOF TISV1_HEADER
@@ -2187,15 +1773,14 @@ IEBIFExtractTile PROC PUBLIC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutput
     Invoke CloseHandle, hOutputFile
     mov eax, ResSizeWithHeader ;ResourceSize
     ret
-
 IEBIFExtractTile endp
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; 0 = No Bif file, 1 = BIFF, 2 = BIF V1.0 3 = BIFCV1.0, 4 = BIF V1.1
 ;-------------------------------------------------------------------------------------
 IEBIFFileCompression PROC PUBLIC USES EBX hIEBIF:DWORD
-    
     .IF hIEBIF == NULL
         mov eax, 0
         ret
@@ -2203,15 +1788,14 @@ IEBIFFileCompression PROC PUBLIC USES EBX hIEBIF:DWORD
     mov ebx, hIEBIF
     mov eax, [ebx].BIFINFO.BIFVersion
     ret
-
 IEBIFFileCompression endp
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; 0 = No Bif file, 1 = BIFF, 2 = BIF V1.0 3 = BIFCV1.0, 4 = BIF V1.1
 ;-------------------------------------------------------------------------------------
 IEBIFVersion PROC PUBLIC USES EBX hIEBIF:DWORD
-    
     .IF hIEBIF == NULL
         mov eax, 0
         ret
@@ -2219,10 +1803,10 @@ IEBIFVersion PROC PUBLIC USES EBX hIEBIF:DWORD
     mov ebx, hIEBIF
     mov eax, [ebx].BIFINFO.BIFVersion
     ret
-
 IEBIFVersion endp
 
 
+IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; Returns in eax newly created and opened bif file handle hIEBIF
 ; or if < 0 an error
@@ -2235,7 +1819,7 @@ IEBIFNewBif PROC PUBLIC USES EBX lpszNewBifFilename:DWORD, dwBifFormat:DWORD
     LOCAL FilesizeNEW:DWORD
     LOCAL hIEBIF:DWORD
     
-    Invoke CreateFile, lpszNewBifFilename, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, 0, NULL    
+    Invoke CreateFile, lpszNewBifFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, 0, NULL    
     .IF eax == INVALID_HANDLE_VALUE
         mov eax, BN_BIF_CREATION
         ret
@@ -2289,9 +1873,7 @@ IEBIFNewBif PROC PUBLIC USES EBX lpszNewBifFilename:DWORD, dwBifFormat:DWORD
         ret
     .ENDIF
     mov hIEBIF, eax
-    
     ret
-
 IEBIFNewBif endp
 
 
@@ -2300,6 +1882,7 @@ IEBIFNewBif endp
 ; INTERNAL FUNCTIONS
 ;-----------------------------------------------------------------------------------------
 
+IEBIF_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; BIFCalcLargeFileView - calculate large mapping size, view and offset
 ;-----------------------------------------------------------------------------------------
@@ -2311,9 +1894,6 @@ BIFCalcLargeFileView PROC USES EBX EDX dwRequiredViewSize:DWORD, dwRequiredViewO
     Invoke GetSystemInfo, Addr sysinfo
     mov eax, sysinfo.dwAllocationGranularity
     mov dwAllocationGranularity, eax
-    IFDEF DEBUG32
-        PrintDec eax
-    ENDIF    
 
     mov eax, dwRequiredViewSize
     .IF eax < dwAllocationGranularity
@@ -2327,12 +1907,8 @@ BIFCalcLargeFileView PROC USES EBX EDX dwRequiredViewSize:DWORD, dwRequiredViewO
         mov ebx, dwAllocationGranularity
         div ebx ; Divides dwRequiredViewSize by dwAllocationGranularity. EAX = quotient and EDX = remainder (modulo).
         .IF edx > 0 ; we have a remainder, so calc to add dwAllocationGranularity to dwRequiredViewSize - remainder
-            ;PrintDec eax
-            ;PrintDec edx
             mov eax, dwRequiredViewSize
             sub eax, edx
-            ;PrintDec ebx
-            ;PrintDec eax
             add eax, dwAllocationGranularity
             add eax, dwAllocationGranularity
             mov ebx, lpdwMappedViewSize
@@ -2343,7 +1919,6 @@ BIFCalcLargeFileView PROC USES EBX EDX dwRequiredViewSize:DWORD, dwRequiredViewO
             mov [ebx], eax
         .ENDIF
     .ENDIF
-
 
     mov eax, dwRequiredViewOffset
     .IF eax < dwAllocationGranularity
@@ -2360,13 +1935,8 @@ BIFCalcLargeFileView PROC USES EBX EDX dwRequiredViewSize:DWORD, dwRequiredViewO
         div ebx ; Divides dwRequiredViewSize by dwAllocationGranularity. EAX = quotient and EDX = remainder (modulo).
         .IF edx > 0 ; we have a remainder, so calc to add dwAllocationGranularity to dwRequiredViewSize - remainder
             mov dwAdjustedOffset, edx
-            ;PrintDec eax
-            ;PrintDec edx
             mov eax, dwRequiredViewOffset
             sub eax, edx
-            ;PrintDec ebx
-            ;PrintDec eax
-            ;add eax, dwAllocationGranularity
             mov ebx, lpdwMappedViewOffset
             mov [ebx], eax
         .ELSE ; else we have a multiple of dwAllocationGranularity, so just return the dwRequiredViewSize as actualsize
@@ -2376,25 +1946,20 @@ BIFCalcLargeFileView PROC USES EBX EDX dwRequiredViewSize:DWORD, dwRequiredViewO
             mov dwAdjustedOffset, 0
         .ENDIF
     .ENDIF
-    
     mov eax, dwAdjustedOffset
-
     ; offset = offset & 0xffff0000;
-
-
-;       64                      100                     120
-;---------------------------------------------------------------------------------------
-;
-; 64 bytes gran
-; file start at 100bytes, size of 20 - to offset 120
-; size view is 64
-; offset will be 
-    
+    ;       64                      100                     120
+    ;---------------------------------------------------------------------------------------
+    ;
+    ; 64 bytes gran
+    ; file start at 100bytes, size of 20 - to offset 120
+    ; size view is 64
+    ; offset will be 
     ret
-
 BIFCalcLargeFileView endp
 
 
+IEBIF_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; BIFOpenLargeMapView - opens a view in a large mem mapped file to access data pointed to
 ; by dwRequiredViewOffset. Returns in eax adjusted offset of memory where dwRequiredViewOffset
@@ -2424,15 +1989,7 @@ BIFOpenLargeMapView PROC USES EBX hIEBIF:DWORD, dwRequiredViewSize:DWORD, dwRequ
     
     Invoke BIFCalcLargeFileView, dwRequiredViewSize, dwRequiredViewOffset, Addr LargeMapResourceSize, Addr LargeMapResourceOffset
     mov LargeMapAdjOffset, eax
-        
-    IFDEF DEBUG32
-        PrintDec dwRequiredViewSize
-        PrintDec dwRequiredViewOffset
-        PrintDec LargeMapResourceSize
-        PrintDec LargeMapResourceOffset
-        PrintDec LargeMapAdjOffset
-    ENDIF
-    
+
     .IF dwOpenMode == 1
         Invoke MapViewOfFileEx, LargeMapHandle, FILE_MAP_READ, 0, LargeMapResourceOffset, LargeMapResourceSize, NULL
     .ELSE
@@ -2456,16 +2013,15 @@ BIFOpenLargeMapView PROC USES EBX hIEBIF:DWORD, dwRequiredViewSize:DWORD, dwRequ
     mov [ebx].BIFINFO.BIFLargeMapView, eax
     
     add eax, LargeMapAdjOffset
-
     ret
 BIFOpenLargeMapView ENDP
 
 
+IEBIF_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; BIFCloseLargeMapView - Closes an open view of a large mem mapped file.
 ;-----------------------------------------------------------------------------------------
 BIFCloseLargeMapView PROC USES EBX hIEBIF:DWORD
-
     .IF hIEBIF == NULL
         mov eax, -1
         ret
@@ -2473,8 +2029,9 @@ BIFCloseLargeMapView PROC USES EBX hIEBIF:DWORD
 
     mov ebx, hIEBIF
     mov eax, [ebx].BIFINFO.BIFLargeMapView
-    Invoke UnmapViewOfFile, eax ;LargeMemMapPtr
-
+    .IF eax != 0
+        Invoke UnmapViewOfFile, eax ;LargeMemMapPtr
+    .ENDIF
     ret
 BIFCloseLargeMapView ENDP
 
