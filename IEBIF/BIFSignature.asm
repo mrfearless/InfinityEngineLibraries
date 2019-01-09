@@ -23,34 +23,34 @@ BIFSignature PROC USES EBX pBIF:DWORD
         add ebx, 4
         mov eax, [ebx]
         .IF eax == '  1V' ; V1.0 standard uncompressed BIF v1
-            mov eax, 1
+            mov eax, BIF_VERSION_BIFFV10
         .ELSEIF eax == '1.1V' ; V1.1 ; witcher NWN etc
-            mov eax, 4
+            mov eax, BIF_VERSION_BIFFV11
         .ELSE
-            mov eax, 0
+            mov eax, BIF_VERSION_INVALID
         .ENDIF
     .ELSEIF eax == 'CFIB' ; BIFC ; compressed BIF
         add ebx, 4
         mov eax, [ebx]
         .IF eax == '0.1V' ; V1.0
-            mov eax, 3
+            mov eax, BIF_VERSION_BIFCV10
         .ELSEIF eax == '1.1V' ; V1.1 BIFC - 09.11.2015 added just in case we use this or it is used in some game in future
-            mov eax, 5
+            mov eax, BIF_VERSION_BIFCV11
         .ELSE
-            mov eax, 0
+            mov eax, BIF_VERSION_INVALID
         .ENDIF
     .ELSEIF eax == ' FIB' ; BIF_ ; compressed BIF_
         add ebx, 4
         mov eax, [ebx]
         .IF eax == '0.1V' ; V1.0
-            mov eax, 2
+            mov eax, BIF_VERSION_BIF_V10
         .ELSEIF eax == '1.1V' ; V1.1 BIF_ - 09.11.2015 added just in case we use this or it is used in some game in future
-            mov eax, 6
+            mov eax, BIF_VERSION_BIF_V11
         .ELSE
-            mov eax, 0
+            mov eax, BIF_VERSION_INVALID
         .ENDIF
     .ELSE
-        mov eax, 0
+        mov eax, BIF_VERSION_INVALID
     .ENDIF
     ret
 BIFSignature ENDP

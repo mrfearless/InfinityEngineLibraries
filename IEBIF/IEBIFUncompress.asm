@@ -108,7 +108,7 @@ IEBIFUncompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilename
     Invoke BIFSignature, BifMemMapPtrIN
     mov Version, eax
 
-    .IF Version == 2 ; BIF_ compressed, ready to uncompress
+    .IF Version == BIF_VERSION_BIF_V10 ; BIF_ compressed, ready to uncompress
         Invoke BIFUncompressBIF_, BifMemMapPtrIN, Addr FilesizeOUT
         .IF eax == 0
             Invoke UnmapViewOfFile, BifMemMapPtrIN
@@ -119,7 +119,7 @@ IEBIFUncompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilename
         .ENDIF
         mov ptrUncompressedData, eax
         
-    .ELSEIF Version == 3 ; BIFC compressed, ready to uncompress
+    .ELSEIF Version == BIF_VERSION_BIFCV10 ; BIFC compressed, ready to uncompress
         Invoke BIFUncompressBIFC, BifMemMapPtrIN, Addr FilesizeOUT
         .IF eax == 0
             Invoke UnmapViewOfFile, BifMemMapPtrIN
@@ -249,9 +249,7 @@ BIFUncompressBIF_ PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD
     LOCAL src:DWORD ; BIFMemMapPtr
     LOCAL BIF__UncompressedSize:DWORD
     LOCAL BIF__CompressedSize:DWORD
-    
-    
-    ;mov eax, pBIF ;BIFMemMapPtr
+
     mov ebx, pBIF
     movzx eax, word ptr [ebx].BIF__HEADER.FilenameLength
     add eax, 12d
@@ -265,26 +263,14 @@ BIFUncompressBIF_ PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD
     lea eax, [ebx].BIF__HEADER_DATA.CompressedData
     mov src, eax
 
-;    PrintDec src
-;    PrintDec pBIF
-;    DbgDump src, 20d
-;    DbgDump pBIF, 20d
-;    PrintDec BIF__UncompressedSize
-;    PrintDec BIF__CompressedSize
     Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, BIF__UncompressedSize
     .IF eax != NULL
-        ;PrintText 'alloc ok'
         mov dest, eax
-        ;add eax, 0Ch ; add BIF_ Header to Memory map to start at correct offset for uncompressing
-        ;mov src, eax
-        ; Invoke uncompress, dest, Addr destLen, src, srcLen
         Invoke uncompress, dest, Addr BIF__UncompressedSize, src, BIF__CompressedSize
         .IF eax == Z_OK ; ok
-            ;PrintText 'Z_OK'
             mov eax, BIF__UncompressedSize 
             mov ebx, dwSize ; save size in user provided addr var
             mov [ebx], eax
-        
             mov eax, dest
             ret
         .ELSE
@@ -293,15 +279,12 @@ BIFUncompressBIF_ PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD
             ret
         .ENDIF
     .ELSE
-        ;PrintText 'Not Z_OK'
         Invoke GlobalFree, dest
         mov eax, 0
         ret
     .ENDIF
-    ;PrintText 'No alloc'
     mov eax, 0        
     ret
-
 BIFUncompressBIF_ endp
 
 
@@ -349,9 +332,6 @@ BIFUncompressBIFC PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD
         
             Invoke uncompress, UncompressedData, Addr BlockUncompressedSize, CompressedData, BlockCompressedSize
             .IF eax != Z_OK ; ok
-                ;PrintText 'uncompress BIFC error'
-                ;PrintDec eax
-                ;PrintDec nBlock
                 Invoke GlobalFree, dest
                 mov eax, 0
                 ret

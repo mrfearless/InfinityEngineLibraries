@@ -84,10 +84,7 @@ IEBIFCompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOU
     ; check file size is not 0
     Invoke GetFileSize, hBifIN, Addr BifFilesizeHighIN
     mov BifFilesizeIN, eax
-    ;PrintDec BifFilesizeIN
-    ;PrintDec BifFilesizeHighIN
     .IF BifFilesizeIN == 0 && BifFilesizeHighIN == 0
-        ;PrintText 'BC_BIF_INPUTFILE_ZEROSIZE'
         Invoke CloseHandle, hBifIN
         mov eax, BC_BIF_INPUTFILE_ZEROSIZE
         ret
@@ -121,7 +118,7 @@ IEBIFCompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOU
     Invoke BIFSignature, BifMemMapPtrIN
     mov Version, eax
 
-    .IF Version == 1
+    .IF Version == BIF_VERSION_BIFFV10
         ; BIFF uncompressed, ready to compress
         mov eax, BifFilesizeIN
         mov dwCompressedSize, eax
@@ -130,14 +127,12 @@ IEBIFCompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOU
             Invoke UnmapViewOfFile, BifMemMapPtrIN
             Invoke CloseHandle, BifMemMapHandleIN
             Invoke CloseHandle, hBifIN
-            ;PrintText 'BC_BIF_COMPRESS_ERROR'
             mov eax, BC_BIF_COMPRESS_ERROR
             ret
         .ELSEIF eax == -1
             Invoke UnmapViewOfFile, BifMemMapPtrIN
             Invoke CloseHandle, BifMemMapHandleIN
             Invoke CloseHandle, hBifIN
-            ;PrintText 'BC_BIF_COMPRESS_ERROR'
             mov eax, BC_BIF_COMPRESS_TOOLARGE
             ret
         .ENDIF
@@ -161,7 +156,7 @@ IEBIFCompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOU
         ret
     .ENDIF
 
-    .IF dwCompressionFormat == 0 ; BIF_
+    .IF dwCompressionFormat == IEBIF_COMPRESS_MODE_BIF_ ; BIF_
         Invoke BIFJustFname, lpszBifFilenameIN, Addr szInternalFilename
         Invoke szCatStr, Addr szInternalFilename, Addr CompressBIFExt
         Invoke szLen, Addr szInternalFilename
@@ -174,11 +169,12 @@ IEBIFCompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOU
         ;add eax, 1 ; include the null byte
         add eax, SIZEOF BIF__HEADER_DATA
         mov FilesizeOUT, eax
+
     .ELSE ; BIFC
+
         mov eax, dwCompressedSize ; this includes all the BIFC_BLOCKs as well
         add eax, SIZEOF BIFC_HEADER
         mov FilesizeOUT, eax
-        ;PrintDec FilesizeOUT
     .ENDIF
     
     ; ---------------------------------------------------------------------------------------------------------------------------
@@ -188,7 +184,6 @@ IEBIFCompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOU
     .IF eax == NULL ; use same name for output, but temporarily use another file name before copying over exiting one
         Invoke szCopy, lpszBifFilenameIN, Addr szBifFilenameOUT
         Invoke szCatStr, Addr szBifFilenameOUT, Addr CompressTmpExt  
-        ;PrintText 'tmp'
         mov TmpFileFlag, TRUE
     .ELSE
         
@@ -196,10 +191,8 @@ IEBIFCompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOU
         .IF eax == 0 ; match
             Invoke szCopy, lpszBifFilenameIN, Addr szBifFilenameOUT
             Invoke szCatStr, Addr szBifFilenameOUT, Addr CompressTmpExt  
-            ;PrintText 'tmp'
             mov TmpFileFlag, TRUE
         .ELSE
-            ;PrintText 'notmp'
             Invoke szCopy, lpszBifFilenameOUT, Addr szBifFilenameOUT
             mov TmpFileFlag, FALSE
         .ENDIF
@@ -240,22 +233,21 @@ IEBIFCompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOU
     .ENDIF
     mov BifMemMapPtrOUT, eax
 
-
     ; ---------------------------------------------------------------------------------------------------------------------------
     ; Fill in header data and copy compressed data in memory to output file mapping, close files and then copy over filenames if applicable
     ; ---------------------------------------------------------------------------------------------------------------------------
-    .IF dwCompressionFormat == 0 ; BIF_
+    .IF dwCompressionFormat == IEBIF_COMPRESS_MODE_BIF_ ; BIF_
         mov ebx, BifMemMapPtrOUT ;ptrCompressedData
         mov eax, ' FIB'
         mov [ebx].BIF__HEADER.Signature, eax
         mov eax, '0.1V'
         mov [ebx].BIF__HEADER.Version, eax
         mov eax, dwInternalFilenameSize
-        ;dec eax
+
         mov [ebx].BIF__HEADER.FilenameLength, eax
         lea eax, [ebx].BIF__HEADER.Filename
         mov OffsetFilename, eax
-        ;inc dwInternalFilenameSize
+
         Invoke lstrcpyn, OffsetFilename, Addr szInternalFilename, dwInternalFilenameSize
         mov ebx, BifMemMapPtrOUT ;ptrCompressedData
         add ebx, SIZEOF BIF__HEADER
@@ -268,8 +260,9 @@ IEBIFCompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOU
         mov [ebx].BIF__HEADER_DATA.CompressedSize, eax
         lea eax, [ebx].BIF__HEADER_DATA.CompressedData
         mov OffsetCompressedData, eax
+
     .ELSE ; BIFC
-        ;PrintText 'BIFC Header'
+
         mov ebx, BifMemMapPtrOUT ;ptrCompressedData
         mov eax, 'CFIB'
         mov [ebx].BIFC_HEADER.Signature, eax
@@ -347,29 +340,18 @@ BIFCompressBIFF PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD, dwFormat:DWORD
     mov ebx, dwSize
     mov eax, [ebx] ; get size of file
     mov UncompressedSize, eax
-   
-    
+
     Invoke compressBound, UncompressedSize
-    ;PrintText 'BIFCompressBound'
-    ;PrintDec eax
     mov UncompressedMemSize, eax
     mov CompressedSize, eax
-    ;PrintDec UncompressedMemSize
-    ;PrintText 'GlobalAlloc'
     Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, UncompressedMemSize ;UncompressedSize ; alloc at least this amount of space, it will be smaller after compression anyhow
     .IF eax != NULL
         mov dest, eax
         mov CompressedData, eax
         
-        .IF dwFormat == 0 ; BIF_
-            ;PrintDec UncompressedSize
-            ;PrintDec CompressedSize
-            ;Invoke uncompress, UncompressedData, Addr BlockUncompressedSize, CompressedData, BlockCompressedSize
+        .IF dwFormat == IEBIF_COMPRESS_MODE_BIF_ ; BIF_
             Invoke compress, CompressedData, Addr CompressedSize, UncompressedData, UncompressedSize ;UncompressedSize
-        
-            ;Invoke compress, dest, Addr BIFF_CompressedSize, src, BIFF_UncompressedSize
             .IF eax == Z_OK ; ok
-                ;PrintText 'Z_OK'
                 mov eax, CompressedSize
                 .IF eax > UncompressedSize
                     Invoke GlobalFree, dest
@@ -383,15 +365,12 @@ BIFCompressBIFF PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD, dwFormat:DWORD
                     ret
                 .ENDIF
             .ELSE
-                ;PrintText 'compress error'
-                ;PrintDec eax
                 Invoke GlobalFree, dest
                 mov eax, 0
                 ret    
             .ENDIF
             
-        .ELSE ; BIFC - TODO compress in blocks of 8192 bytes, till last block, write out BLOCK struc then compressed data, move to next block etc.
-
+        .ELSE ; BIFC
 
             mov TotalBytesWritten, 0
             mov CurrentPos, 0
@@ -400,51 +379,33 @@ BIFCompressBIFF PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD, dwFormat:DWORD
             .IF UncompressedSize < 8192d
                 mov eax, UncompressedSize
                 mov BlockUncompressedSize, eax
-                ;mov BlockCompressedSize, eax
             .ELSE
                 mov BlockUncompressedSize, 8192d
                 mov eax, BlockUncompressedSize
-                ;mov BlockCompressedSize, 8192d
             .ENDIF
             
             Invoke compressBound, BlockUncompressedSize
             mov BlockCompressedSize, eax
-            
-            
+
             mov eax, pBIF
             mov UncompressedDataOffset, eax
             mov eax, CompressedData
             mov CompressedDataOffset, eax
-            
-            ;PrintDec UncompressedDataOffset
-            ;PrintDec CompressedDataOffset
-            
+
             mov eax, 0
             .WHILE eax < UncompressedSize
-                ;PrintDec BlockUncompressedSize
                 mov ebx, CompressedDataOffset
                 mov eax, BlockUncompressedSize
                 mov [ebx], eax ;[ebx].BIFC_BLOCK.UncompressedSize
-                
                 add CompressedDataOffset, 8d ; skip over block header
-                ;PrintText '------------------'
-                ;PrintText 'compress'
-                ;PrintDec UncompressedDataOffset
-                ;PrintDec BlockCompressedSize
-                ;PrintDec CompressedDataOffset
-                ;PrintDec BlockUncompressedSize
                 Invoke compress, CompressedDataOffset, Addr BlockCompressedSize, UncompressedDataOffset, BlockUncompressedSize
                 .IF eax != Z_OK ; not ok
-                    ;PrintText 'BIFC compress error'
-                    ;PrintDec eax
                     Invoke GlobalFree, dest
                     mov eax, 0
                     ret
                 .ENDIF
                 
                 inc nBlock
-                ;PrintText 'calc CompressedDataOffset for next block'
-                ;PrintDec BlockCompressedSize
                 ; calc CompressedDataOffset for next block
                 sub CompressedDataOffset, 4d ; move back to block header compressed size
                 mov ebx, CompressedDataOffset
@@ -454,14 +415,11 @@ BIFCompressBIFF PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD, dwFormat:DWORD
                 mov eax, CompressedDataOffset
                 add eax, BlockCompressedSize
                 mov CompressedDataOffset, eax ; add 4 from BIFC_BLOCK.CompressedSize + length of compressed data to get next blocks start offset
-                
-                
-                ;PrintText 'calc UncompressedDataOffset for next block'
+
                 ; calc UncompressedDataOffset for next block
                 mov eax, BlockUncompressedSize
                 add UncompressedDataOffset, eax 
-                
-                ;PrintText 'calc total bytes written so far'
+
                 ; calc total bytes written so far
                 mov eax, TotalBytesWritten
                 add eax, BlockCompressedSize
@@ -473,7 +431,6 @@ BIFCompressBIFF PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD, dwFormat:DWORD
                     mov eax, -1 ; return saying file output would be larger than out input file - no point compressing
                     ret
                 .ENDIF
-               ; PrintText 'calc current position and block sizes till last block is < 8192 to fetch'
                 ; calc current position and block sizes till last block is < 8192 to fetch
                 mov eax, CurrentPos
                 add eax, 8192d
@@ -483,9 +440,7 @@ BIFCompressBIFF PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD, dwFormat:DWORD
                 .ENDIF
                 add eax, 8192d
                 .IF eax < UncompressedSize
-                    ;mov BlockCompressedSize, 8192d
                     mov BlockUncompressedSize, 8192d
-                    ;mov eax, BlockUncompressedSize
                     Invoke compressBound, BlockUncompressedSize
                     mov BlockCompressedSize, eax
                 .ELSE
@@ -493,38 +448,13 @@ BIFCompressBIFF PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD, dwFormat:DWORD
                     mov eax, UncompressedSize
                     mov ebx, CurrentPos
                     sub eax, ebx
-                    ;mov BlockCompressedSize, eax
                     mov BlockUncompressedSize, eax
-                    
-                    ;PrintDec UncompressedSize
-                    ;PrintDec CurrentPos
-                    ;PrintDec BlockUncompressedSize
                     Invoke compressBound, BlockUncompressedSize
                     mov BlockCompressedSize, eax
-                    ;PrintDec BlockCompressedSize
-                    ;PrintDec nBlock
-                    ;PrintDec CurrentPos                    
                 .ENDIF
-                
-                
-                ;mov BlockUncompressedSize, eax
-                
-                ;PrintDec nBlock
-                ;PrintDec CurrentPos
                 mov eax, CurrentPos
                
             .ENDW
-            
-            
-            ;PrintDec UncompressedSize
-            ;PrintDec CurrentPos
-            ;PrintDec UncompressedDataOffset
-            
-            ;PrintDec TotalBytesWritten
-            ;PrintDec CompressedDataOffset
-            
-            
-            ;PrintText 'should be all blocks compressed into our storage'
             ; should be all blocks compressed into our storage
             mov eax, TotalBytesWritten
             mov ebx, dwSize ; save size in user provided addr var
@@ -534,7 +464,6 @@ BIFCompressBIFF PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD, dwFormat:DWORD
         .ENDIF
 
     .ELSE
-        ;Invoke GlobalFree, dest
         mov eax, 0
         ret    
     .ENDIF      

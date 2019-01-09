@@ -233,10 +233,9 @@ ENDIF
 
 
 .CONST
+; Open Modes:
 IEMODE_WRITE            EQU 0
 IEMODE_READONLY         EQU 1
-
-
 
 .DATA
 TISV1Header             TISV1_HEADER <" SIT", "  1V", 0, 0, 24d, 64d>
@@ -245,8 +244,6 @@ BIFFV11Header           db "BIFFV1.1",0
 BIFCHeader              db "BIF V1.0",0
 BIFCV1Header            db "BIFCV1.0",0
 BIFXHeader              db 12 dup (0)
-;UnknownExt              db ".???",0
-;TLKExt                  db ".tlk",0
 KEYExt                  db ".key",0
 szHex                   db '0x',0
 szWitcherVoices_        db 'voices_',0
@@ -255,13 +252,6 @@ szChitinKey             db 'chitin.key',0
 szMainKey               db 'main.key',0
 szModKey                db 'mod.key',0
 szBackslash             db '\',0
-szSpace                 db ' ',0
-szLeftBracket           db '(',0
-szRightBracket          db ')',0
-szTimes                 db 'x',0
-szUnderscore            db '_',0
-
-.DATA?
 
 
 .CODE
@@ -353,14 +343,14 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
     Invoke BIFSignature, BIFMemMapPtr ;hBIFFile
     mov SigReturn, eax
 
-    .IF SigReturn == 0 ; not a valid bif file
+    .IF SigReturn == BIF_VERSION_INVALID ; not a valid bif file
         Invoke UnmapViewOfFile, BIFMemMapPtr
         Invoke CloseHandle, BIFMemMapHandle
         Invoke CloseHandle, hBIFFile
         mov eax, NULL
         ret    
-    
-    .ELSEIF SigReturn == 1 || SigReturn == 4; BIFF V1.0 or BIFF V1.1
+
+    .ELSEIF SigReturn == BIF_VERSION_BIFFV10 || SigReturn == BIF_VERSION_BIFFV11; BIFF V1.0 or BIFF V1.1
         Invoke IEBIFMem, BIFMemMapPtr, lpszBifFilename, BIFFilesize, BIFFilesizeHigh, dwOpenMode, BIFLargeMapping
         .IF eax == NULL
             Invoke UnmapViewOfFile, BIFMemMapPtr
@@ -382,7 +372,7 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
             mov [ebx].BIFINFO.BIFFileHandle, eax
         .ENDIF
 
-    .ELSEIF SigReturn == 2  ; BIF_V1.0
+    .ELSEIF SigReturn == BIF_VERSION_BIF_V10  ; BIF_V1.0
         Invoke BIFUncompressBIF_, BIFMemMapPtr, Addr BIFFilesize
         .IF eax == 0
             ;PrintText 'Failed to uncompress BIF V1.0'
@@ -409,7 +399,7 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
         mov hIEBIF, eax
         ;PrintText 'IEBIFMem Ok'
 
-    .ELSEIF SigReturn == 3 ; BIFCV1.0
+    .ELSEIF SigReturn == BIF_VERSION_BIFCV10 ; BIFCV1.0
         Invoke BIFUncompressBIFC, BIFMemMapPtr, Addr BIFFilesize
         .IF eax == 0
             Invoke UnmapViewOfFile, BIFMemMapPtr
@@ -431,7 +421,15 @@ IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
             ret
         .ENDIF
         mov hIEBIF, eax
+
+    .ELSE ; Not currently supported/implemented
+        Invoke UnmapViewOfFile, BIFMemMapPtr
+        Invoke CloseHandle, BIFMemMapHandle
+        Invoke CloseHandle, hBIFFile
+        mov eax, NULL
+        ret
     .ENDIF
+
     ; save original version to handle for later use so we know if orignal file opened was standard BIFF or a compressed BIF_ or BIFC file, if 0 then it was in mem so we assume BIFF
     mov ebx, hIEBIF
     mov eax, SigReturn
@@ -653,7 +651,7 @@ IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFi
 
     Invoke BIFSignature, pBIFInMemory
     mov Version, eax
-    .IF Version == 1 || Version == 4
+    .IF Version == BIF_VERSION_BIFFV10 || Version == BIF_VERSION_BIFFV11
     .ELSE
         ; added 07/01/2019
         .IF dwOpenMode == IEMODE_WRITE
@@ -674,7 +672,7 @@ IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFi
     mov ebx, [ebx].BIFINFO.BIFHeaderPtr
     mov eax, [ebx].BIF_HEADER_V1.FileEntriesCount
     mov TotalFileEntries, eax
-    .IF Version == 4 ; BIFF V1.1
+    .IF Version == BIF_VERSION_BIFFV11 ; BIFF V1.1
         mov TotalTileEntries, 0
     .ELSE
         mov eax, [ebx].BIF_HEADER_V1.TileEntriesCount
@@ -686,7 +684,7 @@ IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFi
     ;mov OffsetResEntries, eax
     
     mov eax, TotalFileEntries
-    .IF Version == 4 ; BIFF V1.1
+    .IF Version == BIF_VERSION_BIFFV11 ; BIFF V1.1
         mov ebx, SIZEOF FILE_ENTRY_V11
     .ELSE
         mov ebx, SIZEOF FILE_ENTRY
@@ -694,7 +692,7 @@ IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFi
     mul ebx
     mov FileEntriesSize, eax
     
-    .IF Version == 4 ; BIFF V1.1
+    .IF Version == BIF_VERSION_BIFFV11 ; BIFF V1.1
         mov TileEntriesSize, 0
     .ELSE
         mov eax, TotalTileEntries
@@ -824,10 +822,10 @@ IEBIFClose PROC PUBLIC USES EBX hIEBIF:DWORD
     
     mov ebx, hIEBIF
     mov eax, [ebx].BIFINFO.BIFVersion
-    .IF eax == 0 ; non BIFF
+    .IF eax == BIF_VERSION_INVALID ; non BIFF
         ; do nothing
 
-    .ELSEIF eax == 1 ; BIFF - straight raw biff, so if  opened in readonly, unmap file, otherwise free mem
+    .ELSEIF eax == BIF_VERSION_BIFFV10 || eax == BIF_VERSION_BIFFV11 ; BIFF - straight raw biff, so if  opened in readonly, unmap file, otherwise free mem
         ;PrintText 'BIFF'
         mov ebx, hIEBIF
         mov eax, [ebx].BIFINFO.BIFOpenMode
@@ -1826,7 +1824,7 @@ IEBIFNewBif PROC PUBLIC USES EBX lpszNewBifFilename:DWORD, dwBifFormat:DWORD
     .ENDIF
     mov hBifNEW, eax
     
-    .IF dwBifFormat == 0
+    .IF dwBifFormat == IEBIF_BIF_FORMAT_BIFV10
         mov FilesizeNEW, SIZEOF BIF_HEADER_V1 ; BIF v1.0
     .ELSE
         mov FilesizeNEW, SIZEOF BIF_HEADER_V11 ; BIF v1.1
@@ -1852,7 +1850,7 @@ IEBIFNewBif PROC PUBLIC USES EBX lpszNewBifFilename:DWORD, dwBifFormat:DWORD
     mov ebx, BifMemMapPtrNEW
     mov eax, 'FFIB'
     mov [ebx].BIF_HEADER_V1.Signature, eax
-    .IF dwBifFormat == 0
+    .IF dwBifFormat == IEBIF_BIF_FORMAT_BIFV10
         mov eax, '  1V'
     .ELSE
         mov eax, '1.1V'

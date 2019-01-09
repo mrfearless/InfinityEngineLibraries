@@ -199,12 +199,24 @@ ENDIF
 .CONST
 
 IEBIF_ALIGN                 TEXTEQU <ALIGN 16>
+; IEBIFOpen open mode:
 IEBIF_MODE_WRITE            EQU 0
 IEBIF_MODE_READONLY         EQU 1
+; IEBIFCompress mode:
 IEBIF_COMPRESS_MODE_BIF_    EQU 0
 IEBIF_COMPRESS_MODE_BIFC    EQU 1
+; IEBIFNewBif format for new bif file:
 IEBIF_BIF_FORMAT_BIFV10     EQU 0
 IEBIF_BIF_FORMAT_BIFV11     EQU 1
+; BIF Versions:
+BIF_VERSION_INVALID         EQU 0 ; Not a BIF or invalid
+BIF_VERSION_BIFFV10         EQU 1 ; BIFF V1.0
+BIF_VERSION_BIF_V10         EQU 2 ; BIF_V1.0 (Compressed)
+BIF_VERSION_BIFCV10         EQU 3 ; BIFCV1.0 (Compressed Blocks)
+BIF_VERSION_BIFFV11         EQU 4 ; BIFF V1.1 - Witcher etc BIF file
+BIF_VERSION_BIFCV11         EQU 5 ; BIFC V1.1 - Not currently used in any game
+BIF_VERSION_BIF_V11         EQU 6 ; BIF_ V1.1 - Not currently used in any game
+
 
 ; IEBIFUncompress return values
 BU_SUCCESS                  EQU 0
