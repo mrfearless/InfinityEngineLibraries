@@ -46,7 +46,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; Uncompress specified bif file name
 ;-------------------------------------------------------------------------------------
-IEBIFUncompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOUT:DWORD
+IEBIFUncompressBIF PROC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOUT:DWORD
     LOCAL szBifFilenameOUT[MAX_PATH]:BYTE
     LOCAL szBifFilenameALT[MAX_PATH]:BYTE
     LOCAL hBifIN:DWORD
@@ -244,7 +244,7 @@ IEBIF_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; Uncompresses BIF_ file to an area of memory that we allocate for the exact size of data
 ;-----------------------------------------------------------------------------------------
-BIFUncompressBIF_ PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD
+BIFUncompressBIF_ PROC USES EBX pBIF:DWORD, dwSize:DWORD
     LOCAL dest:DWORD ; Heap
     LOCAL src:DWORD ; BIFMemMapPtr
     LOCAL BIF__UncompressedSize:DWORD
@@ -292,7 +292,7 @@ IEBIF_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; Uncompresses BIFC file to an area of memory that we allocate for the exact size of data
 ;-----------------------------------------------------------------------------------------
-BIFUncompressBIFC PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD
+BIFUncompressBIFC PROC USES EBX pBIF:DWORD, dwSize:DWORD
     LOCAL dest:DWORD ; Heap
     LOCAL src:DWORD ; BIFMemMapPtr
     LOCAL BIFC_UncompressedSize:DWORD

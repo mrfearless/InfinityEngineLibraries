@@ -261,7 +261,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFOpen - Returns handle in eax of opened bif file. NULL if could not alloc enough mem
 ;-------------------------------------------------------------------------------------
-IEBIFOpen PROC PUBLIC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
+IEBIFOpen PROC USES EBX lpszBifFilename:DWORD, dwOpenMode:DWORD
     LOCAL hIEBIF:DWORD
     LOCAL hBIFFile:DWORD
     LOCAL BIFFilesize:DWORD
@@ -580,7 +580,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFMem - Returns handle in eax of opened bif file that is already loaded into memory. NULL if could not alloc enough mem
 ;-------------------------------------------------------------------------------------
-IEBIFMem PROC PUBLIC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFilesize:DWORD, dwBIFFilesizeHigh:DWORD, dwOpenMode:DWORD, dwBIFLargeMapping:DWORD
+IEBIFMem PROC USES EBX pBIFInMemory:DWORD, lpszBifFilename:DWORD, dwBifFilesize:DWORD, dwBIFFilesizeHigh:DWORD, dwOpenMode:DWORD, dwBIFLargeMapping:DWORD
     LOCAL hIEBIF:DWORD
     LOCAL BIFMemMapPtr:DWORD
     LOCAL TotalFileEntries:DWORD
@@ -792,7 +792,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFClose - Frees memory used by control data structure
 ;-------------------------------------------------------------------------------------
-IEBIFClose PROC PUBLIC USES EBX hIEBIF:DWORD
+IEBIFClose PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
         mov eax, 0
         ret
@@ -879,7 +879,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFHeader - Returns in eax a pointer to header or -1 if not valid
 ;-------------------------------------------------------------------------------------
-IEBIFHeader PROC PUBLIC USES EBX hIEBIF:DWORD
+IEBIFHeader PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
         mov eax, -1
         ret
@@ -894,7 +894,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFileEntry - Returns in eax a pointer to the specified file entry or -1 
 ;-------------------------------------------------------------------------------------
-IEBIFFileEntry PROC PUBLIC USES EBX hIEBIF:DWORD, nFileEntry:DWORD
+IEBIFFileEntry PROC USES EBX hIEBIF:DWORD, nFileEntry:DWORD
     LOCAL TotalFileEntries:DWORD
     LOCAL FileEntriesPtr:DWORD
     LOCAL Version:DWORD
@@ -940,7 +940,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFTileEntry - Returns in eax a pointer to the specified tile entry or -1 
 ;-------------------------------------------------------------------------------------
-IEBIFTileEntry PROC PUBLIC USES EBX hIEBIF:DWORD, nTileEntry:DWORD
+IEBIFTileEntry PROC USES EBX hIEBIF:DWORD, nTileEntry:DWORD
     LOCAL TotalTileEntries:DWORD
     LOCAL TileEntriesPtr:DWORD
     
@@ -977,7 +977,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFTotalFileEntries - Returns in eax the total no of file entries
 ;-------------------------------------------------------------------------------------
-IEBIFTotalFileEntries PROC PUBLIC USES EBX hIEBIF:DWORD
+IEBIFTotalFileEntries PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
         mov eax, 0
         ret
@@ -997,7 +997,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFTotalTileEntries - Returns in eax the total no of tile entries
 ;-------------------------------------------------------------------------------------
-IEBIFTotalTileEntries PROC PUBLIC USES EBX hIEBIF:DWORD
+IEBIFTotalTileEntries PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
         mov eax, 0
         ret
@@ -1017,7 +1017,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFileEntries - Returns in eax a pointer to file entries or -1 if not valid
 ;-------------------------------------------------------------------------------------
-IEBIFFileEntries PROC PUBLIC USES EBX hIEBIF:DWORD
+IEBIFFileEntries PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
         mov eax, -1
         ret
@@ -1032,7 +1032,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFTileEntries - Returns in eax a pointer to tile entries or -1 if not valid
 ;-------------------------------------------------------------------------------------
-IEBIFTileEntries PROC PUBLIC USES EBX hIEBIF:DWORD
+IEBIFTileEntries PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
         mov eax, -1
         ret
@@ -1053,7 +1053,7 @@ IEBIF_ALIGN
 ; EFF sig will be ' FFE'
 ; Version will be '  1V' of usual V1__ and '0.1V' for V1.0
 ;-------------------------------------------------------------------------------------
-IEBIFPeekFileSignature PROC PUBLIC hIEBIF:DWORD, nFileEntry:DWORD
+IEBIFPeekFileSignature PROC hIEBIF:DWORD, nFileEntry:DWORD
     LOCAL FileEntryOffset:DWORD
     LOCAL ResourceOffset:DWORD
     LOCAL ResourceSize:DWORD
@@ -1134,7 +1134,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFileName - returns in eax pointer to zero terminated string contained filename that is open or -1 if not opened, 0 if in memory ?
 ;-------------------------------------------------------------------------------------
-IEBIFFileName PROC PUBLIC USES EBX hIEBIF:DWORD
+IEBIFFileName PROC USES EBX hIEBIF:DWORD
     LOCAL BifFilename:DWORD
     .IF hIEBIF == NULL
         mov eax, -1
@@ -1157,7 +1157,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFileNameOnly - returns in eax true or false if it managed to pass to the buffer pointed at lpszFileNameOnly, the stripped filename without extension
 ;-------------------------------------------------------------------------------------
-IEBIFFileNameOnly PROC PUBLIC USES EBX hIEBIF:DWORD, lpszFileNameOnly:DWORD
+IEBIFFileNameOnly PROC USES EBX hIEBIF:DWORD, lpszFileNameOnly:DWORD
     Invoke IEBIFFileName, hIEBIF
     .IF eax == -1
         mov eax, FALSE
@@ -1174,7 +1174,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFileSize - returns low order in eax, high order in ebx of size of file or eax = -1, ebx = 0
 ;-------------------------------------------------------------------------------------
-IEBIFFileSize PROC PUBLIC hIEBIF:DWORD
+IEBIFFileSize PROC hIEBIF:DWORD
     .IF hIEBIF == NULL
         mov eax, -1
         mov ebx, 0
@@ -1191,7 +1191,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFFindKeyFile - returns in eax true if found, or false otherwise
 ;-------------------------------------------------------------------------------------
-IEBIFFindKeyFile PROC PUBLIC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWORD
+IEBIFFindKeyFile PROC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWORD
     LOCAL szKeyFileName[MAX_PATH]:BYTE
     LOCAL szKeyFilePath[MAX_PATH]:BYTE
     LOCAL szCurrentKeyFilePath[MAX_PATH]:BYTE
@@ -1501,7 +1501,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFExtractFile - returns in eax size of file extracted or -1 if failed
 ;-------------------------------------------------------------------------------------
-IEBIFExtractFile PROC PUBLIC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutputFilename:DWORD
+IEBIFExtractFile PROC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutputFilename:DWORD
     LOCAL FileEntryOffset:DWORD
     LOCAL ResourceSize:DWORD
     LOCAL ResourceData:DWORD
@@ -1660,7 +1660,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEBIFExtractTile - returns in eax size of tile extracted or -1 if failed
 ;-------------------------------------------------------------------------------------
-IEBIFExtractTile PROC PUBLIC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutputFilename:DWORD
+IEBIFExtractTile PROC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutputFilename:DWORD
     LOCAL TileEntryOffset:DWORD
     LOCAL ResourceSize:DWORD
     LOCAL ResSizeWithHeader:DWORD
@@ -1778,7 +1778,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; 0 = No Bif file, 1 = BIFF, 2 = BIF V1.0 3 = BIFCV1.0, 4 = BIF V1.1
 ;-------------------------------------------------------------------------------------
-IEBIFFileCompression PROC PUBLIC USES EBX hIEBIF:DWORD
+IEBIFFileCompression PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
         mov eax, 0
         ret
@@ -1793,7 +1793,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; 0 = No Bif file, 1 = BIFF, 2 = BIF V1.0 3 = BIFCV1.0, 4 = BIF V1.1
 ;-------------------------------------------------------------------------------------
-IEBIFVersion PROC PUBLIC USES EBX hIEBIF:DWORD
+IEBIFVersion PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
         mov eax, 0
         ret
@@ -1810,7 +1810,7 @@ IEBIF_ALIGN
 ; or if < 0 an error
 ; dwBifFormat = 0 for BIF V1.0, 1= for BIF V1.1
 ;-------------------------------------------------------------------------------------
-IEBIFNewBif PROC PUBLIC USES EBX lpszNewBifFilename:DWORD, dwBifFormat:DWORD
+IEBIFNewBif PROC USES EBX lpszNewBifFilename:DWORD, dwBifFormat:DWORD
     LOCAL hBifNEW:DWORD
     LOCAL BifMemMapHandleNEW:DWORD
     LOCAL BifMemMapPtrNEW:DWORD

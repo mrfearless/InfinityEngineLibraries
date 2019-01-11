@@ -47,7 +47,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; Compress specified bif file name
 ;-------------------------------------------------------------------------------------
-IEBIFCompressBIF PROC PUBLIC USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOUT:DWORD, dwCompressionFormat:DWORD
+IEBIFCompressBIF PROC  USES EBX lpszBifFilenameIN:DWORD, lpszBifFilenameOUT:DWORD, dwCompressionFormat:DWORD
     LOCAL szBifFilenameOUT[MAX_PATH]:BYTE
     LOCAL szBifFilenameALT[MAX_PATH]:BYTE
     LOCAL hBifIN:DWORD
@@ -317,7 +317,7 @@ IEBIF_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; Compresses BIFF file to an area of memory that we allocate for the exact size of data
 ;-----------------------------------------------------------------------------------------
-BIFCompressBIFF PROC PRIVATE USES EBX pBIF:DWORD, dwSize:DWORD, dwFormat:DWORD
+BIFCompressBIFF PROC USES EBX pBIF:DWORD, dwSize:DWORD, dwFormat:DWORD
     LOCAL dest:DWORD ; Heap
     LOCAL src:DWORD ; pBIF
     LOCAL UncompressedSize:DWORD
