@@ -1,0 +1,9 @@
+;--------------------------------------------------------------------------------------------------
+; IEPAL Additions 
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+; Paste this text at the end of \Radasm\masm\masmApiStruct.api to add these to Radasm
+;
+;--------------------------------------------------------------------------------------------------
+

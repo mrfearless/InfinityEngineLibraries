@@ -1,9 +1,9 @@
-;-----------------------------------------------------------------------------------------------------
-; LTLT IEKEY Additions 09/04/2016
+;--------------------------------------------------------------------------------------------------
+; IEKEY Additions
 ;
 ; Paste this text at the end of \Radasm\Masm\masmApiCall.api to add these to Radasm
 ;
-;-----------------------------------------------------------------------------------------------------
+;--------------------------------------------------------------------------------------------------
 IEKEYOpen,lpszKeyFilename,dwOpenMode
 IEKEYMem,pKEYInMemory,lpszKeyFilename,dwKeyFilesize,dwOpenMode
 IEKEYClose,hIEKEY
