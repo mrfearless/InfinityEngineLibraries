@@ -1,0 +1,24 @@
+;------------------------------------------------------------------------------------------------
+; IERIM Additions 
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+; Paste this text at the end of \Radasm\masm\masmApiCall.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+IERIMOpen,lpszBifFilename,dwOpenMode
+IERIMMem,pRIMInMemory,lpszRimFilename,dwRimFilesize,dwOpenMode
+IERIMClose,hIERIM
+IERIMHeader,hIERIM
+IERIMFileEntry,hIERIM,nFileEntry
+IERIMFileEntries,hIERIM
+IERIMPeekFileSignature,hIERIM,nFileEntry
+IERIMTotalFileEntries,hIERIM
+IERIMFileName,hIERIM
+IERIMFileNameOnly,hIERIM,lpszFileNameOnly
+IERIMFileSize,hIERIM
+IERIMVersion,hIERIM
+IERIMExtractFile,hIERIM,nFileEntry,lpszOutputFilename
+
+
+

@@ -1,0 +1,10 @@
+;------------------------------------------------------------------------------------------------
+; IEBIF Additions 
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+; Paste this text at the end of \Radasm\masm\masmApiConst.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+2IERIMOpen,IERIM_MODE_WRITE,IERIM_MODE_READONLY
+4IERIMMem,IERIM_MODE_WRITE,IERIM_MODE_READONLY

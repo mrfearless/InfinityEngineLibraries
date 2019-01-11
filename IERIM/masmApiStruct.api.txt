@@ -1,0 +1,11 @@
+;--------------------------------------------------------------------------------------------------
+; IERIM Additions 
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+; Paste this text at the end of \Radasm\masm\masmApiStruct.api to add these to Radasm
+;
+;--------------------------------------------------------------------------------------------------
+RIM_HEADER,Signature,Version,Unknown,FileEntriesCount,FileEntriesOffset,RimVersion,dwNulls
+RIM_FILE_ENTRY,ResourceName,ResourceType,ResourceIndex,ResourceOffset,ResourceSize
+

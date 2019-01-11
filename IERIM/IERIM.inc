@@ -54,9 +54,9 @@ IERIMFileData               PROTO :DWORD, :DWORD            ; hIERIM, nFileEntry
 ; Rim file information
 IERIMTotalFileEntries       PROTO :DWORD                    ; hIERIM. Returns in eax total no of file entries.
 
-IERIMFileName               PROTO :DWORD                    ; hIERIM. Returns in eax pointer to bif full path filename
+IERIMFileName               PROTO :DWORD                    ; hIERIM. Returns in eax pointer to rim full path filename
 IERIMFileNameOnly           PROTO :DWORD, :DWORD            ; hIERIM, lpszFileNameOnly. eax contains True or false if succesfull. strips filename of path and ext information.
-IERIMFileSize               PROTO :DWORD                    ; hIERIM. Returns in eax size of bif file in bytes
+IERIMFileSize               PROTO :DWORD                    ; hIERIM. Returns in eax size of rim file in bytes
 IERIMVersion                PROTO :DWORD                    ; hIERIM. Returns in eax 0 no rim, 1 = RIM V1
 
 IERIMExtractFile            PROTO :DWORD, :DWORD, :DWORD    ; hIERIM, nFileEntry, lpszOutputFilename. Returns in eax size of file extracted or -1 if failed
@@ -93,8 +93,14 @@ ENDIF
 
 
 
-
-
+.CONST
+IERIM_ALIGN                 TEXTEQU <ALIGN 16>
+; IERIMOpen open mode:
+IERIM_MODE_WRITE            EQU 0
+IERIM_MODE_READONLY         EQU 1
+; RIM Versions:
+RIM_VERSION_INVALID         EQU 0 ; Not a RIM or invalid
+RIM_VERSION_RIM_V10         EQU 1 ; RIM V1.0
 
 
 

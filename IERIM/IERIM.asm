@@ -57,19 +57,14 @@ includelib masm32.lib
 
 include IERIM.inc
 
-;DEBUGLOG EQU 1
-IFDEF DEBUGLOG
-    include DebugLogLIB.asm
-ENDIF
 ;DEBUG32 EQU 1
-
-IFDEF DEBUG32
-    PRESERVEXMMREGS equ 1
-    includelib M:\Masm32\lib\Debug32.lib
-    DBG32LIB equ 1
-    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
-    include M:\Masm32\include\debug32.inc
-ENDIF
+;IFDEF DEBUG32
+;    PRESERVEXMMREGS equ 1
+;    includelib M:\Masm32\lib\Debug32.lib
+;    DBG32LIB equ 1
+;    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
+;    include M:\Masm32\include\debug32.inc
+;ENDIF
 
 ;-------------------------------------------------------------------------
 ; Prototypes for internal use
@@ -115,7 +110,7 @@ RIMINFO                 STRUCT
     RIMHeaderSize       DD 0
     RIMFileEntriesPtr   DD 0
     RIMFileEntriesSize  DD 0
-    RIMFileDataPtr      DD 0 ;  array each entry corresponds to bif file entry and its data alloc'd in memory
+    RIMFileDataPtr      DD 0 ;  array each entry corresponds to rim file entry and its data alloc'd in memory
     RIMMemMapPtr        DD 0
     RIMMemMapHandle     DD 0
     RIMFileHandle       DD 0
@@ -130,18 +125,16 @@ ENDIF
 .DATA
 NEWRIMHeader            RIM_HEADER <" MIR", "  1V", 0, 128d, 1,>
 RIMV1Header             db "RIM V1.0",0
-IFDEF DEBUG32
-DbgVar                      DD 0
-ENDIF
-
 
 
 .CODE
 
+
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMOpen - Returns handle in eax of opened rim file. NULL if could not alloc enough mem
 ;-------------------------------------------------------------------------------------
-IERIMOpen PROC PUBLIC USES EBX lpszRimFilename:DWORD, dwOpenMode:DWORD
+IERIMOpen PROC USES EBX lpszRimFilename:DWORD, dwOpenMode:DWORD
     LOCAL hIERIM:DWORD
     LOCAL hRIMFile:DWORD
     LOCAL RIMFilesize:DWORD
@@ -149,15 +142,12 @@ IERIMOpen PROC PUBLIC USES EBX lpszRimFilename:DWORD, dwOpenMode:DWORD
     LOCAL RIMMemMapHandle:DWORD
     LOCAL RIMMemMapPtr:DWORD
     LOCAL pRIM:DWORD
-    IFDEF DEBUGLOG
-    DebugLogMsg "IERIMOpen", DEBUGLOG_FUNCTION, 2
-    ENDIF
-    .IF dwOpenMode == 1 ; readonly
-        Invoke CreateFile, lpszRimFilename, GENERIC_READ, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
+
+    .IF dwOpenMode == IERIM_MODE_READONLY ; readonly
+        Invoke CreateFile, lpszRimFilename, GENERIC_READ, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
     .ELSE
-        Invoke CreateFile, lpszRimFilename, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
+        Invoke CreateFile, lpszRimFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
     .ENDIF
-    ;PrintDec eax
     .IF eax == INVALID_HANDLE_VALUE
         mov eax, FALSE
         ret
@@ -170,32 +160,23 @@ IERIMOpen PROC PUBLIC USES EBX lpszRimFilename:DWORD, dwOpenMode:DWORD
     ;---------------------------------------------------                
     ; File Mapping: Create file mapping for main .rim
     ;---------------------------------------------------
-    .IF dwOpenMode == 1 ; readonly
+    .IF dwOpenMode == IERIM_MODE_READONLY ; readonly
         Invoke CreateFileMapping, hRIMFile, NULL, PAGE_READONLY, 0, 0, NULL ; Create memory mapped file
     .ELSE
         Invoke CreateFileMapping, hRIMFile, NULL, PAGE_READWRITE, 0, 0, NULL ; Create memory mapped file
     .ENDIF   
     .IF eax == NULL
-        IFDEF DEBUGLOG
-        DebugLogMsg "CreateFileMapping Failed", DEBUGLOG_INFO, 3
-        ENDIF    
-    
-        ;PrintText 'Mapping Failed'
         mov eax, FALSE
         ret
     .ENDIF
     mov RIMMemMapHandle, eax
     
-    .IF dwOpenMode == 1 ; readonly
+    .IF dwOpenMode == IERIM_MODE_READONLY ; readonly
         Invoke MapViewOfFileEx, RIMMemMapHandle, FILE_MAP_READ, 0, 0, 0, NULL
     .ELSE
         Invoke MapViewOfFileEx, RIMMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0, NULL
     .ENDIF
     .IF eax == NULL
-        ;PrintText 'Mapping View Failed'
-        IFDEF DEBUGLOG
-        DebugLogMsg "MapViewOfFileEx Failed", DEBUGLOG_INFO, 3
-        ENDIF           
         mov eax, FALSE
         ret
     .ENDIF
@@ -203,8 +184,7 @@ IERIMOpen PROC PUBLIC USES EBX lpszRimFilename:DWORD, dwOpenMode:DWORD
 
     Invoke RIMSignature, RIMMemMapPtr ;hRIMFile
     mov SigReturn, eax
-    ;PrintDec SigReturn
-    .IF SigReturn == 0 ; not a valid bif file
+    .IF SigReturn == RIM_VERSION_INVALID ; not a valid rim file
         Invoke UnmapViewOfFile, RIMMemMapPtr
         Invoke CloseHandle, RIMMemMapHandle
         Invoke CloseHandle, hRIMFile
@@ -221,7 +201,7 @@ IERIMOpen PROC PUBLIC USES EBX lpszRimFilename:DWORD, dwOpenMode:DWORD
             mov eax, NULL
             ret    
         .ENDIF
-        .IF dwOpenMode == 0 ; write (default)
+        .IF dwOpenMode == IERIM_MODE_WRITE ; write (default)
             Invoke UnmapViewOfFile, RIMMemMapPtr
             Invoke CloseHandle, RIMMemMapHandle
             Invoke CloseHandle, hRIMFile
@@ -238,123 +218,69 @@ IERIMOpen PROC PUBLIC USES EBX lpszRimFilename:DWORD, dwOpenMode:DWORD
     mov ebx, hIERIM
     mov eax, SigReturn
     mov [ebx].RIMINFO.RIMVersion, eax
-    
-    IFDEF DEBUGLOG
-    DebugLogMsg "IERIMOpen::Finished", DEBUGLOG_INFO, 2
-    ENDIF
     mov eax, hIERIM
-    
-    IFDEF DEBUG32
-        PrintDec hIERIM
-    ENDIF
     ret
 IERIMOpen ENDP
 
 
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMClose - Frees memory used by control data structure
 ;-------------------------------------------------------------------------------------
-IERIMClose PROC PUBLIC USES EBX hIERIM:DWORD
-    IFDEF DEBUGLOG
-    DebugLogMsg "IERIMClose", DEBUGLOG_FUNCTION, 2
-    ENDIF
+IERIMClose PROC USES EBX hIERIM:DWORD
     .IF hIERIM == NULL
-        IFDEF DEBUGLOG
-        DebugLogMsg "IERIMClose::hIERIM==NULL", DEBUGLOG_INFO, 3
-        ENDIF
         mov eax, 0
         ret
     .ENDIF
 
     mov ebx, hIERIM
     mov eax, [ebx].RIMINFO.RIMOpenMode
-    .IF eax == 0 ; Write Mode
-        IFDEF DEBUGLOG
-        DebugLogMsg "IERIMClose::Read/Write Mode", DEBUGLOG_INFO, 3
-        ENDIF
+    .IF eax == IERIM_MODE_WRITE ; Write Mode
         mov ebx, hIERIM
         mov eax, [ebx].RIMINFO.RIMHeaderPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
-            IFDEF DEBUGLOG
-            DebugLogMsg "IERIMClose::GlobalFree-RIMHeaderPtr::Success", DEBUGLOG_INFO, 3
-            ENDIF
         .ENDIF
     
         mov ebx, hIERIM
         mov eax, [ebx].RIMINFO.RIMFileEntriesPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
-            IFDEF DEBUGLOG
-            DebugLogMsg "IERIMClose::GlobalFree-RIMFileEntriesPtr::Success", DEBUGLOG_INFO, 3
-            ENDIF
         .ENDIF
     .ENDIF
     
     mov ebx, hIERIM
     mov eax, [ebx].RIMINFO.RIMVersion
-    ;PrintDec eax
-    IFDEF DEBUGLOG
-    DebugLogValue "IERIMClose::RIMVersion", eax, 3
-    ENDIF
     .IF eax == 0 ; non RIMF
         ; do nothing
-        IFDEF DEBUGLOG
-        DebugLogMsg "IERIMClose::RIMVersion::0 - NONE", DEBUGLOG_INFO, 3
-        ENDIF
         
-    .ELSEIF eax == 1 ; RIMF - straight raw biff, so if  opened in readonly, unmap file, otherwise free mem
-        ;PrintText 'RIMF'
-        IFDEF DEBUGLOG
-        DebugLogMsg "IERIMClose::RIMVersion:: RIMF", DEBUGLOG_INFO, 3
-        ENDIF
-        
+    .ELSEIF eax == 1 ; RIM - straight raw RIM, so if  opened in readonly, unmap file, otherwise free mem
         mov ebx, hIERIM
         mov eax, [ebx].RIMINFO.RIMOpenMode
-        .IF eax == 1 ; Read Only
-            IFDEF DEBUGLOG
-            DebugLogMsg "IERIMClose::RIMVersion:: RIMF (Read Only)", DEBUGLOG_INFO, 3
-            ENDIF
-            ;PrintText 'Read Only'
+        .IF eax == IERIM_MODE_READONLY ; Read Only
             mov ebx, hIERIM
             mov eax, [ebx].RIMINFO.RIMMemMapPtr
             .IF eax != NULL
                 Invoke UnmapViewOfFile, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IERIMClose::UnmapViewOfFile-RIMMemMapPtr::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
-                      
+
             mov ebx, hIERIM
             mov eax, [ebx].RIMINFO.RIMMemMapHandle
             .IF eax != NULL
                 Invoke CloseHandle, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IERIMClose::CloseHandle-RIMMemMapHandle::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
             
             mov ebx, hIERIM
             mov eax, [ebx].RIMINFO.RIMFileHandle
             .IF eax != NULL
                 Invoke CloseHandle, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IERIMClose::CloseHandle-RIMFileHandle::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
                      
         .ELSE ; free mem if write mode
-            IFDEF DEBUGLOG
-            DebugLogMsg "IERIMClose::RIMVersion:: RIMF (Read / Write)", DEBUGLOG_INFO, 3
-            ENDIF
-            ;PrintText 'Read/Write'
             mov ebx, hIERIM
             mov eax, [ebx].RIMINFO.RIMMemMapPtr
             .IF eax != NULL
                 Invoke GlobalFree, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IERIMClose::GlobalFree-RIMMemMapPtr::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
         .ENDIF
 
@@ -363,22 +289,17 @@ IERIMClose PROC PUBLIC USES EBX hIERIM:DWORD
     mov eax, hIERIM
     .IF eax != NULL
         Invoke GlobalFree, eax
-        IFDEF DEBUGLOG
-        DebugLogMsg "IERIMClose::GlobalFree-hIERIM::Success", DEBUGLOG_INFO, 3
-        ENDIF
     .ENDIF
-    IFDEF DEBUGLOG
-    DebugLogMsg "IERIMClose::Finished", DEBUGLOG_INFO, 2
-    ENDIF 
     mov eax, 0
     ret
 IERIMClose ENDP
 
 
+IERIM_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; Checks the RIM signatures to determine if they are valid and if BAM file is compressed
 ;-----------------------------------------------------------------------------------------
-RIMSignature PROC PRIVATE USES EBX pRIM:DWORD
+RIMSignature PROC USES EBX pRIM:DWORD
     ; check signatures to determine version
     mov ebx, pRIM
     mov eax, [ebx]
@@ -386,21 +307,22 @@ RIMSignature PROC PRIVATE USES EBX pRIM:DWORD
         add ebx, 4
         mov eax, [ebx]
         .IF eax == '0.1V' ; V1.0 standard RIM v1
-            mov eax, 1
+            mov eax, RIM_VERSION_RIM_V10
         .ELSE
-            mov eax, 0
+            mov eax, RIM_VERSION_INVALID
         .ENDIF
     .ELSE
-        mov eax, 0
+        mov eax, RIM_VERSION_INVALID
     .ENDIF
     ret
 RIMSignature endp
 
 
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IERIMMem - Returns handle in eax of opened bif file that is already loaded into memory. NULL if could not alloc enough mem
+; IERIMMem - Returns handle in eax of opened rim file that is already loaded into memory. NULL if could not alloc enough mem
 ;-------------------------------------------------------------------------------------
-IERIMMem PROC PUBLIC USES EBX pRIMInMemory:DWORD, lpszRimFilename:DWORD, dwRimFilesize:DWORD, dwOpenMode:DWORD
+IERIMMem PROC USES EBX pRIMInMemory:DWORD, lpszRimFilename:DWORD, dwRimFilesize:DWORD, dwOpenMode:DWORD
     LOCAL hIERIM:DWORD
     LOCAL RIMMemMapPtr:DWORD
     LOCAL TotalFileEntries:DWORD
@@ -408,16 +330,13 @@ IERIMMem PROC PUBLIC USES EBX pRIMInMemory:DWORD, lpszRimFilename:DWORD, dwRimFi
     LOCAL OffsetFileEntries:DWORD
     LOCAL FileRimInfoExSize:DWORD
 
-    IFDEF DEBUGLOG
-    DebugLogMsg "IERIMMem", DEBUGLOG_FUNCTION, 2
-    ENDIF
     mov eax, pRIMInMemory
     mov RIMMemMapPtr, eax       
     
     ;----------------------------------
     ; Alloc mem for our IERIM Handle
     ;----------------------------------
-    Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, SIZEOF RIMINFO
+    Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, SIZEOF RIMINFO
     .IF eax == NULL
         ret
     .ENDIF
@@ -439,8 +358,8 @@ IERIMMem PROC PUBLIC USES EBX pRIMInMemory:DWORD, lpszRimFilename:DWORD, dwRimFi
     ;----------------------------------
     ; RIM Header
     ;----------------------------------
-    .IF dwOpenMode == 0
-        Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, SIZEOF RIM_HEADER
+    .IF dwOpenMode == IERIM_MODE_WRITE
+        Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, SIZEOF RIM_HEADER
         .IF eax == NULL
             Invoke GlobalFree, hIERIM
             mov eax, NULL
@@ -473,20 +392,18 @@ IERIMMem PROC PUBLIC USES EBX pRIMInMemory:DWORD, lpszRimFilename:DWORD, dwRimFi
     mul ebx
     mov FileEntriesSize, eax
 
-    IFDEF DEBUGLOG
-    DebugLogValue "TotalFileEntries", TotalFileEntries, 3
-    DebugLogValue "FileEntriesSize", FileEntriesSize, 3
-    ENDIF
     ;----------------------------------
     ; File Entries
     ;----------------------------------
     .IF TotalFileEntries > 0
-        .IF dwOpenMode == 0
-            Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, FileEntriesSize
+        .IF dwOpenMode == IERIM_MODE_WRITE
+            Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, FileEntriesSize
             .IF eax == NULL
                 mov ebx, hIERIM
                 mov eax, [ebx].RIMINFO.RIMHeaderPtr
-                Invoke GlobalFree, eax    
+                .IF eax != NULL
+                    Invoke GlobalFree, eax
+                .ENDIF    
                 Invoke GlobalFree, hIERIM
                 mov eax, NULL    
                 ret
@@ -511,22 +428,16 @@ IERIMMem PROC PUBLIC USES EBX pRIMInMemory:DWORD, lpszRimFilename:DWORD, dwRimFi
         mov [ebx].RIMINFO.RIMFileEntriesPtr, 0
         mov [ebx].RIMINFO.RIMFileEntriesSize, 0
     .ENDIF
-    
-    IFDEF DEBUG32
-        PrintDec TotalFileEntries
-    ENDIF
-    IFDEF DEBUGLOG
-    DebugLogMsg "IERIMMem::Finished", DEBUGLOG_INFO, 2
-    ENDIF
     mov eax, hIERIM
     ret
 IERIMMem ENDP
 
 
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMHeader - Returns in eax a pointer to header or -1 if not valid
 ;-------------------------------------------------------------------------------------
-IERIMHeader PROC PUBLIC USES EBX hIERIM:DWORD
+IERIMHeader PROC USES EBX hIERIM:DWORD
     .IF hIERIM == NULL
         mov eax, -1
         ret
@@ -536,10 +447,12 @@ IERIMHeader PROC PUBLIC USES EBX hIERIM:DWORD
     ret
 IERIMHeader ENDP
 
+
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMFileEntry - Returns in eax a pointer to the specified file entry or -1 
 ;-------------------------------------------------------------------------------------
-IERIMFileEntry PROC PUBLIC USES EBX hIERIM:DWORD, nFileEntry:DWORD
+IERIMFileEntry PROC USES EBX hIERIM:DWORD, nFileEntry:DWORD
     LOCAL TotalFileEntries:DWORD
     LOCAL FileEntriesPtr:DWORD
     
@@ -571,24 +484,32 @@ IERIMFileEntry PROC PUBLIC USES EBX hIERIM:DWORD, nFileEntry:DWORD
     ret
 IERIMFileEntry ENDP
 
+
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMTotalFileEntries - Returns in eax the total no of file entries
 ;-------------------------------------------------------------------------------------
-IERIMTotalFileEntries PROC PUBLIC USES EBX hIERIM:DWORD
+IERIMTotalFileEntries PROC USES EBX hIERIM:DWORD
     .IF hIERIM == NULL
         mov eax, 0
         ret
     .ENDIF
     mov ebx, hIERIM
     mov ebx, [ebx].RIMINFO.RIMHeaderPtr
-    mov eax, [ebx].RIM_HEADER.FileEntriesCount
+    .IF ebx != NULL
+        mov eax, [ebx].RIM_HEADER.FileEntriesCount
+    .ELSE
+        mov eax, 0
+    .ENDIF
     ret
 IERIMTotalFileEntries ENDP
 
+
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMFileEntries - Returns in eax a pointer to file entries or -1 if not valid
 ;-------------------------------------------------------------------------------------
-IERIMFileEntries PROC PUBLIC USES EBX hIERIM:DWORD
+IERIMFileEntries PROC USES EBX hIERIM:DWORD
     .IF hIERIM == NULL
         mov eax, -1
         ret
@@ -598,10 +519,12 @@ IERIMFileEntries PROC PUBLIC USES EBX hIERIM:DWORD
     ret
 IERIMFileEntries ENDP
 
+
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMFileName - returns in eax pointer to zero terminated string contained filename that is open or -1 if not opened, 0 if in memory ?
 ;-------------------------------------------------------------------------------------
-IERIMFileName PROC PUBLIC USES EBX hIERIM:DWORD
+IERIMFileName PROC USES EBX hIERIM:DWORD
     LOCAL RimFilename:DWORD
     .IF hIERIM == NULL
         mov eax, -1
@@ -615,41 +538,32 @@ IERIMFileName PROC PUBLIC USES EBX hIERIM:DWORD
         mov eax, -1
     .ELSE
         mov eax, RimFilename
-        ;IFDEF DEBUG32
-        ;    mov DbgVar, eax
-        ;    PrintStringByAddr DbgVar
-        ;ENDIF
     .ENDIF
-    ;IFDEF DEBUG32
-    ;    PrintDec eax
-    ;ENDIF
     ret
-
 IERIMFileName endp
 
+
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMFileNameOnly - returns in eax true or false if it managed to pass to the buffer pointed at lpszFileNameOnly, the stripped filename without extension
 ;-------------------------------------------------------------------------------------
-IERIMFileNameOnly PROC PUBLIC USES EBX hIERIM:DWORD, lpszFileNameOnly:DWORD
-    
+IERIMFileNameOnly PROC hIERIM:DWORD, lpszFileNameOnly:DWORD
     Invoke IERIMFileName, hIERIM
     .IF eax == -1
         mov eax, FALSE
         ret
     .ENDIF
-    
     Invoke RIMJustFname, eax, lpszFileNameOnly
-    
     mov eax, TRUE
     ret
-
 IERIMFileNameOnly endp
 
 
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMFileSize - returns in eax size of file or -1
 ;-------------------------------------------------------------------------------------
-IERIMFileSize PROC PUBLIC USES EBX hIERIM:DWORD
+IERIMFileSize PROC USES EBX hIERIM:DWORD
     .IF hIERIM == NULL
         mov eax, -1
         ret
@@ -657,14 +571,14 @@ IERIMFileSize PROC PUBLIC USES EBX hIERIM:DWORD
     mov ebx, hIERIM
     mov eax, [ebx].RIMINFO.RIMFilesize
     ret
-
 IERIMFileSize endp
 
+
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; 0 = No rim file, 1 = RIM V1
 ;-------------------------------------------------------------------------------------
-IERIMVersion PROC PUBLIC USES EBX hIERIM:DWORD
-    
+IERIMVersion PROC USES EBX hIERIM:DWORD
     .IF hIERIM == NULL
         mov eax, 0
         ret
@@ -672,14 +586,14 @@ IERIMVersion PROC PUBLIC USES EBX hIERIM:DWORD
     mov ebx, hIERIM
     mov eax, [ebx].RIMINFO.RIMVersion
     ret
-
 IERIMVersion endp
 
 
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMFileData - returns in eax pointer to file data or -1 if not found
 ;-------------------------------------------------------------------------------------
-IERIMFileData PROC PUBLIC USES EBX hIERIM:DWORD, nFileEntry:DWORD
+IERIMFileData PROC USES EBX hIERIM:DWORD, nFileEntry:DWORD
     LOCAL FileEntryOffset:DWORD
     LOCAL ResourceOffset:DWORD
     
@@ -703,13 +617,14 @@ IERIMFileData PROC PUBLIC USES EBX hIERIM:DWORD, nFileEntry:DWORD
     mov ebx, ResourceOffset
     add eax, ebx
     ret
-
 IERIMFileData ENDP
 
+
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IERIMExtractFile - returns in eax size of file extracted or -1 if failed
 ;-------------------------------------------------------------------------------------
-IERIMExtractFile PROC PUBLIC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutputFilename:DWORD
+IERIMExtractFile PROC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutputFilename:DWORD
     LOCAL FileEntryOffset:DWORD
     LOCAL ResourceSize:DWORD
     LOCAL ResourceData:DWORD
@@ -742,13 +657,8 @@ IERIMExtractFile PROC PUBLIC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutput
     mov ebx, ResourceOffset
     add eax, ebx
     mov ResourceData, eax
-    
-    ;PrintDec FileEntryOffset
-    ;PrintDec ResourceOffset
-    ;PrintDec ResourceSize
-    ;PrintDec ResourceData
-    
-    Invoke CreateFile, lpszOutputFilename, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_WRITE_THROUGH, NULL
+
+    Invoke CreateFile, lpszOutputFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_WRITE_THROUGH, NULL
     .IF eax == INVALID_HANDLE_VALUE
         mov eax, -1
         ret
@@ -761,8 +671,7 @@ IERIMExtractFile PROC PUBLIC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutput
         mov eax, 0
         ret
     .ENDIF
-    
-    ;PrintDec hOutputFile
+
     Invoke CreateFileMapping, hOutputFile, NULL, PAGE_READWRITE, 0, ResourceSize, NULL
     .IF eax == NULL
         Invoke CloseHandle, hOutputFile
@@ -770,7 +679,7 @@ IERIMExtractFile PROC PUBLIC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutput
         ret
     .ENDIF
     mov MemMapHandle, eax
-    ;PrintDec MemMapHandle
+
     Invoke MapViewOfFile, MemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0
     .IF eax == NULL
         Invoke CloseHandle, MemMapHandle
@@ -779,9 +688,7 @@ IERIMExtractFile PROC PUBLIC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutput
         ret        
     .ENDIF
     mov MemMapPtr, eax
-    
-    
-    ;PrintDec MemMapPtr
+
     Invoke RtlMoveMemory, MemMapPtr, ResourceData, ResourceSize
     
     Invoke FlushViewOfFile, MemMapPtr, ResourceSize
@@ -790,10 +697,10 @@ IERIMExtractFile PROC PUBLIC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutput
     Invoke CloseHandle, hOutputFile
     mov eax, ResourceSize
     ret
-
 IERIMExtractFile endp
 
 
+IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; Peek at resource files actual signature - helps to determine actual resource type
 ; returns in eax SIG dword and ebx the version dword. -1 eax, -1 ebx if not valid entry or ierim handle
@@ -803,7 +710,7 @@ IERIMExtractFile endp
 ; EFF sig will be ' FFE'
 ; Version will be '  1V' of usual V1__ and '0.1V' for V1.0
 ;-------------------------------------------------------------------------------------
-IERIMPeekFileSignature PROC PUBLIC hIERIM:DWORD, nFileEntry:DWORD
+IERIMPeekFileSignature PROC hIERIM:DWORD, nFileEntry:DWORD
     LOCAL FileEntryOffset:DWORD
     LOCAL ResourceOffset:DWORD
         
@@ -830,21 +737,11 @@ IERIMPeekFileSignature PROC PUBLIC hIERIM:DWORD, nFileEntry:DWORD
     add eax, ebx        
     mov ebx, dword ptr [eax+4] ; save ebx first for the version dword
     mov eax, dword ptr [eax] ; overwrite eax with the sig dword
-
     ret
-
 IERIMPeekFileSignature endp
 
 
-
-
-
-
-
-
-
-
-
+IERIM_ALIGN
 ;**************************************************************************
 ; Strip path name to just filename Without extention
 ;**************************************************************************
@@ -891,10 +788,6 @@ RIMJustFname PROC szFilePathName:DWORD, szFileName:DWORD
     mov byte ptr [edi], 0h
     ret
 RIMJustFname ENDP
-
-
-
-
 
 
 
