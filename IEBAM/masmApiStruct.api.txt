@@ -6,4 +6,12 @@
 ; Paste this text at the end of \Radasm\masm\masmApiStruct.api to add these to Radasm
 ;
 ;--------------------------------------------------------------------------------------------------
+BAMV1_HEADER,Signature,Version,FrameEntriesCount,CycleEntriesCount,ColorIndexRLE,FrameEntriesOffset,PaletteOffset,FrameLookupOffset
+BAMV2_HEADER,Signature,Version,FrameEntriesCount,CycleEntriesCount,BlockEntriesCount,FrameEntriesOffset,CycleEntriesOffset,BlockEntriesOffset
+BAMC_HEADER,Signature,Version,UncompressedLength
+FRAMEV1_ENTRY,FrameWidth,FrameHeight,FrameXcoord,FrameYcoord,FrameInfo  
+FRAMEV2_ENTRY,FrameWidth,FrameHeight,FrameXcoord,FrameYcoord,DataBlockIndex,DataBlockCount
+CYCLEV1_ENTRY,CycleFrameCount,CycleStartFrame
+CYCLEV2_ENTRY,CycleFrameCount,CycleStartFrame
+DATABLOCK_ENTRY,PVRZPage,SourceXCoord,SourceYCoord,FrameWidth,FrameHeight,TargetXCoord,TargetYCoord
 

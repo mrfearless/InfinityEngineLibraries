@@ -46,9 +46,6 @@ IEBAMOpen                   PROTO :DWORD, :DWORD            ; lpszBamFilename, d
 IEBAMMem                    PROTO :DWORD, :DWORD, :DWORD, :DWORD ; pBAMInMemory, lpszBamFilename, dwBamFilesize, dwOpenMode. Returns in eax a handle used in other functions: hIEBAM
 IEBAMClose                  PROTO :DWORD                    ; hIEBAM returned from IEBAMOpen.
 
-
-
-
 ;-----------------------------------------------------------------------------------------
 ; Functions for returning pointers to internal bam structure areas of interest
 IEBAMHeader                 PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to a BAMV1_HEADER structure.
@@ -206,9 +203,17 @@ FRAMEDATA               ENDS
 ENDIF
 
 
+.CONST
 
-
-
+IEBAM_ALIGN                 TEXTEQU <ALIGN 16>
+; IEBAMOpen open mode:
+IEBAM_MODE_WRITE            EQU 0
+IEBAM_MODE_READONLY         EQU 1
+; BAM Versions:
+BAM_VERSION_INVALID         EQU 0 ; Not a BAM or invalid
+BAM_VERSION_BAM_V10         EQU 1 ; BAM_V1.0
+BAM_VERSION_BAM_V20         EQU 2 ; BAM_V2.0
+BAM_VERSION_BAMCV10         EQU 3 ; BAMCV1.0 (Compressed Blocks)
 
 
 
