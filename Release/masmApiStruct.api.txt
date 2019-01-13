@@ -1,0 +1,57 @@
+;--------------------------------------------------------------------------------------------------
+; IEBIF Additions 
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+; Paste this text at the end of \Radasm\masm\masmApiStruct.api to add these to Radasm
+;
+;--------------------------------------------------------------------------------------------------
+;
+; IEBAM
+BAMV1_HEADER,Signature,Version,FrameEntriesCount,CycleEntriesCount,ColorIndexRLE,FrameEntriesOffset,PaletteOffset,FrameLookupOffset
+BAMV2_HEADER,Signature,Version,FrameEntriesCount,CycleEntriesCount,BlockEntriesCount,FrameEntriesOffset,CycleEntriesOffset,BlockEntriesOffset
+BAMC_HEADER,Signature,Version,UncompressedLength
+FRAMEV1_ENTRY,FrameWidth,FrameHeight,FrameXcoord,FrameYcoord,FrameInfo  
+FRAMEV2_ENTRY,FrameWidth,FrameHeight,FrameXcoord,FrameYcoord,DataBlockIndex,DataBlockCount
+CYCLEV1_ENTRY,CycleFrameCount,CycleStartFrame
+CYCLEV2_ENTRY,CycleFrameCount,CycleStartFrame
+DATABLOCK_ENTRY,PVRZPage,SourceXCoord,SourceYCoord,FrameWidth,FrameHeight,TargetXCoord,TargetYCoord
+;
+; IEBIF
+BIF_HEADER_V1,Signature,Version,FileEntriesCount,TileEntriesCount,OffsetFileEntries
+BIF_HEADER_V11,Signature,Version,FileEntriesCount,TileEntriesCount,OffsetFileEntries
+BIF_HEADER_V12,Signature,Version,FileEntriesCount,OffsetFileEntries
+BIF__HEADER,Signature,Version,FilenameLength,Filename
+BIF__HEADER_DATA,UncompressedSize,CompressedSize,CompressedData
+BIFC_HEADER,Signature,Version,UncompressedSize
+BIFC_BLOCK,UncompressedSize,CompressedSize,CompressedData
+FILE_ENTRY,ResourceLocator,ResourceOffset,ResourceSize,ResourceType,Unknown
+FILE_ENTRY_V1,ResourceLocator,ResourceOffset,ResourceSize,ResourceType,Unknown
+FILE_ENTRY_V11,ResourceLocator,ResourceFlags,ResourceOffset,ResourceSize,ResourceType,Unknown
+FILE_ENTRY_V12,ResourceLocator,ResourceFlags,ResourceOffset,ResourceSize,ResourceType,Unknown
+TILE_ENTRY,ResourceLocator,ResourceOffset,TilesCount,TileSize,ResourceType,Unknown
+;
+; IEERF
+;
+; IEKEY
+KEY_HEADER_V11,Signature,Version,BifEntriesCount,ResEntriesCount,dwNull,OffsetBifEntries,OffsetResEntries,BuildYear,BuildDay,dwNulls
+KEY_HEADER_V1,Signature,Version,BifEntriesCount,ResEntriesCount,OffsetBifEntries,OffsetResEntries
+KEY_HEADER,Signature,Version,BifEntriesCount,ResEntriesCount,OffsetBifEntries,OffsetResEntries
+BIF_ENTRY,LengthBifFile,OffsetBifFilename,LengthBifFilename,BifLocation
+BIF_ENTRY_V11,LengthBifFile,OffsetBifFilename,LengthBifFilename
+RES_ENTRY,ResourceName,ResourceType,ResourceLocator
+RES_ENTRY_V11,ResourceName,ResourceType,ResourceLocator,ResourceFlags
+RES_ENTRY_V1_WIDE,ResourceName,ResourceType,ResourceLocator
+;
+; IEPAL
+;
+; IERES
+;
+; IERIM
+RIM_HEADER,Signature,Version,Unknown,FileEntriesCount,FileEntriesOffset,RimVersion,dwNulls
+RIM_FILE_ENTRY,ResourceName,ResourceType,ResourceIndex,ResourceOffset,ResourceSize
+;
+; IETIS
+
+
+

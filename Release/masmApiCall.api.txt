@@ -1,0 +1,122 @@
+;------------------------------------------------------------------------------------------------
+; InfinityEngineLibraries Additions 
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+; Paste this text at the end of \Radasm\masm\masmApiCall.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+;
+; IEBAM
+IEBAMOpen,lpszBamFilename,dwOpenMode
+IEBAMMem,pBAMInMemory,lpszBamFilename,dwBamFilesize,dwOpenMode
+IEBAMClose,hIEBAM
+IEBAMHeader,hIEBAM.
+IEBAMFrameEntry,hIEBAM,nFrameEntry
+IEBAMCycleEntry,hIEBAM,nCycleEntry
+IEBAMBlockEntry,hIEBAM,nBlockEntry
+IEBAMFrameEntries,hIEBAM
+IEBAMCycleEntries,hIEBAM
+IEBAMBlockEntries,hIEBAM
+IEBAMFrameDataEntries,hIEBAM
+IEBAMFrameDataEntry,hIEBAM,nFrameEntry
+IEBAMFrameLookupEntry,hIEBAM,nCycleEntry
+IEBAMFrameLookupEntries,hIEBAM
+IEBAMPalette,hIEBAM
+IEBAMPaletteEntry,hIEBAM,PaletteIndex
+IEBAMTotalFrameEntries,hIEBAM
+IEBAMTotalCycleEntries,hIEBAM
+IEBAMTotalBlockEntries,hIEBAM
+IEBAMFileName,hIEBAM
+IEBAMFileNameOnly,hIEBAM,lpszFileNameOnly
+IEBAMFileSize,hIEBAM
+IEBAMFileCompression,hIEBAM
+IEBAMVersion,hIEBAM
+IEBAMFrameUnRLE,pFrameRLE,pFrameRAW,FrameRLESize,FrameRAWSize,FrameWidth
+IEBAMFrameRAWToFrameBMP,pFrameRAW,pFrameBMP,FrameRAWSize,FrameBMPSize,FrameWidth
+IEBAMFrameBitmap,hWin,hIEBAM,nFrame
+IEBAMFrameLookupSequence,hIEBAM,nCycle,SequenceIndex
+IEBAMCycleFrameCount,hIEBAM,nCycle
+IEBAMFrameWidthHeight,hIEBAM,nFrame,lpdwFrameWidth,lpdwFrameHeight
+IEBAMFindMaxWidthHeight,hIEBAM,lpdwFrameWidth,lpdwFrameHeight
+IEBAMRLEColorIndexColorRef,hIEBAM
+IEBAMConvertABGRtoARGB,hIEBAM,ABGR
+IEBAMConvertARGBtoABGR,hIEBAM,ARGB
+;
+; IEBIF
+IEBIFOpen,lpszBifFilename,dwOpenMode
+IEBIFLargeFileMapping,hBIFLargeFileToMap,LargeBifMemMapHandle,dwBIFFilesize,dwBIFFilesizeHigh,dwOpenMode,lpdwBIFLargeMapping
+IEBIFMem,pBIFInMemory,lpszBifFilename,dwBifFilesize,dwBifFilesizeHigh,dwOpenMode,dwBIFLargeMapping
+IEBIFClose,hIEBIF
+IEBIFSave,hIEBIF
+IEBIFHeader,hIEBIF
+IEBIFFileEntry,hIEBIF,nFileEntry
+IEBIFTileEntry,hIEBIF,nTileEntry
+IEBIFFileEntries,hIEBIF
+IEBIFTileEntries,hIEBIF
+IEBIFPeekFileSignature,hIEBIF,nFileEntry
+IEBIFTotalFileEntries,hIEBIF
+IEBIFTotalTileEntries,hIEBIF
+IEBIFFileName,hIEBIF
+IEBIFFileNameOnly,hIEBIF,lpszFileNameOnly
+IEBIFFileSize,hIEBIF
+IEBIFFileCompression,hIEBIF
+IEBIFVersion,hIEBIF
+IEBIFFindKeyFile,lpszBifFilePath,lpszKeyFilePath
+IEBIFExtractFile,hIEBIF,nFileEntry,lpszOutputFilename
+IEBIFExtractTile,hIEBIF,nTileEntry,lpszOutputFilename
+IEBIFUncompressBIF,lpszBifInputFilename,lpszBifOutputFilename
+IEBIFCompressBIF,lpszBifInputFilename,lpszBifOutputFilename,dwCompressedFormat
+IEBIFNewBif,lpszNewBifFilename,dwBifFormat
+;
+; IEERF
+;
+; IEKEY
+IEKEYOpen,lpszKeyFilename,dwOpenMode
+IEKEYMem,pKEYInMemory,lpszKeyFilename,dwKeyFilesize,dwOpenMode
+IEKEYClose,hIEKEY
+IEKEYSave,hIEKEY
+IEKEYTotalBifEntries,hIEKEY
+IEKEYTotalResEntries,hIEKEY
+IEKEYHeader,hIEKEY
+IEKEYBifEntries,hIEKEY
+IEKEYResEntries,hIEKEY
+IEKEYBifFilenamesEntries,hIEKEY
+IEKEYBifEntry,hIEKEY,nBifEntry
+IEKEYResEntry,hIEKEY,nResEntry
+IEKEYBifFilename,hIEKEY,nBifEntry
+IEKEYFileName,hIEKEY
+IEKEYVersion,hIEKEY 
+IEKEYFindBifFilenameEntry,hIEKEY,lpszBifFilename
+IEKEYFindResource,hIEKEY,nBifEntry,dwResourceIndex,dwResourceType
+IEKEYFindResourceV11,hIEKEY,nBifEntry,dwResourceIndex,dwResourceType
+IEKEYFindResourceByResRef,hIEKEY,nResRef
+IEKEYAddBifEntry,hIEKEY,lpszBifFilename,dwBifFilesize,dwBifLocation
+IEKEYAddResEntry
+IEKEYWideResName,hIEKEY 
+IEKEYBifEntryFileOffset,hIEKEY,nBifEntry,lpBifEntriesSize
+IEKEYResEntryFileOffset,hIEKEY,nResEntry,lpResEntriesSize
+IEKEYBifFilenamesOffset,hIEKEY,lpBifFilenamesSize
+IEKEYFileSize,hIEKEY
+;
+; IEPAL
+;
+; IERES
+;
+; IERIM
+IERIMOpen,lpszBifFilename,dwOpenMode
+IERIMMem,pRIMInMemory,lpszRimFilename,dwRimFilesize,dwOpenMode
+IERIMClose,hIERIM
+IERIMHeader,hIERIM
+IERIMFileEntry,hIERIM,nFileEntry
+IERIMFileEntries,hIERIM
+IERIMPeekFileSignature,hIERIM,nFileEntry
+IERIMTotalFileEntries,hIERIM
+IERIMFileName,hIERIM
+IERIMFileNameOnly,hIERIM,lpszFileNameOnly
+IERIMFileSize,hIERIM
+IERIMVersion,hIERIM
+IERIMExtractFile,hIERIM,nFileEntry,lpszOutputFilename
+;
+; IETIS
+
