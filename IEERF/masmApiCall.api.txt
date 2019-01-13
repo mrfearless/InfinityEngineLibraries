@@ -6,4 +6,19 @@
 ; Paste this text at the end of \Radasm\masm\masmApiCall.api to add these to Radasm
 ;
 ;------------------------------------------------------------------------------------------------
-
+IEERFOpen,lpszErfFilename,dwOpenMode
+IEERFMem,pERFInMemory,lpszErfFilename,dwErfFilesize,dwOpenMode
+IEERFClose,hIEERF
+IEERFHeader,hIEERF
+IEERFFileEntry,hIEERF,nFileEntry
+IEERFResEntry,hIEERF,nFileEntry
+IEERFFileEntries,hIEERF
+IEERFResEntries,hIEERF
+IEERFFileData,hIEERF,nFileEntry
+IEERFTotalFileEntries,hIEERF
+IEERFFileName,hIEERF
+IEERFFileNameOnly,hIEERF,lpszFileNameOnly
+IEERFFileSize,hIEERF
+IEERFVersion,hIEERF
+IEERFExtractFile,hIEERF,nFileEntry,lpszOutputFilename
+IEERFPeekFileSignature,szFilePathName,szFileName

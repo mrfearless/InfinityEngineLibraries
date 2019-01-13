@@ -56,10 +56,10 @@ IEERFFileData               PROTO :DWORD, :DWORD            ; hIEERF, nFileEntry
 ; Erf file information
 IEERFTotalFileEntries       PROTO :DWORD                    ; hIEERF. Returns in eax total no of file entries.
 
-IEERFFileName               PROTO :DWORD                    ; hIEERF. Returns in eax pointer to bif full path filename
+IEERFFileName               PROTO :DWORD                    ; hIEERF. Returns in eax pointer to erf full path filename
 IEERFFileNameOnly           PROTO :DWORD, :DWORD            ; hIEERF, lpszFileNameOnly. eax contains True or false if succesfull. strips filename of path and ext information.
-IEERFFileSize               PROTO :DWORD                    ; hIEERF. Returns in eax size of bif file in bytes
-IEERFVersion                PROTO :DWORD                    ; hIEERF. Returns in eax 0 no rim, 1 = ERF V1
+IEERFFileSize               PROTO :DWORD                    ; hIEERF. Returns in eax size of erf file in bytes
+IEERFVersion                PROTO :DWORD                    ; hIEERF. Returns in eax 0 no ERF, 1 = ERF V1
 
 IEERFExtractFile            PROTO :DWORD, :DWORD, :DWORD    ; hIEERF, nFileEntry, lpszOutputFilename. Returns in eax size of file extracted or -1 if failed
 IEERFPeekFileSignature      PROTO :DWORD, :DWORD
@@ -101,9 +101,15 @@ ERF_RES_ENTRY           ENDS
 ENDIF
 
 
+.CONST
 
-
-
+IEERF_ALIGN                 TEXTEQU <ALIGN 16>
+; IEERFOpen open mode:
+IEERF_MODE_WRITE            EQU 0
+IEERF_MODE_READONLY         EQU 1
+; ERF Versions:
+ERF_VERSION_INVALID         EQU 0 ; Not a ERF or invalid
+ERF_VERSION_ERF_V10         EQU 1 ; ERF V1.0
 
 
 

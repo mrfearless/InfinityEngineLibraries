@@ -57,19 +57,14 @@ includelib masm32.lib
 
 include IEERF.inc
 
-;DEBUGLOG EQU 1
-IFDEF DEBUGLOG
-    include DebugLogLIB.asm
-ENDIF
 ;DEBUG32 EQU 1
-
-IFDEF DEBUG32
-    PRESERVEXMMREGS equ 1
-    includelib M:\Masm32\lib\Debug32.lib
-    DBG32LIB equ 1
-    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
-    include M:\Masm32\include\debug32.inc
-ENDIF
+;IFDEF DEBUG32
+;    PRESERVEXMMREGS equ 1
+;    includelib M:\Masm32\lib\Debug32.lib
+;    DBG32LIB equ 1
+;    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
+;    include M:\Masm32\include\debug32.inc
+;ENDIF
 
 ;-------------------------------------------------------------------------
 ; Prototypes for internal use
@@ -128,7 +123,7 @@ ERFINFO                 STRUCT
     ERFFileEntriesSize  DD 0
     ERFResEntriesPtr    DD 0
     ERFResEntriesSize   DD 0
-    ERFFileDataPtr      DD 0 ;  array each entry corresponds to bif file entry and its data alloc'd in memory
+    ERFFileDataPtr      DD 0 ;  array each entry corresponds to erf file entry and its data alloc'd in memory
     ERFMemMapPtr        DD 0
     ERFMemMapHandle     DD 0
     ERFFileHandle       DD 0
@@ -143,18 +138,20 @@ ENDIF
 .DATA
 NEWERFHeader            ERF_HEADER <" FRE", "  1V", 0, 128d, 1,>
 ERFV1Header             db "ERF V1.0",0
-IFDEF DEBUG32
-DbgVar                      DD 0
-ENDIF
-
+ERFExt                  db ".erf",0
+MODExt                  db ".mod",0
+HAKExt                  db ".hak",0
+NWMExt                  db ".nwm",0
 
 
 .CODE
 
+
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFOpen - Returns handle in eax of opened rim file. NULL if could not alloc enough mem
+; IEERFOpen - Returns handle in eax of opened erf file. NULL if could not alloc enough mem
 ;-------------------------------------------------------------------------------------
-IEERFOpen PROC PUBLIC USES EBX lpszErfFilename:DWORD, dwOpenMode:DWORD
+IEERFOpen PROC USES EBX lpszErfFilename:DWORD, dwOpenMode:DWORD
     LOCAL hIEERF:DWORD
     LOCAL hERFFile:DWORD
     LOCAL ERFFilesize:DWORD
@@ -162,15 +159,13 @@ IEERFOpen PROC PUBLIC USES EBX lpszErfFilename:DWORD, dwOpenMode:DWORD
     LOCAL ERFMemMapHandle:DWORD
     LOCAL ERFMemMapPtr:DWORD
     LOCAL pERF:DWORD
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEERFOpen", DEBUGLOG_FUNCTION, 2
-    ENDIF
-    .IF dwOpenMode == 1 ; readonly
-        Invoke CreateFile, lpszErfFilename, GENERIC_READ, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
+
+    .IF dwOpenMode == IEERF_MODE_READONLY ; readonly
+        Invoke CreateFile, lpszErfFilename, GENERIC_READ, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
     .ELSE
-        Invoke CreateFile, lpszErfFilename, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
+        Invoke CreateFile, lpszErfFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
     .ENDIF
-    ;PrintDec eax
+
     .IF eax == INVALID_HANDLE_VALUE
         mov eax, FALSE
         ret
@@ -181,43 +176,33 @@ IEERFOpen PROC PUBLIC USES EBX lpszErfFilename:DWORD, dwOpenMode:DWORD
     mov ERFFilesize, eax
 
     ;---------------------------------------------------                
-    ; File Mapping: Create file mapping for main .rim
+    ; File Mapping: Create file mapping for main .erf
     ;---------------------------------------------------
-    .IF dwOpenMode == 1 ; readonly
+    .IF dwOpenMode == IEERF_MODE_READONLY ; readonly
         Invoke CreateFileMapping, hERFFile, NULL, PAGE_READONLY, 0, 0, NULL ; Create memory mapped file
     .ELSE
         Invoke CreateFileMapping, hERFFile, NULL, PAGE_READWRITE, 0, 0, NULL ; Create memory mapped file
     .ENDIF   
     .IF eax == NULL
-        IFDEF DEBUGLOG
-        DebugLogMsg "CreateFileMapping Failed", DEBUGLOG_INFO, 3
-        ENDIF    
-    
-        ;PrintText 'Mapping Failed'
         mov eax, FALSE
         ret
     .ENDIF
     mov ERFMemMapHandle, eax
     
-    .IF dwOpenMode == 1 ; readonly
+    .IF dwOpenMode == IEERF_MODE_READONLY ; readonly
         Invoke MapViewOfFileEx, ERFMemMapHandle, FILE_MAP_READ, 0, 0, 0, NULL
     .ELSE
         Invoke MapViewOfFileEx, ERFMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0, NULL
     .ENDIF
     .IF eax == NULL
-        ;PrintText 'Mapping View Failed'
-        IFDEF DEBUGLOG
-        DebugLogMsg "MapViewOfFileEx Failed", DEBUGLOG_INFO, 3
-        ENDIF           
         mov eax, FALSE
         ret
     .ENDIF
     mov ERFMemMapPtr, eax
 
-    Invoke ERFSignature, ERFMemMapPtr ;hERFFile
+    Invoke ERFSignature, ERFMemMapPtr
     mov SigReturn, eax
-    ;PrintDec SigReturn
-    .IF SigReturn == 0 ; not a valid bif file
+    .IF SigReturn == ERF_VERSION_INVALID ; not a valid erf file
         Invoke UnmapViewOfFile, ERFMemMapPtr
         Invoke CloseHandle, ERFMemMapHandle
         Invoke CloseHandle, hERFFile
@@ -234,7 +219,7 @@ IEERFOpen PROC PUBLIC USES EBX lpszErfFilename:DWORD, dwOpenMode:DWORD
             mov eax, NULL
             ret    
         .ENDIF
-        .IF dwOpenMode == 0 ; write (default)
+        .IF dwOpenMode == IEERF_MODE_WRITE ; write (default)
             Invoke UnmapViewOfFile, ERFMemMapPtr
             Invoke CloseHandle, ERFMemMapHandle
             Invoke CloseHandle, hERFFile
@@ -251,158 +236,96 @@ IEERFOpen PROC PUBLIC USES EBX lpszErfFilename:DWORD, dwOpenMode:DWORD
     mov ebx, hIEERF
     mov eax, SigReturn
     mov [ebx].ERFINFO.ERFVersion, eax
-    
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEERFOpen::Finished", DEBUGLOG_INFO, 2
-    ENDIF
     mov eax, hIEERF
-    
-    IFDEF DEBUG32
-        PrintDec hIEERF
-    ENDIF
     ret
 IEERFOpen ENDP
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFClose - Frees memory used by control data structure
 ;-------------------------------------------------------------------------------------
-IEERFClose PROC PUBLIC USES EBX hIEERF:DWORD
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEERFClose", DEBUGLOG_FUNCTION, 2
-    ENDIF
+IEERFClose PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEERFClose::hIEERF==NULL", DEBUGLOG_INFO, 3
-        ENDIF
         mov eax, 0
         ret
     .ENDIF
 
     mov ebx, hIEERF
     mov eax, [ebx].ERFINFO.ERFOpenMode
-    .IF eax == 0 ; Write Mode
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEERFClose::Read/Write Mode", DEBUGLOG_INFO, 3
-        ENDIF
+    .IF eax == IEERF_MODE_WRITE ; Write Mode
         mov ebx, hIEERF
         mov eax, [ebx].ERFINFO.ERFHeaderPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEERFClose::GlobalFree-ERFHeaderPtr::Success", DEBUGLOG_INFO, 3
-            ENDIF
         .ENDIF
     
         mov ebx, hIEERF
         mov eax, [ebx].ERFINFO.ERFFileEntriesPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEERFClose::GlobalFree-ERFFileEntriesPtr::Success", DEBUGLOG_INFO, 3
-            ENDIF
         .ENDIF
         
         mov ebx, hIEERF
         mov eax, [ebx].ERFINFO.ERFResEntriesPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEERFClose::GlobalFree-ERFResEntriesPtr::Success", DEBUGLOG_INFO, 3
-            ENDIF
         .ENDIF
-        
     .ENDIF
     
     mov ebx, hIEERF
     mov eax, [ebx].ERFINFO.ERFVersion
-    ;PrintDec eax
-    IFDEF DEBUGLOG
-    DebugLogValue "IEERFClose::ERFVersion", eax, 3
-    ENDIF
-    .IF eax == 0 ; non ERFF
+    .IF eax == ERF_VERSION_INVALID ; non ERF
         ; do nothing
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEERFClose::ERFVersion::0 - NONE", DEBUGLOG_INFO, 3
-        ENDIF
-        
-    .ELSEIF eax == 1 ; ERFF - straight raw biff, so if  opened in readonly, unmap file, otherwise free mem
-        ;PrintText 'ERFF'
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEERFClose::ERFVersion:: ERFF", DEBUGLOG_INFO, 3
-        ENDIF
-        
+
+    .ELSEIF eax == ERF_VERSION_ERF_V10 ; ERF - straight raw erf, so if  opened in readonly, unmap file, otherwise free mem
+
         mov ebx, hIEERF
         mov eax, [ebx].ERFINFO.ERFOpenMode
-        .IF eax == 1 ; Read Only
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEERFClose::ERFVersion:: ERFF (Read Only)", DEBUGLOG_INFO, 3
-            ENDIF
-            ;PrintText 'Read Only'
+        .IF eax == IEERF_MODE_READONLY ; Read Only
             mov ebx, hIEERF
             mov eax, [ebx].ERFINFO.ERFMemMapPtr
             .IF eax != NULL
                 Invoke UnmapViewOfFile, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IEERFClose::UnmapViewOfFile-ERFMemMapPtr::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
-                      
+
             mov ebx, hIEERF
             mov eax, [ebx].ERFINFO.ERFMemMapHandle
             .IF eax != NULL
                 Invoke CloseHandle, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IEERFClose::CloseHandle-ERFMemMapHandle::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
-            
+
             mov ebx, hIEERF
             mov eax, [ebx].ERFINFO.ERFFileHandle
             .IF eax != NULL
                 Invoke CloseHandle, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IEERFClose::CloseHandle-ERFFileHandle::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
-                     
+
         .ELSE ; free mem if write mode
-            IFDEF DEBUGLOG
-            DebugLogMsg "IEERFClose::ERFVersion:: ERFF (Read / Write)", DEBUGLOG_INFO, 3
-            ENDIF
-            ;PrintText 'Read/Write'
             mov ebx, hIEERF
             mov eax, [ebx].ERFINFO.ERFMemMapPtr
             .IF eax != NULL
                 Invoke GlobalFree, eax
-                IFDEF DEBUGLOG
-                DebugLogMsg "IEERFClose::GlobalFree-ERFMemMapPtr::Success", DEBUGLOG_INFO, 3
-                ENDIF
             .ENDIF
         .ENDIF
-
     .ENDIF
     
     mov eax, hIEERF
     .IF eax != NULL
         Invoke GlobalFree, eax
-        IFDEF DEBUGLOG
-        DebugLogMsg "IEERFClose::GlobalFree-hIEERF::Success", DEBUGLOG_INFO, 3
-        ENDIF
     .ENDIF
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEERFClose::Finished", DEBUGLOG_INFO, 2
-    ENDIF 
+
     mov eax, 0
     ret
 IEERFClose ENDP
 
 
-
+IEERF_ALIGN
 ;-----------------------------------------------------------------------------------------
-; Checks the ERF signatures to determine if they are valid and if BAM file is compressed
+; Checks the ERF signatures to determine if they are valid and if ERF file is compressed
+; Also supports MOD/HAK/NWM files which are ERF files
 ;-----------------------------------------------------------------------------------------
-ERFSignature PROC PRIVATE USES EBX pERF:DWORD
+ERFSignature PROC USES EBX pERF:DWORD
     ; check signatures to determine version
     mov ebx, pERF
     mov eax, [ebx]
@@ -410,21 +333,22 @@ ERFSignature PROC PRIVATE USES EBX pERF:DWORD
         add ebx, 4
         mov eax, [ebx]
         .IF eax == '0.1V' ; V1.0 standard ERF v1
-            mov eax, 1
+            mov eax, ERF_VERSION_ERF_V10
         .ELSE
-            mov eax, 0
+            mov eax, ERF_VERSION_INVALID
         .ENDIF
     .ELSE
-        mov eax, 0
+        mov eax, ERF_VERSION_INVALID
     .ENDIF
     ret
 ERFSignature endp
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFMem - Returns handle in eax of opened bif file that is already loaded into memory. NULL if could not alloc enough mem
+; IEERFMem - Returns handle in eax of opened erf file that is already loaded into memory. NULL if could not alloc enough mem
 ;-------------------------------------------------------------------------------------
-IEERFMem PROC PUBLIC USES EBX pERFInMemory:DWORD, lpszErfFilename:DWORD, dwErfFilesize:DWORD, dwOpenMode:DWORD
+IEERFMem PROC USES EBX pERFInMemory:DWORD, lpszErfFilename:DWORD, dwErfFilesize:DWORD, dwOpenMode:DWORD
     LOCAL hIEERF:DWORD
     LOCAL ERFMemMapPtr:DWORD
     LOCAL TotalFileEntries:DWORD
@@ -434,16 +358,13 @@ IEERFMem PROC PUBLIC USES EBX pERFInMemory:DWORD, lpszErfFilename:DWORD, dwErfFi
     LOCAL ResEntriesSize:DWORD
     LOCAL LocalStringSize:DWORD
 
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEERFMem", DEBUGLOG_FUNCTION, 2
-    ENDIF
     mov eax, pERFInMemory
     mov ERFMemMapPtr, eax       
-    
+
     ;----------------------------------
     ; Alloc mem for our IEERF Handle
     ;----------------------------------
-    Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, SIZEOF ERFINFO
+    Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, SIZEOF ERFINFO
     .IF eax == NULL
         ret
     .ENDIF
@@ -465,8 +386,8 @@ IEERFMem PROC PUBLIC USES EBX pERFInMemory:DWORD, lpszErfFilename:DWORD, dwErfFi
     ;----------------------------------
     ; ERF Header
     ;----------------------------------
-    .IF dwOpenMode == 0
-        Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, SIZEOF ERF_HEADER
+    .IF dwOpenMode == IEERF_MODE_WRITE
+        Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, SIZEOF ERF_HEADER
         .IF eax == NULL
             Invoke GlobalFree, hIEERF
             mov eax, NULL
@@ -498,7 +419,6 @@ IEERFMem PROC PUBLIC USES EBX pERFInMemory:DWORD, lpszErfFilename:DWORD, dwErfFi
     mov eax, [ebx].ERF_HEADER.ResEntriesOffset
     mov OffsetResEntries, eax
 
-    
     mov eax, TotalFileEntries
     mov ebx, SIZEOF ERF_FILE_ENTRY
     mul ebx
@@ -509,18 +429,12 @@ IEERFMem PROC PUBLIC USES EBX pERFInMemory:DWORD, lpszErfFilename:DWORD, dwErfFi
     mul ebx
     mov ResEntriesSize, eax    
 
-    IFDEF DEBUGLOG
-    DebugLogValue "TotalFileEntries", TotalFileEntries, 3
-    DebugLogValue "FileEntriesSize", FileEntriesSize, 3
-    DebugLogValue "ResEntriesSize", ResEntriesSize, 3
-    DebugLogValue "OffsetResEntries", OffsetResEntries, 3
-    ENDIF
     ;----------------------------------
     ; File Entries
     ;----------------------------------
     .IF TotalFileEntries > 0
-        .IF dwOpenMode == 0
-            Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, FileEntriesSize
+        .IF dwOpenMode == IEERF_MODE_WRITE
+            Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, FileEntriesSize
             .IF eax == NULL
                 mov ebx, hIEERF
                 mov eax, [ebx].ERFINFO.ERFHeaderPtr
@@ -545,8 +459,8 @@ IEERFMem PROC PUBLIC USES EBX pERFInMemory:DWORD, lpszErfFilename:DWORD, dwErfFi
         mov eax, FileEntriesSize
         mov [ebx].ERFINFO.ERFFileEntriesSize, eax
         
-        .IF dwOpenMode == 0
-            Invoke GlobalAlloc, GMEM_FIXED+GMEM_ZEROINIT, ResEntriesSize
+        .IF dwOpenMode == IEERF_MODE_WRITE
+            Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, ResEntriesSize
             .IF eax == NULL
                 mov ebx, hIEERF
                 mov eax, [ebx].ERFINFO.ERFHeaderPtr
@@ -578,22 +492,16 @@ IEERFMem PROC PUBLIC USES EBX pERFInMemory:DWORD, lpszErfFilename:DWORD, dwErfFi
         mov [ebx].ERFINFO.ERFResEntriesPtr, 0
         mov [ebx].ERFINFO.ERFResEntriesSize, 0
     .ENDIF
-    
-    IFDEF DEBUG32
-        PrintDec TotalFileEntries
-    ENDIF
-    IFDEF DEBUGLOG
-    DebugLogMsg "IEERFMem::Finished", DEBUGLOG_INFO, 2
-    ENDIF
     mov eax, hIEERF
     ret
 IEERFMem ENDP
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFHeader - Returns in eax a pointer to header or -1 if not valid
 ;-------------------------------------------------------------------------------------
-IEERFHeader PROC PUBLIC USES EBX hIEERF:DWORD
+IEERFHeader PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
         mov eax, -1
         ret
@@ -604,10 +512,11 @@ IEERFHeader PROC PUBLIC USES EBX hIEERF:DWORD
 IEERFHeader ENDP
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFFileEntry - Returns in eax a pointer to the specified file entry or -1 
 ;-------------------------------------------------------------------------------------
-IEERFFileEntry PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD
+IEERFFileEntry PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD
     LOCAL TotalFileEntries:DWORD
     LOCAL FileEntriesPtr:DWORD
     
@@ -640,10 +549,11 @@ IEERFFileEntry PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD
 IEERFFileEntry ENDP
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFResEntry - Returns in eax a pointer to the specified resource entry or -1 
 ;-------------------------------------------------------------------------------------
-IEERFResEntry PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD
+IEERFResEntry PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD
     LOCAL TotalFileEntries:DWORD
     LOCAL ResEntriesPtr:DWORD
     
@@ -676,25 +586,31 @@ IEERFResEntry PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD
 IEERFResEntry ENDP
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFTotalFileEntries - Returns in eax the total no of file entries
 ;-------------------------------------------------------------------------------------
-IEERFTotalFileEntries PROC PUBLIC USES EBX hIEERF:DWORD
+IEERFTotalFileEntries PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
         mov eax, 0
         ret
     .ENDIF
     mov ebx, hIEERF
     mov ebx, [ebx].ERFINFO.ERFHeaderPtr
-    mov eax, [ebx].ERF_HEADER.FileEntriesCount
+    .IF ebx != 0
+        mov eax, [ebx].ERF_HEADER.FileEntriesCount
+    .ELSE
+        mov eax, 0
+    .ENDIF
     ret
 IEERFTotalFileEntries ENDP
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFFileEntries - Returns in eax a pointer to file entries or -1 if not valid
 ;-------------------------------------------------------------------------------------
-IEERFFileEntries PROC PUBLIC USES EBX hIEERF:DWORD
+IEERFFileEntries PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
         mov eax, -1
         ret
@@ -705,10 +621,11 @@ IEERFFileEntries PROC PUBLIC USES EBX hIEERF:DWORD
 IEERFFileEntries ENDP
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFResEntries - Returns in eax a pointer to resource entries or -1 if not valid
 ;-------------------------------------------------------------------------------------
-IEERFResEntries PROC PUBLIC USES EBX hIEERF:DWORD
+IEERFResEntries PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
         mov eax, -1
         ret
@@ -719,10 +636,11 @@ IEERFResEntries PROC PUBLIC USES EBX hIEERF:DWORD
 IEERFResEntries ENDP
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFFileName - returns in eax pointer to zero terminated string contained filename that is open or -1 if not opened, 0 if in memory ?
 ;-------------------------------------------------------------------------------------
-IEERFFileName PROC PUBLIC USES EBX hIEERF:DWORD
+IEERFFileName PROC USES EBX hIEERF:DWORD
     LOCAL ErfFilename:DWORD
     .IF hIEERF == NULL
         mov eax, -1
@@ -736,24 +654,16 @@ IEERFFileName PROC PUBLIC USES EBX hIEERF:DWORD
         mov eax, -1
     .ELSE
         mov eax, ErfFilename
-        ;IFDEF DEBUG32
-        ;    mov DbgVar, eax
-        ;    PrintStringByAddr DbgVar
-        ;ENDIF
     .ENDIF
-    ;IFDEF DEBUG32
-    ;    PrintDec eax
-    ;ENDIF
     ret
-
 IEERFFileName endp
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFFileNameOnly - returns in eax true or false if it managed to pass to the buffer pointed at lpszFileNameOnly, the stripped filename without extension
 ;-------------------------------------------------------------------------------------
-IEERFFileNameOnly PROC PUBLIC USES EBX hIEERF:DWORD, lpszFileNameOnly:DWORD
-    
+IEERFFileNameOnly PROC hIEERF:DWORD, lpszFileNameOnly:DWORD
     Invoke IEERFFileName, hIEERF
     .IF eax == -1
         mov eax, FALSE
@@ -764,14 +674,14 @@ IEERFFileNameOnly PROC PUBLIC USES EBX hIEERF:DWORD, lpszFileNameOnly:DWORD
     
     mov eax, TRUE
     ret
-
 IEERFFileNameOnly endp
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFFileSize - returns in eax size of file or -1
 ;-------------------------------------------------------------------------------------
-IEERFFileSize PROC PUBLIC USES EBX hIEERF:DWORD
+IEERFFileSize PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
         mov eax, -1
         ret
@@ -779,15 +689,14 @@ IEERFFileSize PROC PUBLIC USES EBX hIEERF:DWORD
     mov ebx, hIEERF
     mov eax, [ebx].ERFINFO.ERFFilesize
     ret
-
 IEERFFileSize endp
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; 0 = No erf file, 1 = ERF V1
 ;-------------------------------------------------------------------------------------
-IEERFVersion PROC PUBLIC USES EBX hIEERF:DWORD
-    
+IEERFVersion PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
         mov eax, 0
         ret
@@ -795,14 +704,14 @@ IEERFVersion PROC PUBLIC USES EBX hIEERF:DWORD
     mov ebx, hIEERF
     mov eax, [ebx].ERFINFO.ERFVersion
     ret
-
 IEERFVersion endp
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFFileData - returns in eax pointer to file data or -1 if not found
 ;-------------------------------------------------------------------------------------
-IEERFFileData PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD
+IEERFFileData PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD
     LOCAL ResEntryOffset:DWORD
     LOCAL ResourceOffset:DWORD
     
@@ -826,14 +735,14 @@ IEERFFileData PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD
     mov ebx, ResourceOffset
     add eax, ebx
     ret
-
 IEERFFileData ENDP
 
 
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; IEERFExtractFile - returns in eax size of file extracted or -1 if failed
 ;-------------------------------------------------------------------------------------
-IEERFExtractFile PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutputFilename:DWORD
+IEERFExtractFile PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutputFilename:DWORD
     LOCAL ResEntryOffset:DWORD
     LOCAL ResourceSize:DWORD
     LOCAL ResourceData:DWORD
@@ -860,18 +769,12 @@ IEERFExtractFile PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutput
     mov eax, [ebx].ERF_RES_ENTRY.ResourceOffset
     mov ResourceOffset, eax
 
-    
     mov ebx, hIEERF
     mov eax, [ebx].ERFINFO.ERFMemMapPtr
     mov ebx, ResourceOffset
     add eax, ebx
     mov ResourceData, eax
-    
-    ;PrintDec FileEntryOffset
-    ;PrintDec ResourceOffset
-    ;PrintDec ResourceSize
-    ;PrintDec ResourceData
-    
+
     Invoke CreateFile, lpszOutputFilename, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_WRITE_THROUGH, NULL
     .IF eax == INVALID_HANDLE_VALUE
         mov eax, -1
@@ -885,8 +788,7 @@ IEERFExtractFile PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutput
         mov eax, 0
         ret
     .ENDIF
-    
-    ;PrintDec hOutputFile
+ 
     Invoke CreateFileMapping, hOutputFile, NULL, PAGE_READWRITE, 0, ResourceSize, NULL
     .IF eax == NULL
         Invoke CloseHandle, hOutputFile
@@ -894,7 +796,7 @@ IEERFExtractFile PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutput
         ret
     .ENDIF
     mov MemMapHandle, eax
-    ;PrintDec MemMapHandle
+
     Invoke MapViewOfFile, MemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0
     .IF eax == NULL
         Invoke CloseHandle, MemMapHandle
@@ -903,9 +805,7 @@ IEERFExtractFile PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutput
         ret        
     .ENDIF
     mov MemMapPtr, eax
-    
-    
-    ;PrintDec MemMapPtr
+
     Invoke RtlMoveMemory, MemMapPtr, ResourceData, ResourceSize
     
     Invoke FlushViewOfFile, MemMapPtr, ResourceSize
@@ -914,11 +814,10 @@ IEERFExtractFile PROC PUBLIC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutput
     Invoke CloseHandle, hOutputFile
     mov eax, ResourceSize
     ret
-
 IEERFExtractFile endp
 
 
-
+IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; Peek at resource files actual signature - helps to determine actual resource type
 ; returns in eax SIG dword and ebx the version dword. -1 eax, -1 ebx if not valid entry or ieerf handle
@@ -928,7 +827,7 @@ IEERFExtractFile endp
 ; EFF sig will be ' FFE'
 ; Version will be '  1V' of usual V1__ and '0.1V' for V1.0
 ;-------------------------------------------------------------------------------------
-IEERFPeekFileSignature PROC PUBLIC hIEERF:DWORD, nFileEntry:DWORD
+IEERFPeekFileSignature PROC hIEERF:DWORD, nFileEntry:DWORD
     LOCAL ResEntryOffset:DWORD
     LOCAL ResourceOffset:DWORD
         
@@ -955,12 +854,11 @@ IEERFPeekFileSignature PROC PUBLIC hIEERF:DWORD, nFileEntry:DWORD
     add eax, ebx        
     mov ebx, dword ptr [eax+4] ; save ebx first for the version dword
     mov eax, dword ptr [eax] ; overwrite eax with the sig dword
-
     ret
-
 IEERFPeekFileSignature endp
 
 
+IEERF_ALIGN
 ;**************************************************************************
 ; Strip path name to just filename Without extention
 ;**************************************************************************

@@ -6,3 +6,5 @@
 ; Paste this text at the end of \Radasm\masm\masmApiConst.api to add these to Radasm
 ;
 ;------------------------------------------------------------------------------------------------
+2IEERFOpen,IEERF_MODE_WRITE,IEERF_MODE_READONLY
+4IEERFMem,IEERF_MODE_WRITE,IEERF_MODE_READONLY

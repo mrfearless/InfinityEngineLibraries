@@ -6,4 +6,7 @@
 ; Paste this text at the end of \Radasm\masm\masmApiStruct.api to add these to Radasm
 ;
 ;--------------------------------------------------------------------------------------------------
+ERF_HEADER,Signature,Version,LanguageCount,LocalStringSize,FileEntriesCount,LocalStringOffset,FileEntriesOffset,ResEntriesOffset,BuildYear,BuildDay,DescriptionStrRef,dwNulls
+ERF_FILE_ENTRY,ResourceName,ResourceIndex,ResourceType,Unknown
+ERF_RES_ENTRY,ResourceOffset,ResourceSize
 
