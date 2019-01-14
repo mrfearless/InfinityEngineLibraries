@@ -62,6 +62,7 @@ typedef struct tagMOS_V1_PALETTE
     RGBQUAD MOSPalette[256];
 } MOS_V1_PALETTE ;
 
+
 #pragma show()
 /*****************************************************************************
 * MOS_V1
@@ -69,8 +70,8 @@ typedef struct tagMOS_V1_PALETTE
 struct MOS_V1
 {
     #pragma lockAt(0)
-    MOS_V1_HEADER MOS_V1_Header ;
-    MOS_V1_PALETTE MOS_V1_Palette ;
+    MOS_V1_HEADER MOS_V1_Header;
+    MOS_V1_PALETTE MOS_V1_Palette[MOS_V1_Header.Columns * MOS_V1_Header.Rows];
     DWORD MOS_V1_TileOffsets[MOS_V1_Header.Columns * MOS_V1_Header.Rows];
     struct MOS_V1_TileData {
         blob TileData[__getDocSize() - ( __getAddrOf(MOS_V1_TileOffsets) + __getSizeOf(MOS_V1_TileOffsets) )];
