@@ -50,7 +50,7 @@ Group=Assembly,Misc
 4=2
 5=2
 [AutoLoad]
-AutoLoad=2
+AutoLoad=2,1,3
 [RADebugBP]
 1=
 3=
@@ -65,7 +65,7 @@ MilestoneOnTime=2
 MilestoneOnDate=0
 MilestoneOnDateWhen=1
 MilestoneOnDateStatus=0
-MilestoneOnDateDate=12
+MilestoneOnDateDate=14
 MilestoneOnDateTimeYear=2014
 MilestoneOnDateTimeMonth=11
 MilestoneOnDateTimeDate=18
@@ -89,17 +89,17 @@ ProductVer2Range=0
 ProductVer3Range=0
 ProductVer4Range=0
 [PTimer]
-PTimer=382798159
+PTimer=393706668
 [Collapse]
-1=18057476,1082671393,153241938,614764610,1,,,1073741840,8192
+1=18057476,1082671393,558975314,1350871560,,512,,536870922,4096
 3=
 2=
 4=
 5=
 [Size]
-1=0,0,0,0,73023
-3=0,0,0,0,1170
-2=0,0,0,0,89
+1=0,0,0,0,62441
+3=0,0,0,0,117
+2=0,0,0,0,4149
 4=0,0,0,0,455
 5=0,0,0,0,366
 [GroupExpand]
@@ -118,13 +118,13 @@ GroupExpand=1,1,0
 [BreakPoint]
 0=
 [Find]
-1="BAMCalcDwordAligned"
-2="dwOpenMode == 1"
-3="IdwOpenMode == IEBAM_MODE_WRITE"
-4="dwOpenMode == 0"
-5="FILE_SHARE_READ+FILE_SHARE_WRITE"
-6="GENERIC_READ+GENERIC_WRITE"
-7="GMEM_FIXED+GMEM_ZEROINIT"
-8="PUBLIC "
-9="FrameLookupSize"
-10="FILE_"
+1="BAMTotalCycles"
+2="BAMCalcDwordAligned"
+3="dwOpenMode == 1"
+4="IdwOpenMode == IEBAM_MODE_WRITE"
+5="dwOpenMode == 0"
+6="FILE_SHARE_READ+FILE_SHARE_WRITE"
+7="GENERIC_READ+GENERIC_WRITE"
+8="GMEM_FIXED+GMEM_ZEROINIT"
+9="PUBLIC "
+10="FrameLookupSize"

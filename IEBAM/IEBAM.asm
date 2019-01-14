@@ -86,6 +86,112 @@ exitm <( ( ( ( r )  or  ( ( ( g ) )  shl  8 ) )  or  ( ( ( b ) )  shl  16 ) ) ) 
 ENDM
 
 
+IFNDEF BAMV1_HEADER
+BAMV1_HEADER            STRUCT
+    Signature           DD 0 ; 0x0000   4 (bytes)       Signature ('BAM ')
+    Version             DD 0 ; 0x0004   4 (bytes)       Version ('V1 ')
+    FrameEntriesCount   DW 0 ; 0x0008   2 (word)        Count of frames
+    CycleEntriesCount   DB 0 ; 0x000a   1 (byte)        Count of cycles
+    ColorIndexRLE       DB 0 ; 0x000b   1 (byte)        The compressed colour index for RLE encoded bams (ie. this is the colour that is compressed)
+    FrameEntriesOffset  DD 0 ; 0x000c   4 (dword)       Offset (from start of file) to frame entries (which are immediately followed by cycle entries)
+    PaletteOffset       DD 0 ; 0x0010   4 (dword)       Offset (from start of file) to palette
+    FrameLookupOffset   DD 0 ; 0x0014   4 (dword)       Offset (from start of file) to frame lookup table
+BAMV1_HEADER            ENDS
+ENDIF
+
+IFNDEF BAMV2_HEADER
+BAMV2_HEADER            STRUCT
+    Signature           DD 0 ; 0x0000   4 (bytes)       Signature ('BAM ')
+    Version             DD 0 ; 0x0004   4 (bytes)       Version ('V2 ')
+    FrameEntriesCount   DD 0 ; 0x0008   4 (dword)       Number of frames
+    CycleEntriesCount   DD 0 ; 0x000C   4 (dword)       Number of cycles
+    BlockEntriesCount   DD 0 ; 0x0010   4 (dword)       Number of data blocks
+    FrameEntriesOffset  DD 0 ; 0x0014   4 (dword)       Start offset of frame entries
+    CycleEntriesOffset  DD 0 ; 0x0018   4 (dword)       Start offset of cycle entries
+    BlockEntriesOffset  DD 0 ; 0x001C   4 (dword)       Start offset of data blocks
+BAMV2_HEADER            ENDS
+ENDIF
+
+IFNDEF BAMC_HEADER
+BAMC_HEADER             STRUCT
+    Signature           DD 0 ; 0x0000   4 (bytes)       Signature ('BAMC')
+    Version             DD 0 ; 0x0004   4 (bytes)       Version ('V1 ')
+    UncompressedLength  DD 0 ; 0x0008   4 (dword)       Uncompressed data length
+BAMC_HEADER             ENDS
+ENDIF
+
+IFNDEF FRAMEV1_ENTRY
+FRAMEV1_ENTRY           STRUCT
+    FrameWidth          DW 0 ; 0x0000   2 (word)        Frame width
+    FrameHeight         DW 0 ; 0x0002   2 (word)        Frame height
+    FrameXcoord         DW 0 ; 0x0004   2 (signed word) Frame center X coordinate
+    FrameYcoord         DW 0 ; 0x0006   2 (signed word) Frame center Y coordinate
+    FrameInfo           DD 0 ; 0x0008   4 (dword)       * bits 30-0: Offset to frame data * bit 31: 0=Compressed (RLE), 1=Uncompressed    
+FRAMEV1_ENTRY           ENDS
+ENDIF
+
+IFNDEF FRAMEV2_ENTRY
+FRAMEV2_ENTRY           STRUCT
+    FrameWidth          DW 0 ; 0x0000   2 (word)        Frame width
+    FrameHeight         DW 0 ; 0x0002   2 (word)        Frame height
+    FrameXcoord         DW 0 ; 0x0004   2 (signed word) Frame center X coordinate
+    FrameYcoord         DW 0 ; 0x0006   2 (signed word) Frame center Y coordinate
+    DataBlockIndex      DW 0 
+    DataBlockCount      DW 0
+FRAMEV2_ENTRY           ENDS
+ENDIF
+
+IFNDEF CYCLEV1_ENTRY
+CYCLEV1_ENTRY           STRUCT
+    CycleFrameCount     DW 0 ; 0x0000   2 (word)        Count of frame indices in this cycle
+    CycleStartFrame     DW 0 ; 0x0002   2 (word)        Index into frame lookup table of first frame index in this cycle
+CYCLEV1_ENTRY           ENDS
+ENDIF
+
+IFNDEF CYCLEV2_ENTRY
+CYCLEV2_ENTRY           STRUCT
+    CycleFrameCount     DW 0 ; 0x0000   2 (word)        Number of frame entries in this cycle
+    CycleStartFrame     DW 0 ; 0x0002   2 (word)        Start index of frame entries in this cycle
+CYCLEV2_ENTRY           ENDS
+ENDIF
+
+IFNDEF DATABLOCK_ENTRY  ; Used in BAM V2
+DATABLOCK_ENTRY         STRUCT
+    PVRZPage            DD 0
+    SourceXCoord        DD 0
+    SourceYCoord        DD 0
+    FrameWidth          DD 0
+    FrameHeight         DD 0
+    TargetXCoord        DD 0
+    TargetYCoord        DD 0
+DATABLOCK_ENTRY         ENDS
+ENDIF
+
+
+IFNDEF FRAMELOOKUPTABLE
+FRAMELOOKUPTABLE        STRUCT
+    SequenceSize        DD 0 ; length of sequence data - same as CycleFrameCount
+    SequenceData        DD 0 ; pointer to word array that has sequence of frame indicies in it
+FRAMELOOKUPTABLE        ENDS
+ENDIF
+
+IFNDEF FRAMEDATA
+FRAMEDATA               STRUCT
+    FrameCompressed     DD 0 ; Flag for compressed RLE encoding or not
+    FrameWidth          DD 0
+    FrameHeight         DD 0
+    FrameSizeRAW        DD 0 ; total dimension size of FrameRAW = width * height
+    FrameSizeRLE        DD 0
+    FrameSizeBMP        DD 0
+    FrameRAW            DD 0 ; Pointer to RAW unRLE'd frame data
+    FrameRLE            DD 0
+    FrameBMP            DD 0 ; memory for bitmap pixels, (unrle'd data) raw data converted to bmp pixel data.  
+    FrameBitmapHandle   DD 0 ; bitmap handle from CreateDibBitmap
+    FrameDataBlockIndex DD 0 ; BAM V2 only
+    FrameDataBlockCount DD 0 ; BAM V2 only
+FRAMEDATA               ENDS
+ENDIF
+
 
 BAMINFO                     STRUCT
     BAMOpenMode             DD 0
@@ -1649,11 +1755,11 @@ BAMV2Mem ENDP
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMHeader - Returns in eax a pointer to header or -1 if not valid
+; IEBAMHeader - Returns in eax a pointer to header or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBAMHeader PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBAM
@@ -1675,10 +1781,18 @@ IEBAMTotalFrameEntries PROC USES EBX hIEBAM:DWORD
     mov eax, [ebx].BAMINFO.BAMVersion
     .IF eax == 2 ; BAM V2
         mov ebx, [ebx].BAMINFO.BAMHeaderPtr
-        mov eax, [ebx].BAMV2_HEADER.FrameEntriesCount
+        .IF ebx != NULL
+            mov eax, [ebx].BAMV2_HEADER.FrameEntriesCount
+        .ELSE
+            mov eax, 0
+        .ENDIF
     .ELSE
         mov ebx, [ebx].BAMINFO.BAMHeaderPtr
-        movzx eax, word ptr [ebx].BAMV1_HEADER.FrameEntriesCount
+        .IF ebx != NULL
+            movzx eax, word ptr [ebx].BAMV1_HEADER.FrameEntriesCount
+        .ELSE
+            mov eax, 0
+        .ENDIF
     .ENDIF
     ret
 IEBAMTotalFrameEntries ENDP
@@ -1697,10 +1811,18 @@ IEBAMTotalCycleEntries PROC USES EBX hIEBAM:DWORD
     mov eax, [ebx].BAMINFO.BAMVersion
     .IF eax == 2 ; BAM V2
         mov ebx, [ebx].BAMINFO.BAMHeaderPtr
-        mov eax, [ebx].BAMV2_HEADER.CycleEntriesCount
+        .IF ebx != NULL
+            mov eax, [ebx].BAMV2_HEADER.CycleEntriesCount
+        .ELSE
+            mov eax, 0
+        .ENDIF
     .ELSE
         mov ebx, [ebx].BAMINFO.BAMHeaderPtr
-        movzx eax, byte ptr [ebx].BAMV1_HEADER.CycleEntriesCount
+        .IF ebx != NULL
+            movzx eax, byte ptr [ebx].BAMV1_HEADER.CycleEntriesCount
+        .ELSE
+            mov eax, 0
+        .ENDIF
     .ENDIF
     ret
 IEBAMTotalCycleEntries ENDP
@@ -1717,96 +1839,90 @@ IEBAMTotalBlockEntries PROC USES EBX hIEBAM:DWORD
     .ENDIF
     mov ebx, hIEBAM
     mov ebx, [ebx].BAMINFO.BAMHeaderPtr
-    mov eax, [ebx].BAMV2_HEADER.BlockEntriesCount
+    .IF ebx != NULL
+        mov eax, [ebx].BAMV2_HEADER.BlockEntriesCount
+    .ELSE
+        mov eax, 0
+    .ENDIF
     ret
 IEBAMTotalBlockEntries ENDP
 
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMFrameEntries - Returns in eax a pointer to frame entries or -1 if not valid
+; IEBAMFrameEntries - Returns in eax a pointer to frame entries or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBAMFrameEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMFrameEntriesPtr
-    .IF eax == NULL
-        mov eax, -1
-    .ENDIF
     ret
 IEBAMFrameEntries ENDP
 
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMCycleEntries - Returns in eax a pointer to cycle entries or -1 if not valid
+; IEBAMCycleEntries - Returns in eax a pointer to cycle entries or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBAMCycleEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMCycleEntriesPtr
-    .IF eax == NULL
-        mov eax, -1
-    .ENDIF    
     ret
 IEBAMCycleEntries ENDP
 
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMBlockEntries - Returns in eax a pointer to data block entries or -1 if not valid
+; IEBAMBlockEntries - Returns in eax a pointer to data block entries or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBAMBlockEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMBlockEntriesPtr
-    .IF eax == NULL
-        mov eax, -1
-    .ENDIF    
     ret
 IEBAMBlockEntries ENDP
 
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMFrameEntry - Returns in eax a pointer to the specified frame entry or -1 
+; IEBAMFrameEntry - Returns in eax a pointer to the specified frame entry or NULL
 ;-------------------------------------------------------------------------------------
 IEBAMFrameEntry PROC USES EBX hIEBAM:DWORD, nFrameEntry:DWORD
     LOCAL TotalFrameEntries:DWORD
     LOCAL FrameEntriesPtr:DWORD
     
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEBAMTotalFrameEntries, hIEBAM
-    mov TotalFrameEntries, eax
-    .IF TotalFrameEntries == 0
-        mov eax, -1
+    .IF eax == 0
+        mov eax, NULL
         ret
     .ENDIF    
+    mov TotalFrameEntries, eax
 
-    mov eax, TotalFrameEntries
     .IF nFrameEntry >= eax
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEBAMFrameEntries, hIEBAM
-    mov FrameEntriesPtr, eax
-    .IF eax == -1
+    .IF eax == NULL
         ret
-    .ENDIF    
+    .ENDIF
+    mov FrameEntriesPtr, eax
     
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMVersion
@@ -1826,35 +1942,34 @@ IEBAMFrameEntry ENDP
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMCycleEntry - Returns in eax a pointer to the specified cycle entry or -1 
+; IEBAMCycleEntry - Returns in eax a pointer to the specified cycle entry or NULL 
 ;-------------------------------------------------------------------------------------
 IEBAMCycleEntry PROC USES EBX hIEBAM:DWORD, nCycleEntry:DWORD
     LOCAL TotalCycleEntries:DWORD
     LOCAL CycleEntriesPtr:DWORD
     
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEBAMTotalCycleEntries, hIEBAM
-    mov TotalCycleEntries, eax
-    .IF TotalCycleEntries == 0
-        mov eax, -1
+    .IF eax == 0
+        mov eax, NULL
         ret
     .ENDIF    
+    mov TotalCycleEntries, eax
 
-    mov eax, TotalCycleEntries
     .IF nCycleEntry >= eax
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEBAMCycleEntries, hIEBAM
-    mov CycleEntriesPtr, eax
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF    
+    mov CycleEntriesPtr, eax
     
     mov eax, nCycleEntry
     mov ebx, SIZEOF CYCLEV1_ENTRY
@@ -1866,35 +1981,34 @@ IEBAMCycleEntry ENDP
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMBlockEntry - Returns in eax a pointer to the specified Datablock entry or -1 
+; IEBAMBlockEntry - Returns in eax a pointer to the specified Datablock entry or NULL 
 ;-------------------------------------------------------------------------------------
 IEBAMBlockEntry PROC USES EBX hIEBAM:DWORD, nBlockEntry:DWORD
     LOCAL TotalBlockEntries:DWORD
     LOCAL BlockEntriesPtr:DWORD
     
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEBAMTotalBlockEntries, hIEBAM
-    mov TotalBlockEntries, eax
-    .IF TotalBlockEntries == 0
-        mov eax, -1
+    .IF eax == 0
+        mov eax, NULL
         ret
     .ENDIF    
-
-    mov eax, TotalBlockEntries
+    mov TotalBlockEntries, eax
+    
     .IF nBlockEntry >= eax
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEBAMBlockEntries, hIEBAM
-    mov BlockEntriesPtr, eax
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF    
+    mov BlockEntriesPtr, eax    
     
     mov eax, nBlockEntry
     mov ebx, SIZEOF DATABLOCK_ENTRY
@@ -1906,65 +2020,59 @@ IEBAMBlockEntry ENDP
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMPalette - Returns in eax a pointer to the palette or -1 if not valid
+; IEBAMPalette - Returns in eax a pointer to the palette or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBAMPalette PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMPalettePtr
-    .IF eax == NULL
-        mov eax, -1
-    .ENDIF
     ret
 IEBAMPalette ENDP
 
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMFrameLookupEntries - Returns in eax a pointer to the frame lookup indexes or -1 if not valid
+; IEBAMFrameLookupEntries - Returns in eax a pointer to the frame lookup indexes or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBAMFrameLookupEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMFrameLookupPtr
-    .IF eax == 0
-        mov eax, -1
-    .ENDIF
     ret
 IEBAMFrameLookupEntries ENDP
 
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMFrameLookupEntry - Returns in eax a pointer to the frame lookup -1 if not valid
+; IEBAMFrameLookupEntry - Returns in eax a pointer to the frame lookup NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBAMFrameLookupEntry PROC USES EBX hIEBAM:DWORD, nCycle:DWORD
     LOCAL FrameLookupEntries:DWORD
     LOCAL TotalCycleEntries:DWORD
     
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
 
     Invoke IEBAMTotalCycleEntries, hIEBAM
-    mov TotalCycleEntries, eax
-    .IF TotalCycleEntries == 0
-        mov eax, -1
+    .IF eax == 0
+        mov eax, NULL
         ret
     .ENDIF   
+    mov TotalCycleEntries, eax
    
     Invoke IEBAMFrameLookupEntries, hIEBAM
-    mov FrameLookupEntries, eax    
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF
+    mov FrameLookupEntries, eax  
 
     mov eax, nCycle
     mov ebx, SIZEOF FRAMELOOKUPTABLE
@@ -1976,36 +2084,32 @@ IEBAMFrameLookupEntry ENDP
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMFrameDataEntries - Returns in eax a pointer to the framedata entries or -1 if not valid
+; IEBAMFrameDataEntries - Returns in eax a pointer to the framedata entries or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBAMFrameDataEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMFrameDataEntriesPtr
-    .IF eax == NULL
-        mov eax, -1
-        ret
-    .ENDIF    
     ret
 IEBAMFrameDataEntries ENDP
 
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMFrameDataEntry - returns in eax pointer to frame data or -1 if not found
+; IEBAMFrameDataEntry - returns in eax pointer to frame data or NULL if not found
 ;-------------------------------------------------------------------------------------
 IEBAMFrameDataEntry PROC USES EBX hIEBAM:DWORD, nFrameEntry:DWORD
     LOCAL FrameDataEntriesPtr:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEBAMFrameDataEntries, hIEBAM
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF
     mov FrameDataEntriesPtr, eax
@@ -2020,12 +2124,12 @@ IEBAMFrameDataEntry ENDP
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMFileName - returns in eax pointer to zero terminated string contained filename that is open or -1 if not opened, 0 if in memory ?
+; IEBAMFileName - returns in eax pointer to zero terminated string contained filename that is open or NULL if not opened
 ;-------------------------------------------------------------------------------------
 IEBAMFileName PROC USES EBX hIEBAM:DWORD
     LOCAL BamFilename:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBAM
@@ -2033,7 +2137,7 @@ IEBAMFileName PROC USES EBX hIEBAM:DWORD
     mov BamFilename, eax
     Invoke szLen, BamFilename
     .IF eax == 0
-        mov eax, -1
+        mov eax, NULL
     .ELSE
         mov eax, BamFilename
     .ENDIF
@@ -2047,7 +2151,7 @@ IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
 IEBAMFileNameOnly PROC hIEBAM:DWORD, lpszFileNameOnly:DWORD
     Invoke IEBAMFileName, hIEBAM
-    .IF eax == -1
+    .IF eax == NULL
         mov eax, FALSE
         ret
     .ENDIF
@@ -2061,11 +2165,11 @@ IEBAMFileNameOnly endp
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBAMFileSize - returns in eax size of file or -1
+; IEBAMFileSize - returns in eax size of file or 0
 ;-------------------------------------------------------------------------------------
 IEBAMFileSize PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     mov ebx, hIEBAM
@@ -2111,7 +2215,7 @@ IEBAMVersion ENDP
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; Unroll RLE compressed bam frame to RAW data
+; Unroll RLE compressed bam frame to RAW data. Returns Frame Size or NULL
 ;-------------------------------------------------------------------------------------
 IEBAMFrameUnRLE PROC USES EBX ECX EDX pFrameRLE:DWORD, pFrameRAW:DWORD, FrameRLESize:DWORD, FrameRAWSize:DWORD, FrameWidth:DWORD
     LOCAL FrameWidthDwordAligned:DWORD
@@ -2127,12 +2231,12 @@ IEBAMFrameUnRLE PROC USES EBX ECX EDX pFrameRLE:DWORD, pFrameRAW:DWORD, FrameRLE
     LOCAL TotalBytesWritten:DWORD
 
     .IF pFrameRLE == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     .IF pFrameRAW == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
 
@@ -2338,7 +2442,7 @@ IEBAMFrameBitmap endp
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; Returns frame no for particular cycle and index into sequence
+; Returns frame no for particular cycle and index into sequence or -1
 ;-------------------------------------------------------------------------------------
 IEBAMFrameLookupSequence PROC USES EBX hIEBAM:DWORD, nCycle:DWORD, CycleIndex:DWORD
     LOCAL FrameLookupOffset:DWORD
@@ -2390,16 +2494,16 @@ IEBAMFrameLookupSequence endp
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; Returns count of frames in particular cycle
+; Returns count of frames in particular cycle or 0
 ;-------------------------------------------------------------------------------------
 IEBAMCycleFrameCount PROC USES EBX hIEBAM:DWORD, nCycle:DWORD
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     
     Invoke IEBAMCycleEntry, hIEBAM, nCycle
-    .IF eax == -1
+    .IF eax == 0
         ret
     .ENDIF
     mov ebx, eax
@@ -2410,7 +2514,7 @@ IEBAMCycleFrameCount endp
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; Returns in eax 0 if sucessful or -1 otherwise. On return lpdwFrameHeight and 
+; Returns in eax TRUE if sucessful or FALSE otherwise. On return lpdwFrameHeight and 
 ; lpdwFrameWidth will contain the values
 ;-------------------------------------------------------------------------------------
 IEBAMFrameWidthHeight PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD
@@ -2419,12 +2523,13 @@ IEBAMFrameWidthHeight PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:D
     LOCAL FrameHeight:DWORD
     
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, FALSE
         ret
     .ENDIF
 
     Invoke IEBAMFrameEntry, hIEBAM, nFrame
-    .IF eax == -1
+    .IF eax == NULL
+        mov eax, FALSE
         ret
     .ENDIF
     mov FrameEntryOffset, eax
@@ -2446,14 +2551,14 @@ IEBAMFrameWidthHeight PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:D
         mov [ebx], eax
     .ENDIF
     
-    mov eax, 0
+    mov eax, TRUE
     ret
 IEBAMFrameWidthHeight ENDP
 
 
 IEBAM_ALIGN
 ;------------------------------------------------------------------------------
-; Find the max width and height for all frames stored in bam. 0 success, -1 failure
+; Find the max width and height for all frames stored in bam. TRUE success, FALSE failure
 ;------------------------------------------------------------------------------
 IEBAMFindMaxWidthHeight PROC USES EBX hIEBAM:DWORD, lpdwMaxWidth:DWORD, lpdwMaxHeight:DWORD
     LOCAL FrameEntries:DWORD
@@ -2464,19 +2569,20 @@ IEBAMFindMaxWidthHeight PROC USES EBX hIEBAM:DWORD, lpdwMaxWidth:DWORD, lpdwMaxH
     LOCAL TotalFrameEntries:DWORD
     
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, FALSE
         ret
     .ENDIF
     
     Invoke IEBAMTotalFrameEntries, hIEBAM
-    .IF eax == 0
-        mov eax, -1
+    .IF eax == NULL
+        mov eax, FALSE
         ret
     .ENDIF
     mov TotalFrameEntries, eax
     
     Invoke IEBAMFrameEntries, hIEBAM
-    .IF eax == -1
+    .IF eax == NULL
+        mov eax, FALSE
         ret
     .ENDIF
     mov FrameEntries, eax
@@ -2521,23 +2627,23 @@ IEBAMFindMaxWidthHeight endp
 
 IEBAM_ALIGN
 ;-------------------------------------------------------------------------------------
-; Returns in eax pointer to palette RGBAQUAD entry, or -1 otherwise
+; Returns in eax pointer to palette RGBAQUAD entry, or NULL otherwise
 ;-------------------------------------------------------------------------------------
 IEBAMPaletteEntry PROC USES EBX hIEBAM:DWORD, PaletteIndex:DWORD
     LOCAL PaletteOffset:DWORD
 
     .IF hIEBAM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     .IF PaletteIndex > 255
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEBAMPalette, hIEBAM
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF
     mov PaletteOffset, eax
@@ -2565,7 +2671,8 @@ IEBAMRLEColorIndexColorRef PROC USES EBX hIEBAM
     .ENDIF
     
     Invoke IEBAMHeader, hIEBAM
-    .IF eax == -1
+    .IF eax == NULL
+        mov eax, -1
         ret
     .ENDIF
     mov BamHeaderPtr, eax
@@ -2713,7 +2820,7 @@ IEBAM_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; Uncompresses BAMC file to an area of memory that we allocate for the exact size of data
 ;-----------------------------------------------------------------------------------------
-BAMUncompress PROC PRIVATE USES EBX hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
+BAMUncompress PROC USES EBX hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
     LOCAL dest:DWORD
     LOCAL src:DWORD
     LOCAL BAMU_Size:DWORD

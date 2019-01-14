@@ -64,7 +64,7 @@ IEBAMFrameLookupEntry       PROTO :DWORD, :DWORD            ; hIEBAM, nCycleEntr
 IEBAMFrameLookupEntries     PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to the frame lookup indexes
 
 IEBAMPalette                PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to the palette of 256 x RQBQUADs
-IEBAMPaletteEntry           PROTO :DWORD, :DWORD            ; hIEBAM, PaletteIndex. Returns in eax pointer to RGBAQUAD for index 0-255 (256 entries) or -1 if unsuccessful
+IEBAMPaletteEntry           PROTO :DWORD, :DWORD            ; hIEBAM, PaletteIndex. Returns in eax pointer to RGBAQUAD for index 0-255 (256 entries) or NULL if unsuccessful
 
 
 ; Bam file information
@@ -83,9 +83,9 @@ IEBAMFrameUnRLE             PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
 IEBAMFrameRAWToFrameBMP     PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
 IEBAMFrameBitmap            PROTO :DWORD, :DWORD, :DWORD    ; hWin, hIEBAM, nFrame. Returns in eax handle to bitmap of frame data or NULL
 IEBAMFrameLookupSequence    PROTO :DWORD, :DWORD, :DWORD    ; hIEBAM, nCycle, SequenceIndex. Returns frame no in eax or -1 otherwise
-IEBAMCycleFrameCount        PROTO :DWORD, :DWORD            ; hIEBAM, nCycle. Returns frame count for cycle in eax or -1 otherwise
-IEBAMFrameWidthHeight       PROTO :DWORD, :DWORD, :DWORD, :DWORD ; hIEBAM, nFrame, lpdwFrameWidth, lpdwFrameHeight. Returns in eax 0 if succesful or -1 otherwise. lpdwX contain values
-IEBAMFindMaxWidthHeight     PROTO :DWORD, :DWORD, :DWORD    ; hIEBAM, lpdwFrameWidth, lpdwFrameHeight. Returns in eax 0 if succesful or -1 otherwise. lpdwX contain max values on success
+IEBAMCycleFrameCount        PROTO :DWORD, :DWORD            ; hIEBAM, nCycle. Returns frame count for cycle in eax or 0 otherwise
+IEBAMFrameWidthHeight       PROTO :DWORD, :DWORD, :DWORD, :DWORD ; hIEBAM, nFrame, lpdwFrameWidth, lpdwFrameHeight. Returns in eax TRUE if succesful or FALSE otherwise. lpdwX contain values
+IEBAMFindMaxWidthHeight     PROTO :DWORD, :DWORD, :DWORD    ; hIEBAM, lpdwFrameWidth, lpdwFrameHeight. Returns in eax TRUE if succesful or FALSE otherwise. lpdwX contain max values on success
 
 
 IEBAMRLEColorIndexColorRef  PROTO :DWORD                    ; hIEBAM. Returns in eax ColorRef RGB of RLEColorIndex.
@@ -165,7 +165,7 @@ CYCLEV2_ENTRY           STRUCT
 CYCLEV2_ENTRY           ENDS
 ENDIF
 
-IFNDEF DATABLOCK_ENTRY
+IFNDEF DATABLOCK_ENTRY  ; Used in BAM V2
 DATABLOCK_ENTRY         STRUCT
     PVRZPage            DD 0
     SourceXCoord        DD 0
