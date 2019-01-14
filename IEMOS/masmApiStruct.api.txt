@@ -1,0 +1,15 @@
+;------------------------------------------------------------------------------------------------
+; IEMOS
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+; Paste this text at the end of \Radasm\masm\masmApiStruct.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+MOSV1_HEADER,Signature,Version,ImageWidth,ImageHeight,BlockColumns,BlockRows,BlockSize,PalettesOffset
+MOSV2_HEADER,Signature,Version,ImageWidth,ImageHeight,BlockEntriesCount,BlockEntriesOffset
+MOSC_HEADER,Signature,Version,UncompressedLength
+TILELOOKUP_ENTRY,TileDataOffset
+DATABLOCK_ENTRY,PVRZPage,SourceXCoord,SourceYCoord,FrameWidth,FrameHeight,TargetXCoord,TargetYCoord
+
+

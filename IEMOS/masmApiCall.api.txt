@@ -1,0 +1,29 @@
+;------------------------------------------------------------------------------------------------
+; IEMOS
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+; Paste this text at the end of \Radasm\masm\masmApiCall.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+IEMOSOpen,lpszMosFilename,dwOpenMode
+IEMOSMem,pMOSInMemory,lpszMosFilename,dwMosFilesize,dwOpenMode
+IEMOSClose,hIEMOS
+IEMOSHeader,hIEMOS
+IEMOSTileLookupEntries,hIEMOS
+IEMOSTileLookupEntry,hIEMOS,nTile
+IEMOSTileDataEntries,hIEMOS
+IEMOSTileDataEntry,hIEMOS,nTile
+IEMOSTotalTiles,hIEMOS
+IEMOSPalettes,hIEMOS
+IEMOSTilePalette,hIEMOS,nTile
+IEMOSTilePaletteEntry,hIEMOS,nTile,PaletteIndex
+IEMOSTotalPalettes,hIEMOS
+IEMOSBlockEntries,hIEMOS
+IEMOSBlockEntry,hIEMOS,nBlockEntry
+IEMOSTotalBlockEntries,hIEMOS
+IEMOSFileName,hIEMOS
+IEMOSFileNameOnly,hIEMOS,lpszFileNameOnly
+IEMOSFileSize,hIEMOS
+IEMOSFileCompression,hIEMOS
+IEMOSVersion,hIEMOS
