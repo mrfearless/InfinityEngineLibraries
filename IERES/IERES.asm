@@ -56,19 +56,15 @@ includelib masm32.lib
 
 include IERES.inc
 
-;DEBUGLOG EQU 1
-IFDEF DEBUGLOG
-    include DebugLogLIB.asm
-ENDIF
-;DEBUG32 EQU 1
 
-IFDEF DEBUG32
-    PRESERVEXMMREGS equ 1
-    includelib M:\Masm32\lib\Debug32.lib
-    DBG32LIB equ 1
-    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
-    include M:\Masm32\include\debug32.inc
-ENDIF
+;DEBUG32 EQU 1
+;IFDEF DEBUG32
+;    PRESERVEXMMREGS equ 1
+;    includelib M:\Masm32\lib\Debug32.lib
+;    DBG32LIB equ 1
+;    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
+;    include M:\Masm32\include\debug32.inc
+;ENDIF
 
 ;-------------------------------------------------------------------------
 ; Prototypes for internal use
@@ -87,9 +83,7 @@ RESutoa_ex              PROTO :DWORD, :DWORD
 
 
 .DATA
-IFDEF DEBUG32
-DbgVar                      DD 0
-ENDIF
+
 
 ;=======================================================================================
 ; DWORD FILE EXTENSION STRINGS FOR RESOURCE TYPES
@@ -911,7 +905,7 @@ szFullstop              db '.',0
 ;-------------------------------------------------------------------------------------
 ; -1 = ask user, 0 = unknown resource, otherwise returns resource type in eax
 ;-------------------------------------------------------------------------------------
-IERESExtToResType PROC PUBLIC USES EBX lpszFileExtension:DWORD
+IERESExtToResType PROC USES EBX lpszFileExtension:DWORD
     LOCAL szFileExt[16]:BYTE
     mov ebx, lpszFileExtension
     movzx eax, byte ptr [ebx]
@@ -1358,19 +1352,14 @@ IERESExtToResType PROC PUBLIC USES EBX lpszFileExtension:DWORD
     .ELSE
         mov eax, RES_TYPE_UNKNOWN
     .ENDIF
-
-
-     
-    
     ret
+IERESExtToResType ENDP
 
-IERESExtToResType endp
-
-
-;-------------------------------------------------------------------------------------
 
 ;-------------------------------------------------------------------------------------
-IERESResIndexToString PROC PUBLIC USES EBX dwResourceIndex:DWORD, lpszResourceIndex:DWORD
+; IERESResIndexToString
+;-------------------------------------------------------------------------------------
+IERESResIndexToString PROC dwResourceIndex:DWORD, lpszResourceIndex:DWORD
 ;    LOCAL lpdwString:DWORD
     
 ;    .IF dwResourceIndex >= 0 && dwResourceIndex <= 100
@@ -1383,25 +1372,23 @@ IERESResIndexToString PROC PUBLIC USES EBX dwResourceIndex:DWORD, lpszResourceIn
         Invoke RESutoa_ex, dwResourceIndex, lpszResourceIndex
 ;    .ENDIF
     ret
+IERESResIndexToString ENDP
 
-IERESResIndexToString endp
-
-
-;-------------------------------------------------------------------------------------
 
 ;-------------------------------------------------------------------------------------
-IERESResOffsetToString PROC PUBLIC dwResourceOffset:DWORD, lpszResourceOffset:DWORD
-    
+; IERESResOffsetToString
+;-------------------------------------------------------------------------------------
+IERESResOffsetToString PROC dwResourceOffset:DWORD, lpszResourceOffset:DWORD
     Invoke RESutoa_ex, dwResourceOffset, lpszResourceOffset
     ret
-
-IERESResOffsetToString endp
+IERESResOffsetToString ENDP
 
 
 ;-------------------------------------------------------------------------------------
-; converts size to a string, if tilescount > 0 then size is calc'd as size x count and string is returned with 'size (tile size x tile count)'
+; IERESResSizeToString converts size to a string, if tilescount > 0 then size is 
+; calc'd as size x count and string is returned with 'size (tile size x tile count)'
 ;-------------------------------------------------------------------------------------
-IERESResSizeToString PROC PUBLIC USES EBX dwResourceSize:DWORD, dwTilesCount:DWORD, lpszResourceSize:DWORD
+IERESResSizeToString PROC USES EBX dwResourceSize:DWORD, dwTilesCount:DWORD, lpszResourceSize:DWORD
     LOCAL dwSize:DWORD
     LOCAL szTileSize[12]:BYTE
     LOCAL szTilesCount[12]:BYTE
@@ -1428,17 +1415,14 @@ IERESResSizeToString PROC PUBLIC USES EBX dwResourceSize:DWORD, dwTilesCount:DWO
         Invoke szCatStr, lpszResourceSize, Addr szRightBracket
     .ENDIF
     ret
-
-IERESResSizeToString endp
+IERESResSizeToString ENDP
 
 
 ;-------------------------------------------------------------------------------------
 ; IERESResNameTypeToString - converts resref (8 bytes) with resource type to a 8.3 resource name string
 ;-------------------------------------------------------------------------------------
-IERESResNameTypeToString PROC PUBLIC lpszResName:DWORD, dwResType:DWORD, lpszResourceNameString:DWORD
-    
+IERESResNameTypeToString PROC lpszResName:DWORD, dwResType:DWORD, lpszResourceNameString:DWORD
     Invoke szCopy, lpszResName, lpszResourceNameString 
-    
     mov eax, dwResType
 ;---------------------------------------------------------------------------------------
 ; 0 - 20 - Common files
@@ -1919,7 +1903,6 @@ IERESResNameTypeToString PROC PUBLIC lpszResName:DWORD, dwResType:DWORD, lpszRes
         mov eax, RES_TYPE_UNKNOWN
     
     .ENDIF
-
     ret
 IERESResNameTypeToString ENDP
 
@@ -1927,7 +1910,7 @@ IERESResNameTypeToString ENDP
 ;-------------------------------------------------------------------------------------
 ; IERESResTypeToString - returns in eax pointer to zero terminated string contained file extension for resource type specified
 ;-------------------------------------------------------------------------------------
-IERESResTypeToString PROC PUBLIC dwResType:DWORD
+IERESResTypeToString PROC dwResType:DWORD
     LOCAL szResUnknown[12]:BYTE
     mov eax, dwResType
 ;---------------------------------------------------------------------------------------
@@ -2396,9 +2379,6 @@ IERESResTypeToString PROC PUBLIC dwResType:DWORD
         lea eax, szRES_TYPE_VFPFPT
         
     .ELSE
-        IFDEF DEBUG32
-            PrintDec dwResType
-        ENDIF
     
         Invoke szCopy, Addr szHex, Addr szUnknownRes
         Invoke dw2hex, dwResType, Addr szResUnknown ; local var
@@ -2406,26 +2386,23 @@ IERESResTypeToString PROC PUBLIC dwResType:DWORD
         ;Invoke BIFutoa_ex, dwResType, Addr szUnknownRes
         lea eax, szUnknownRes
     .ENDIF
- 
     ret
-
-IERESResTypeToString endp
-
-
+IERESResTypeToString ENDP
 
 
 ; Paul Dixon's utoa_ex function. unsigned dword to ascii. 
-
 OPTION PROLOGUE:NONE
 OPTION EPILOGUE:NONE
 
 align 16
 
-RESutoa_ex proc uvar:DWORD,pbuffer:DWORD
+RESutoa_ex PROC uvar:DWORD, pbuffer:DWORD
 
   ; --------------------------------------------------------------------------------
   ; this algorithm was written by Paul Dixon and has been converted to MASM notation
   ; --------------------------------------------------------------------------------
+    push ecx
+    push edx
 
     mov eax, [esp+4]                ; uvar      : unsigned variable to convert
     mov ecx, [esp+8]                ; pbuffer   : pointer to result buffer
@@ -2530,7 +2507,11 @@ RESutoa_ex proc uvar:DWORD,pbuffer:DWORD
 
     pop edi
     pop esi
-    ret 8
+    
+    pop edx
+    pop ecx
+    
+    ret 16; 8
 
   align 16
   ZeroSupressed:
@@ -2574,9 +2555,12 @@ RESutoa_ex proc uvar:DWORD,pbuffer:DWORD
     pop edi
     pop esi
 
-    ret 8
+    pop edx
+    pop ecx
 
-RESutoa_ex endp
+    ret 16 ;8
+
+RESutoa_ex ENDP
 
 OPTION PROLOGUE:PrologueDef
 OPTION EPILOGUE:EpilogueDef

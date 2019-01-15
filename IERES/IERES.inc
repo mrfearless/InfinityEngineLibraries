@@ -47,7 +47,7 @@ IERESResSizeToString        PROTO :DWORD, :DWORD, :DWORD    ; dwResourceSize, dw
 IERESResIndexToString       PROTO :DWORD, :DWORD            ; dwResourceIndex, lpszResourceIndex. string returned to buffer pointed at by lpszResourceIndex
 IERESResOffsetToString      PROTO :DWORD, :DWORD            ; dwResourceOffset, lpszResourceOffset. string returned to buffer pointed at by lpszResourceOffset
 IERESResFlagsToString       PROTO :DWORD, :DWORD            ; dwResourceFlags, lpszResourceFlags. string returned to buffer pointed at by lpszResourceFlags (For BIF V1.1 FILE_ENTRY_V11)
-IERESExtToResType           PROTO :DWORD
+IERESExtToResType           PROTO :DWORD                    ; lpszFileExtension
 
 
 ;-----------------------------------------------------------------------------------------

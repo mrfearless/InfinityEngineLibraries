@@ -6,4 +6,10 @@
 ; Paste this text at the end of \Radasm\masm\masmApiCall.api to add these to Radasm
 ;
 ;------------------------------------------------------------------------------------------------
-
+IERESResNameTypeToString,lpszResName,dwResType,lpdwResourceNameString
+IERESResTypeToString,dwResourceType
+IERESResSizeToString,dwResourceSize,dwTilesCount,lpszResourceSize
+IERESResIndexToString,dwResourceIndex,lpszResourceIndex
+IERESResOffsetToString,dwResourceOffset,lpszResourceOffset
+IERESResFlagsToString,dwResourceFlags,lpszResourceFlags
+IERESExtToResType,lpszFileExtension
