@@ -72,7 +72,7 @@ IERIMPeekFileSignature      PROTO :DWORD, :DWORD
 IFNDEF RIM_HEADER
 RIM_HEADER              STRUCT
     Signature           DD 0 ; 0x0000   4 (bytes)       Signature ('RIM ')
-    Version             DD 0 ; 0x0004   4 (bytes)       Version ('V1.0')
+    Version             DD 0 ; 0x0004   4 (bytes)       Version ('V1  ')
     Unknown             DD 0
     FileEntriesCount    DD 0 ; 0x0008   4 (dword)       Count of files within this archive
     FileEntriesOffset   DD 0 ; 0x000c   4 (dword)       Directory offset

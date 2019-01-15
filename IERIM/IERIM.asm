@@ -435,11 +435,11 @@ IERIMMem ENDP
 
 IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IERIMHeader - Returns in eax a pointer to header or -1 if not valid
+; IERIMHeader - Returns in eax a pointer to header or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IERIMHeader PROC USES EBX hIERIM:DWORD
     .IF hIERIM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIERIM
@@ -450,27 +450,26 @@ IERIMHeader ENDP
 
 IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IERIMFileEntry - Returns in eax a pointer to the specified file entry or -1 
+; IERIMFileEntry - Returns in eax a pointer to the specified file entry or NULL
 ;-------------------------------------------------------------------------------------
 IERIMFileEntry PROC USES EBX hIERIM:DWORD, nFileEntry:DWORD
     LOCAL TotalFileEntries:DWORD
     LOCAL FileEntriesPtr:DWORD
     
     .IF hIERIM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IERIMTotalFileEntries, hIERIM
-    mov TotalFileEntries, eax
-    .IF TotalFileEntries == 0
-        mov eax, -1
+    .IF eax == 0
+        mov eax, NULL
         ret
     .ENDIF    
+    mov TotalFileEntries, eax
 
-    mov eax, TotalFileEntries
     .IF nFileEntry > eax
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
@@ -507,11 +506,11 @@ IERIMTotalFileEntries ENDP
 
 IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IERIMFileEntries - Returns in eax a pointer to file entries or -1 if not valid
+; IERIMFileEntries - Returns in eax a pointer to file entries or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IERIMFileEntries PROC USES EBX hIERIM:DWORD
     .IF hIERIM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIERIM
@@ -522,12 +521,12 @@ IERIMFileEntries ENDP
 
 IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IERIMFileName - returns in eax pointer to zero terminated string contained filename that is open or -1 if not opened, 0 if in memory ?
+; IERIMFileName - returns in eax pointer to zero terminated string contained filename that is open or NULL if not opened
 ;-------------------------------------------------------------------------------------
 IERIMFileName PROC USES EBX hIERIM:DWORD
     LOCAL RimFilename:DWORD
     .IF hIERIM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIERIM
@@ -535,7 +534,7 @@ IERIMFileName PROC USES EBX hIERIM:DWORD
     mov RimFilename, eax
     Invoke szLen, RimFilename
     .IF eax == 0
-        mov eax, -1
+        mov eax, NULL
     .ELSE
         mov eax, RimFilename
     .ENDIF
@@ -549,7 +548,7 @@ IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 IERIMFileNameOnly PROC hIERIM:DWORD, lpszFileNameOnly:DWORD
     Invoke IERIMFileName, hIERIM
-    .IF eax == -1
+    .IF eax == NULL
         mov eax, FALSE
         ret
     .ENDIF
@@ -561,11 +560,11 @@ IERIMFileNameOnly endp
 
 IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IERIMFileSize - returns in eax size of file or -1
+; IERIMFileSize - returns in eax size of file or 0
 ;-------------------------------------------------------------------------------------
 IERIMFileSize PROC USES EBX hIERIM:DWORD
     .IF hIERIM == NULL
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     mov ebx, hIERIM
@@ -591,19 +590,19 @@ IERIMVersion endp
 
 IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IERIMFileData - returns in eax pointer to file data or -1 if not found
+; IERIMFileData - returns in eax pointer to file data or NULL if not found
 ;-------------------------------------------------------------------------------------
 IERIMFileData PROC USES EBX hIERIM:DWORD, nFileEntry:DWORD
     LOCAL FileEntryOffset:DWORD
     LOCAL ResourceOffset:DWORD
     
     .IF hIERIM == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IERIMFileEntry, hIERIM, nFileEntry
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF
     mov FileEntryOffset, eax
@@ -622,7 +621,7 @@ IERIMFileData ENDP
 
 IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
-; IERIMExtractFile - returns in eax size of file extracted or -1 if failed
+; IERIMExtractFile - returns in eax size of file extracted or 0 if failed
 ;-------------------------------------------------------------------------------------
 IERIMExtractFile PROC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutputFilename:DWORD
     LOCAL FileEntryOffset:DWORD
@@ -635,12 +634,12 @@ IERIMExtractFile PROC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     LOCAL Version:DWORD
     
     .IF hIERIM == NULL
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     
     Invoke IERIMFileEntry, hIERIM, nFileEntry
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF
     mov FileEntryOffset, eax
@@ -660,7 +659,7 @@ IERIMExtractFile PROC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutputFilenam
 
     Invoke CreateFile, lpszOutputFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_WRITE_THROUGH, NULL
     .IF eax == INVALID_HANDLE_VALUE
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     mov hOutputFile, eax
@@ -675,7 +674,7 @@ IERIMExtractFile PROC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     Invoke CreateFileMapping, hOutputFile, NULL, PAGE_READWRITE, 0, ResourceSize, NULL
     .IF eax == NULL
         Invoke CloseHandle, hOutputFile
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     mov MemMapHandle, eax
@@ -684,7 +683,7 @@ IERIMExtractFile PROC USES EBX hIERIM:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     .IF eax == NULL
         Invoke CloseHandle, MemMapHandle
         Invoke CloseHandle, hOutputFile
-        mov eax, -1
+        mov eax, 0
         ret        
     .ENDIF
     mov MemMapPtr, eax
@@ -703,7 +702,7 @@ IERIMExtractFile endp
 IERIM_ALIGN
 ;-------------------------------------------------------------------------------------
 ; Peek at resource files actual signature - helps to determine actual resource type
-; returns in eax SIG dword and ebx the version dword. -1 eax, -1 ebx if not valid entry or ierim handle
+; returns in eax SIG dword and ebx the version dword. NULL eax, NULL ebx if not valid entry or ierim handle
 ;
 ; Returned dword is reverse of sig and version:
 ; CHR sig will be ' RHC' 
@@ -715,15 +714,14 @@ IERIMPeekFileSignature PROC hIERIM:DWORD, nFileEntry:DWORD
     LOCAL ResourceOffset:DWORD
         
     .IF hIERIM == NULL
-        mov eax, -1
-        mov ebx, -1
+        mov eax, NULL
+        mov ebx, NULL
         ret
     .ENDIF
 
     Invoke IERIMFileEntry, hIERIM, nFileEntry
-    .IF eax == -1
-        mov eax, -1
-        mov ebx, -1
+    .IF eax == NULL
+        mov ebx, NULL
         ret
     .ENDIF
     mov FileEntryOffset, eax
