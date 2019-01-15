@@ -826,11 +826,9 @@ IEBIFClose PROC USES EBX hIEBIF:DWORD
         ; do nothing
 
     .ELSEIF eax == BIF_VERSION_BIFFV10 || eax == BIF_VERSION_BIFFV11 ; BIFF - straight raw biff, so if  opened in readonly, unmap file, otherwise free mem
-        ;PrintText 'BIFF'
         mov ebx, hIEBIF
         mov eax, [ebx].BIFINFO.BIFOpenMode
         .IF eax == IEMODE_READONLY ; Read Only
-            ;PrintText 'Read Only'
             mov ebx, hIEBIF
             mov eax, [ebx].BIFINFO.BIFMemMapPtr
             .IF eax != NULL
@@ -850,7 +848,6 @@ IEBIFClose PROC USES EBX hIEBIF:DWORD
             .ENDIF
 
         .ELSE ; free mem if write mode IEMODE_WRITE
-            ;PrintText 'Read/Write'
             mov ebx, hIEBIF
             mov eax, [ebx].BIFINFO.BIFMemMapPtr
             .IF eax != NULL
@@ -858,7 +855,6 @@ IEBIFClose PROC USES EBX hIEBIF:DWORD
             .ENDIF
         .ENDIF
     .ELSE ; BIF_ or BIFC in read or write mode uncompresed biff in memory needs to be cleared
-        ;PrintText 'BIF_ or BIFC'
         mov ebx, hIEBIF
         mov eax, [ebx].BIFINFO.BIFMemMapPtr
         .IF eax != NULL
@@ -877,11 +873,11 @@ IEBIFClose ENDP
 
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBIFHeader - Returns in eax a pointer to header or -1 if not valid
+; IEBIFHeader - Returns in eax a pointer to header or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBIFHeader PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBIF
@@ -892,7 +888,7 @@ IEBIFHeader ENDP
 
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBIFFileEntry - Returns in eax a pointer to the specified file entry or -1 
+; IEBIFFileEntry - Returns in eax a pointer to the specified file entry or NULL
 ;-------------------------------------------------------------------------------------
 IEBIFFileEntry PROC USES EBX hIEBIF:DWORD, nFileEntry:DWORD
     LOCAL TotalFileEntries:DWORD
@@ -900,20 +896,18 @@ IEBIFFileEntry PROC USES EBX hIEBIF:DWORD, nFileEntry:DWORD
     LOCAL Version:DWORD
     
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEBIFTotalFileEntries, hIEBIF
-    mov TotalFileEntries, eax
-    .IF TotalFileEntries == 0
-        mov eax, -1
+    .IF eax == 0
         ret
     .ENDIF    
+    mov TotalFileEntries, eax
 
-    mov eax, TotalFileEntries
     .IF nFileEntry > eax
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
@@ -938,27 +932,25 @@ IEBIFFileEntry ENDP
 
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBIFTileEntry - Returns in eax a pointer to the specified tile entry or -1 
+; IEBIFTileEntry - Returns in eax a pointer to the specified tile entry or NULL
 ;-------------------------------------------------------------------------------------
 IEBIFTileEntry PROC USES EBX hIEBIF:DWORD, nTileEntry:DWORD
     LOCAL TotalTileEntries:DWORD
     LOCAL TileEntriesPtr:DWORD
     
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEBIFTotalTileEntries, hIEBIF
-    mov TotalTileEntries, eax
-    .IF TotalTileEntries == 0
-        mov eax, -1
+    .IF eax == 0
         ret
     .ENDIF    
+    mov TotalTileEntries, eax
 
-    mov eax, TotalTileEntries
     .IF nTileEntry > eax
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
@@ -1015,11 +1007,11 @@ IEBIFTotalTileEntries ENDP
 
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBIFFileEntries - Returns in eax a pointer to file entries or -1 if not valid
+; IEBIFFileEntries - Returns in eax a pointer to file entries or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBIFFileEntries PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBIF
@@ -1030,11 +1022,11 @@ IEBIFFileEntries ENDP
 
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBIFTileEntries - Returns in eax a pointer to tile entries or -1 if not valid
+; IEBIFTileEntries - Returns in eax a pointer to tile entries or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEBIFTileEntries PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBIF
@@ -1046,7 +1038,7 @@ IEBIFTileEntries ENDP
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; Peek at resource files actual signature - helps to determine actual resource type
-; returns in eax SIG dword and ebx the version dword. -1 eax, -1 ebx if not valid entry or iebif handle
+; returns in eax SIG dword and ebx the version dword. NULL eax, NULL ebx if not valid entry or iebif handle
 ;
 ; Returned dword is reverse of sig and version:
 ; CHR sig will be ' RHC' 
@@ -1063,8 +1055,8 @@ IEBIFPeekFileSignature PROC hIEBIF:DWORD, nFileEntry:DWORD
     LOCAL RetEBX:DWORD
         
     .IF hIEBIF == NULL
-        mov eax, -1
-        mov ebx, -1
+        mov eax, NULL
+        mov ebx, NULL
         ret
     .ENDIF
     
@@ -1075,9 +1067,8 @@ IEBIFPeekFileSignature PROC hIEBIF:DWORD, nFileEntry:DWORD
     mov Version, eax
 
     Invoke IEBIFFileEntry, hIEBIF, nFileEntry
-    .IF eax == -1
-        mov eax, -1
-        mov ebx, -1
+    .IF eax == NULL
+        mov ebx, NULL
         ret
     .ENDIF
     mov FileEntryOffset, eax
@@ -1100,15 +1091,14 @@ IEBIFPeekFileSignature PROC hIEBIF:DWORD, nFileEntry:DWORD
     mov ResourceSize, eax
     
     .IF ResourceSize < 4 ; we need 8 bytes, 2 dwords to read sigs, but at minumum we need the first dword
-        mov eax, -1
-        mov ebx, -1
+        mov eax, NULL
+        mov ebx, NULL
     .ENDIF
         
     .IF LargeFileMapping == TRUE
         Invoke BIFOpenLargeMapView, hIEBIF, 8d, ResourceOffset
-        .IF eax == -1
-            mov eax, -1
-            mov ebx, -1
+        .IF eax == NULL
+            mov ebx, NULL
             ret
         .ENDIF
         mov ebx, dword ptr [eax+4] ; save ebx first for the version dword
@@ -1132,12 +1122,12 @@ IEBIFPeekFileSignature endp
 
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBIFFileName - returns in eax pointer to zero terminated string contained filename that is open or -1 if not opened, 0 if in memory ?
+; IEBIFFileName - returns in eax pointer to zero terminated string contained filename that is open or NULL if not opened
 ;-------------------------------------------------------------------------------------
 IEBIFFileName PROC USES EBX hIEBIF:DWORD
     LOCAL BifFilename:DWORD
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEBIF
@@ -1145,7 +1135,7 @@ IEBIFFileName PROC USES EBX hIEBIF:DWORD
     mov BifFilename, eax
     Invoke szLen, BifFilename
     .IF eax == 0
-        mov eax, -1
+        mov eax, NULL
     .ELSE
         mov eax, BifFilename
     .ENDIF
@@ -1159,7 +1149,7 @@ IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
 IEBIFFileNameOnly PROC USES EBX hIEBIF:DWORD, lpszFileNameOnly:DWORD
     Invoke IEBIFFileName, hIEBIF
-    .IF eax == -1
+    .IF eax == NULL
         mov eax, FALSE
         ret
     .ENDIF
@@ -1172,11 +1162,11 @@ IEBIFFileNameOnly endp
 
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBIFFileSize - returns low order in eax, high order in ebx of size of file or eax = -1, ebx = 0
+; IEBIFFileSize - returns low order in eax, high order in ebx of size of file or eax = 0, ebx = 0
 ;-------------------------------------------------------------------------------------
 IEBIFFileSize PROC hIEBIF:DWORD
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, 0
         mov ebx, 0
         ret
     .ENDIF
@@ -1189,7 +1179,7 @@ IEBIFFileSize endp
 
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBIFFindKeyFile - returns in eax true if found, or false otherwise
+; IEBIFFindKeyFile - returns in eax TRUE if found, or FALSE otherwise
 ;-------------------------------------------------------------------------------------
 IEBIFFindKeyFile PROC USES EBX lpszBifFilePath:DWORD, lpszKeyFilePath:DWORD
     LOCAL szKeyFileName[MAX_PATH]:BYTE
@@ -1499,7 +1489,7 @@ IEBIFFindKeyFile endp
 
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBIFExtractFile - returns in eax size of file extracted or -1 if failed
+; IEBIFExtractFile - returns in eax size of file extracted or 0 if failed
 ;-------------------------------------------------------------------------------------
 IEBIFExtractFile PROC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutputFilename:DWORD
     LOCAL FileEntryOffset:DWORD
@@ -1519,12 +1509,12 @@ IEBIFExtractFile PROC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     LOCAL dwOpenMode:DWORD
 
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     
     Invoke IEBIFFileEntry, hIEBIF, nFileEntry
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF
     mov FileEntryOffset, eax
@@ -1556,7 +1546,6 @@ IEBIFExtractFile PROC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     .IF LargeFileMapping == TRUE
         Invoke BIFOpenLargeMapView, hIEBIF, ResourceSize, ResourceOffset
         .IF eax == NULL
-            mov eax, -1
             ret
         .ENDIF
         mov ResourceData, eax    
@@ -1616,7 +1605,7 @@ IEBIFExtractFile PROC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     ; Create file to write data to, map it to memory and then write resource data to it, then close memmap and file
     Invoke CreateFile, lpszOutputFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_WRITE_THROUGH, NULL
     .IF eax == INVALID_HANDLE_VALUE
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     mov hOutputFile, eax
@@ -1624,7 +1613,7 @@ IEBIFExtractFile PROC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     Invoke CreateFileMapping, hOutputFile, NULL, PAGE_READWRITE, 0, ResourceSize, NULL
     .IF eax == NULL
         Invoke CloseHandle, hOutputFile
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     mov MemMapHandle, eax
@@ -1633,7 +1622,7 @@ IEBIFExtractFile PROC USES EBX hIEBIF:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     .IF eax == NULL
         Invoke CloseHandle, MemMapHandle
         Invoke CloseHandle, hOutputFile
-        mov eax, -1
+        mov eax, 0
         ret        
     .ENDIF
     mov MemMapPtr, eax
@@ -1658,7 +1647,7 @@ IEBIFExtractFile endp
 
 IEBIF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEBIFExtractTile - returns in eax size of tile extracted or -1 if failed
+; IEBIFExtractTile - returns in eax size of tile extracted or 0 if failed
 ;-------------------------------------------------------------------------------------
 IEBIFExtractTile PROC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutputFilename:DWORD
     LOCAL TileEntryOffset:DWORD
@@ -1674,12 +1663,12 @@ IEBIFExtractTile PROC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutputFilenam
     LOCAL LargeFileMapping:DWORD    
     
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     
     Invoke IEBIFTileEntry, hIEBIF, nTileEntry
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF
     mov TileEntryOffset, eax
@@ -1702,7 +1691,6 @@ IEBIFExtractTile PROC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutputFilenam
     .IF LargeFileMapping == TRUE    
         Invoke BIFOpenLargeMapView, hIEBIF, ResourceSize, ResourceOffset
         .IF eax == NULL
-            mov eax, -1
             ret
         .ENDIF
         mov ResourceData, eax
@@ -1740,7 +1728,7 @@ IEBIFExtractTile PROC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutputFilenam
     Invoke CreateFileMapping, hOutputFile, NULL, PAGE_READWRITE, 0, ResSizeWithHeader, NULL ;ResourceSize
     .IF eax == NULL
         Invoke CloseHandle, hOutputFile
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     mov MemMapHandle, eax
@@ -1749,7 +1737,7 @@ IEBIFExtractTile PROC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutputFilenam
     .IF eax == NULL
         Invoke CloseHandle, MemMapHandle
         Invoke CloseHandle, hOutputFile
-        mov eax, -1
+        mov eax, 0
         ret        
     .ENDIF
     mov MemMapPtr, eax
@@ -1973,7 +1961,7 @@ BIFOpenLargeMapView PROC USES EBX hIEBIF:DWORD, dwRequiredViewSize:DWORD, dwRequ
     LOCAL dwOpenMode:DWORD
     
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
@@ -2000,7 +1988,6 @@ BIFOpenLargeMapView PROC USES EBX hIEBIF:DWORD, dwRequiredViewSize:DWORD, dwRequ
             Invoke MapViewOfFileEx, LargeMapHandle, FILE_MAP_ALL_ACCESS, 0, LargeMapResourceOffset, 0, NULL
         .ENDIF        
         .IF eax == NULL
-            mov eax, -1
             ret
         .ENDIF    
     .ENDIF
@@ -2018,10 +2005,11 @@ BIFOpenLargeMapView ENDP
 IEBIF_ALIGN
 ;-----------------------------------------------------------------------------------------
 ; BIFCloseLargeMapView - Closes an open view of a large mem mapped file.
+; Returns TRUE if succesful or FALSE otherwise
 ;-----------------------------------------------------------------------------------------
 BIFCloseLargeMapView PROC USES EBX hIEBIF:DWORD
     .IF hIEBIF == NULL
-        mov eax, -1
+        mov eax, FALSE
         ret
     .ENDIF
 
@@ -2030,6 +2018,7 @@ BIFCloseLargeMapView PROC USES EBX hIEBIF:DWORD
     .IF eax != 0
         Invoke UnmapViewOfFile, eax ;LargeMemMapPtr
     .ENDIF
+    mov eax, TRUE
     ret
 BIFCloseLargeMapView ENDP
 
