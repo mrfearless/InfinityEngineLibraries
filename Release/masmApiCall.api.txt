@@ -125,6 +125,13 @@ IEMOSVersion,hIEMOS
 ; IEPAL
 ;
 ; IERES
+IERESResNameTypeToString,lpszResName,dwResType,lpdwResourceNameString
+IERESResTypeToString,dwResourceType
+IERESResSizeToString,dwResourceSize,dwTilesCount,lpszResourceSize
+IERESResIndexToString,dwResourceIndex,lpszResourceIndex
+IERESResOffsetToString,dwResourceOffset,lpszResourceOffset
+IERESResFlagsToString,dwResourceFlags,lpszResourceFlags
+IERESExtToResType,lpszFileExtension
 ;
 ; IERIM
 IERIMOpen,lpszBifFilename,dwOpenMode
