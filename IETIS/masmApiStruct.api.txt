@@ -6,4 +6,4 @@
 ; Paste this text at the end of \Radasm\masm\masmApiStruct.api to add these to Radasm
 ;
 ;--------------------------------------------------------------------------------------------------
-
+TISV1_HEADER,Signature,Version,TilesCount,TilesSectionLength,OffsetTilesData,TileDimension

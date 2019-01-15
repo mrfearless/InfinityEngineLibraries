@@ -57,19 +57,14 @@ includelib masm32.lib
 
 include IETIS.inc
 
-;DEBUGLOG EQU 1
-IFDEF DEBUGLOG
-    include DebugLogLIB.asm
-ENDIF
 ;DEBUG32 EQU 1
-
-IFDEF DEBUG32
-    PRESERVEXMMREGS equ 1
-    includelib M:\Masm32\lib\Debug32.lib
-    DBG32LIB equ 1
-    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
-    include M:\Masm32\include\debug32.inc
-ENDIF
+;IFDEF DEBUG32
+;    PRESERVEXMMREGS equ 1
+;    includelib M:\Masm32\lib\Debug32.lib
+;    DBG32LIB equ 1
+;    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
+;    include M:\Masm32\include\debug32.inc
+;ENDIF
 
 ;-------------------------------------------------------------------------
 ; Prototypes for internal use
@@ -97,9 +92,6 @@ ENDIF
 .DATA
 NEWTISHeader            TISV1_HEADER <"TIS ", "V1  ", 0, 0, 24d, 64d>
 
-IFDEF DEBUG32
-DbgVar                      DD 0
-ENDIF
 
 
 .CODE
