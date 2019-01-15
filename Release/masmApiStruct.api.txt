@@ -32,6 +32,9 @@ FILE_ENTRY_V12,ResourceLocator,ResourceFlags,ResourceOffset,ResourceSize,Resourc
 TILE_ENTRY,ResourceLocator,ResourceOffset,TilesCount,TileSize,ResourceType,Unknown
 ;
 ; IEERF
+ERF_HEADER,Signature,Version,LanguageCount,LocalStringSize,FileEntriesCount,LocalStringOffset,FileEntriesOffset,ResEntriesOffset,BuildYear,BuildDay,DescriptionStrRef,dwNulls
+ERF_FILE_ENTRY,ResourceName,ResourceIndex,ResourceType,Unknown
+ERF_RES_ENTRY,ResourceOffset,ResourceSize
 ;
 ; IEKEY
 KEY_HEADER_V11,Signature,Version,BifEntriesCount,ResEntriesCount,dwNull,OffsetBifEntries,OffsetResEntries,BuildYear,BuildDay,dwNulls
