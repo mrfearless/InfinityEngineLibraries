@@ -499,11 +499,11 @@ IEERFMem ENDP
 
 IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFHeader - Returns in eax a pointer to header or -1 if not valid
+; IEERFHeader - Returns in eax a pointer to header or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEERFHeader PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEERF
@@ -514,27 +514,26 @@ IEERFHeader ENDP
 
 IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFFileEntry - Returns in eax a pointer to the specified file entry or -1 
+; IEERFFileEntry - Returns in eax a pointer to the specified file entry or NULL
 ;-------------------------------------------------------------------------------------
 IEERFFileEntry PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD
     LOCAL TotalFileEntries:DWORD
     LOCAL FileEntriesPtr:DWORD
     
     .IF hIEERF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEERFTotalFileEntries, hIEERF
-    mov TotalFileEntries, eax
-    .IF TotalFileEntries == 0
-        mov eax, -1
+    .IF eax == 0
+        mov eax, NULL
         ret
     .ENDIF    
+    mov TotalFileEntries, eax
 
-    mov eax, TotalFileEntries
     .IF nFileEntry > eax
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
@@ -551,27 +550,26 @@ IEERFFileEntry ENDP
 
 IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFResEntry - Returns in eax a pointer to the specified resource entry or -1 
+; IEERFResEntry - Returns in eax a pointer to the specified resource entry or NULL 
 ;-------------------------------------------------------------------------------------
 IEERFResEntry PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD
     LOCAL TotalFileEntries:DWORD
     LOCAL ResEntriesPtr:DWORD
     
     .IF hIEERF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEERFTotalFileEntries, hIEERF
-    mov TotalFileEntries, eax
-    .IF TotalFileEntries == 0
-        mov eax, -1
+    .IF eax == 0
+        mov eax, NULL
         ret
     .ENDIF    
+    mov TotalFileEntries, eax
 
-    mov eax, TotalFileEntries
     .IF nFileEntry > eax
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
@@ -608,11 +606,11 @@ IEERFTotalFileEntries ENDP
 
 IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFFileEntries - Returns in eax a pointer to file entries or -1 if not valid
+; IEERFFileEntries - Returns in eax a pointer to file entries or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEERFFileEntries PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEERF
@@ -623,11 +621,11 @@ IEERFFileEntries ENDP
 
 IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFResEntries - Returns in eax a pointer to resource entries or -1 if not valid
+; IEERFResEntries - Returns in eax a pointer to resource entries or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEERFResEntries PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEERF
@@ -638,12 +636,12 @@ IEERFResEntries ENDP
 
 IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFFileName - returns in eax pointer to zero terminated string contained filename that is open or -1 if not opened, 0 if in memory ?
+; IEERFFileName - returns in eax pointer to zero terminated string contained filename that is open or NULL if not opened
 ;-------------------------------------------------------------------------------------
 IEERFFileName PROC USES EBX hIEERF:DWORD
     LOCAL ErfFilename:DWORD
     .IF hIEERF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEERF
@@ -651,7 +649,7 @@ IEERFFileName PROC USES EBX hIEERF:DWORD
     mov ErfFilename, eax
     Invoke szLen, ErfFilename
     .IF eax == 0
-        mov eax, -1
+        mov eax, NULL
     .ELSE
         mov eax, ErfFilename
     .ENDIF
@@ -665,7 +663,7 @@ IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 IEERFFileNameOnly PROC hIEERF:DWORD, lpszFileNameOnly:DWORD
     Invoke IEERFFileName, hIEERF
-    .IF eax == -1
+    .IF eax == NULL
         mov eax, FALSE
         ret
     .ENDIF
@@ -679,11 +677,11 @@ IEERFFileNameOnly endp
 
 IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFFileSize - returns in eax size of file or -1
+; IEERFFileSize - returns in eax size of file or 0
 ;-------------------------------------------------------------------------------------
 IEERFFileSize PROC USES EBX hIEERF:DWORD
     .IF hIEERF == NULL
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     mov ebx, hIEERF
@@ -709,19 +707,19 @@ IEERFVersion endp
 
 IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFFileData - returns in eax pointer to file data or -1 if not found
+; IEERFFileData - returns in eax pointer to file data or NULL if not found
 ;-------------------------------------------------------------------------------------
 IEERFFileData PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD
     LOCAL ResEntryOffset:DWORD
     LOCAL ResourceOffset:DWORD
     
     .IF hIEERF == NULL
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     
     Invoke IEERFResEntry, hIEERF, nFileEntry
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF
     mov ResEntryOffset, eax
@@ -740,7 +738,7 @@ IEERFFileData ENDP
 
 IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEERFExtractFile - returns in eax size of file extracted or -1 if failed
+; IEERFExtractFile - returns in eax size of file extracted or 0 if failed
 ;-------------------------------------------------------------------------------------
 IEERFExtractFile PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutputFilename:DWORD
     LOCAL ResEntryOffset:DWORD
@@ -753,12 +751,12 @@ IEERFExtractFile PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     LOCAL Version:DWORD
     
     .IF hIEERF == NULL
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     
     Invoke IEERFResEntry, hIEERF, nFileEntry
-    .IF eax == -1
+    .IF eax == NULL
         ret
     .ENDIF
     mov ResEntryOffset, eax
@@ -777,7 +775,7 @@ IEERFExtractFile PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutputFilenam
 
     Invoke CreateFile, lpszOutputFilename, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_FLAG_WRITE_THROUGH, NULL
     .IF eax == INVALID_HANDLE_VALUE
-        mov eax, -1
+        mov eax, NULL
         ret
     .ENDIF
     mov hOutputFile, eax
@@ -792,7 +790,7 @@ IEERFExtractFile PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     Invoke CreateFileMapping, hOutputFile, NULL, PAGE_READWRITE, 0, ResourceSize, NULL
     .IF eax == NULL
         Invoke CloseHandle, hOutputFile
-        mov eax, -1
+        mov eax, 0
         ret
     .ENDIF
     mov MemMapHandle, eax
@@ -801,7 +799,7 @@ IEERFExtractFile PROC USES EBX hIEERF:DWORD, nFileEntry:DWORD, lpszOutputFilenam
     .IF eax == NULL
         Invoke CloseHandle, MemMapHandle
         Invoke CloseHandle, hOutputFile
-        mov eax, -1
+        mov eax, 0
         ret        
     .ENDIF
     mov MemMapPtr, eax
@@ -820,7 +818,7 @@ IEERFExtractFile endp
 IEERF_ALIGN
 ;-------------------------------------------------------------------------------------
 ; Peek at resource files actual signature - helps to determine actual resource type
-; returns in eax SIG dword and ebx the version dword. -1 eax, -1 ebx if not valid entry or ieerf handle
+; returns in eax SIG dword and ebx the version dword. NULL eax, NULL ebx if not valid entry or ieerf handle
 ;
 ; Returned dword is reverse of sig and version:
 ; CHR sig will be ' RHC' 
@@ -832,15 +830,14 @@ IEERFPeekFileSignature PROC hIEERF:DWORD, nFileEntry:DWORD
     LOCAL ResourceOffset:DWORD
         
     .IF hIEERF == NULL
-        mov eax, -1
-        mov ebx, -1
+        mov eax, NULL
+        mov ebx, NULL
         ret
     .ENDIF
 
     Invoke IEERFResEntry, hIEERF, nFileEntry
-    .IF eax == -1
-        mov eax, -1
-        mov ebx, -1
+    .IF eax == NULL
+        mov ebx, NULL
         ret
     .ENDIF
     mov ResEntryOffset, eax
