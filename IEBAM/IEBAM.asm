@@ -2912,7 +2912,7 @@ IEBAM_ALIGN
 ;**************************************************************************
 ; Calc dword aligned size for height or width value
 ;**************************************************************************
-BAMCalcDwordAligned PROC USES EDX dwWidthOrHeight:DWORD
+BAMCalcDwordAligned PROC USES ECX EDX dwWidthOrHeight:DWORD
     .IF dwWidthOrHeight == 0
         mov eax, 0
         ret
