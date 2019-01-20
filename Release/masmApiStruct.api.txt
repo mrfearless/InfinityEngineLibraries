@@ -51,6 +51,7 @@ MOSV1_HEADER,Signature,Version,ImageWidth,ImageHeight,BlockColumns,BlockRows,Blo
 MOSV2_HEADER,Signature,Version,ImageWidth,ImageHeight,BlockEntriesCount,BlockEntriesOffset
 MOSC_HEADER,Signature,Version,UncompressedLength
 TILELOOKUP_ENTRY,TileDataOffset
+TILEDATA,TileX,TileY,TileH,TileW,TileSizeRAW,TileSizeBMP,TilePalette,TileRAW,TileBMP,TileBitmapHandle
 DATABLOCK_ENTRY,PVRZPage,SourceXCoord,SourceYCoord,FrameWidth,FrameHeight,TargetXCoord,TargetYCoord
 ;
 ; IEPAL
@@ -62,6 +63,6 @@ RIM_HEADER,Signature,Version,Unknown,FileEntriesCount,FileEntriesOffset,RimVersi
 RIM_FILE_ENTRY,ResourceName,ResourceType,ResourceIndex,ResourceOffset,ResourceSize
 ;
 ; IETIS
-
+TISV1_HEADER,Signature,Version,TilesCount,TilesSectionLength,OffsetTilesData,TileDimension
 
 

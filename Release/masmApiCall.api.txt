@@ -125,6 +125,7 @@ IEMOSTileLookupEntry,hIEMOS,nTile
 IEMOSTileDataEntries,hIEMOS
 IEMOSTileDataEntry,hIEMOS,nTile
 IEMOSTotalTiles,hIEMOS
+IEMOSImageDimensions,hIEMOS,lpdwImageWidth,lpdwImageHeight
 IEMOSPalettes,hIEMOS
 IEMOSTilePalette,hIEMOS,nTile
 IEMOSTilePaletteEntry,hIEMOS,nTile,PaletteIndex
