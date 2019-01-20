@@ -78,11 +78,13 @@ MOSJustFname            PROTO :DWORD, :DWORD
 MOSV1Mem                PROTO :DWORD, :DWORD, :DWORD, :DWORD
 MOSV2Mem                PROTO :DWORD, :DWORD, :DWORD, :DWORD
 
-MOSGetTileDataWidth     PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
-MOSGetTileDataHeight    PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
+MOSGetTileDataWidth     PROTO :DWORD, :DWORD, :DWORD, :DWORD
+MOSGetTileDataHeight    PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
 MOSIsCOLSP2             PROTO :DWORD
 MOSIsROWSP2             PROTO :DWORD
 MOSCalcDwordAligned     PROTO :DWORD
+MOSTileDataRAWtoBMP     PROTO :DWORD, :DWORD, :DWORD, :DWORD
+MOSTileDataBitmap       PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
 
 
 IFNDEF MOSV1_HEADER
@@ -141,12 +143,12 @@ TILEDATA                STRUCT
     TileY               DD 0
     TileH               DD 0
     TileW               DD 0
-    TileHBmpAligned     DD 0  
-    TileWBmpAligned     DD 0
     TileSizeRAW         DD 0
     TileSizeBMP         DD 0
+    TilePalette         DD 0
     TileRAW             DD 0
     TileBMP             DD 0
+    TileBitmapHandle    DD 0
 TILEDATA                ENDS
 ENDIF
 
@@ -192,8 +194,11 @@ MOSV1Header             db "MOS V1  ",0
 MOSV2Header             db "MOS V2  ",0
 MOSCHeader              db "MOSCV1  ",0
 MOSXHeader              db 12 dup (0)
-MOSBMPInfo              BITMAPINFOHEADER <40d, 0, 0, 1, 8, BI_RGB, 0, 0, 0, 0, 0> ;Header
-MOSBMPPalette           db 1024 dup (0) ; BITMAPFILEHEADER <'BM', 0, 0, 0, 54d>
+;MOSBMPInfo              BITMAPINFOHEADER <40d, 0, 0, 1, 8, BI_RGB, 0, 2835d, 2835d, 0, 0> ;Header
+MOSTileBitmap           DB (SIZEOF BITMAPINFOHEADER + 1024) dup (0)
+
+;MOSBMPPalette           db 1024 dup (0) ; BITMAPFILEHEADER <'BM', 0, 0, 0, 54d>
+szMOSDisplayDC          DB 'DISPLAY',0
 
 .CODE
 
@@ -350,6 +355,7 @@ IEMOSClose PROC USES EAX EBX hIEMOS:DWORD
     LOCAL TileDataPtr:DWORD
     LOCAL ptrCurrentTileData:DWORD
     LOCAL nTile:DWORD
+    LOCAL TileSizeRAW:DWORD
     
     .IF hIEMOS == NULL
         mov eax, 0
@@ -404,10 +410,19 @@ IEMOSClose PROC USES EAX EBX hIEMOS:DWORD
                     Invoke GlobalFree, eax
                 .ENDIF
             .ENDIF
-            mov eax, [ebx].TILEDATA.TileBMP
-            .IF eax != NULL
-                Invoke GlobalFree, eax
-            .ENDIF            
+            
+            mov ebx, ptrCurrentTileData
+            mov eax, [ebx].TILEDATA.TileSizeRAW
+            mov TileSizeRAW, eax
+            
+            mov eax, [ebx].TILEDATA.TileSizeBMP
+            .IF eax > TileSizeRAW            
+                mov eax, [ebx].TILEDATA.TileBMP
+                .IF eax != NULL
+                    Invoke GlobalFree, eax
+                .ENDIF
+            .ENDIF
+            
             add ptrCurrentTileData, SIZEOF TILEDATA
             inc nTile
             mov eax, nTile
@@ -510,6 +525,7 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
     LOCAL ptrCurrentTileEntry:DWORD ; begins with TileEntriesPtr
     LOCAL ptrCurrentTileEntryData:DWORD ; from TileEntries DWORD pointers
     LOCAL ptrCurrentTileData:DWORD ; Current TILEDATA entry
+    LOCAL ptrCurrentTilePalette:DWORD
     LOCAL ImageWidth:DWORD ; From raw mos
     LOCAL ImageHeight:DWORD ; From raw mos
     LOCAL BlockColumns:DWORD ; From raw mos
@@ -523,18 +539,10 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
     LOCAL TileDataPtr:DWORD ; pointer to TILEDATA arrays
     LOCAL TileDataSize:DWORD ; size of all TILEDATA arrays
     LOCAL nTile:DWORD
-    LOCAL bBSP2:DWORD ; Is BlockSize a power of 2? yes use and eax, (BlockSize-1) instead of div/idiv
-    LOCAL bCOLSP2:DWORD ; Is BlockColumns a power of 2? yes use and eax, (BlockColumns-1) instead of div/idiv
-    LOCAL bROWSP2:DWORD ; Is BlockRows a power of 2? yes use and eax, (BlockRows-1) instead of div/idiv
-    LOCAL BSmod:DWORD ; (BlockSize-1)
-    LOCAL COLSmod:DWORD ; (BlockColumns-1)
-    LOCAL ROWSmod:DWORD ; (BlockRows-1)
     LOCAL TileX:DWORD
     LOCAL TileY:DWORD
     LOCAL TileH:DWORD
     LOCAL TileW:DWORD    
-    LOCAL TileHBmpAligned:DWORD
-    LOCAL TileWBmpAligned:DWORD
     LOCAL TileSizeRAW:DWORD
     LOCAL TileSizeBMP:DWORD
     LOCAL TileRAW:DWORD
@@ -731,28 +739,7 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
         mov [ebx].MOSINFO.MOSTileEntriesSize, 0
         mov TileEntriesPtr, 0
     .ENDIF
- 
-    ; Check power of 2 for cols/rows for quicker modulus
-    Invoke MOSIsCOLSP2, BlockColumns
-    .IF eax == TRUE
-        mov bCOLSP2, TRUE
-    .ELSE
-        mov bCOLSP2, FALSE
-    .ENDIF
-    mov eax, BlockColumns
-    dec eax
-    mov COLSmod, eax
 
-    Invoke MOSIsROWSP2, BlockRows
-    .IF eax == TRUE
-        mov bROWSP2, TRUE
-    .ELSE
-        mov bROWSP2, FALSE
-    .ENDIF
-    mov eax, BlockRows
-    dec eax
-    mov ROWSmod, eax
- 
     ;----------------------------------
     ; Alloc space for Tile Data
     ;----------------------------------
@@ -799,6 +786,9 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
         mov eax, TileDataPtr
         mov ptrCurrentTileData, eax
         
+        mov eax, PaletteEntriesPtr
+        mov ptrCurrentTilePalette, eax
+        
         mov TileX, 0
         mov TileY, 0
         
@@ -813,21 +803,17 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
             ;----------------------------------
             ; Calc Tile Data INFO
             ;----------------------------------
-            ; tiledatasize = colwidth * rowheight. adjusted for mod col or mod row
-            Invoke MOSGetTileDataHeight, nTile, BlockRows, BlockSize, ImageHeight, bROWSP2, ROWSmod
+            Invoke MOSGetTileDataHeight, nTile, BlockRows, BlockColumns, BlockSize, ImageHeight
             mov TileH, eax
-            Invoke MOSGetTileDataWidth, nTile, BlockColumns, BlockSize, ImageWidth, bCOLSP2, COLSmod
+            Invoke MOSGetTileDataWidth, nTile, BlockColumns, BlockSize, ImageWidth
             mov TileW, eax
             mov ebx, TileH
             mul ebx
             mov TileSizeRAW, eax
             
-            ; Calc BMP DWORD aligned width and height 
-            Invoke MOSCalcDwordAligned, TileH
-            mov TileHBmpAligned, eax
+            ; Calc BMP DWORD aligned width
             Invoke MOSCalcDwordAligned, TileW
-            mov TileWBmpAligned, eax
-            mov ebx, TileHBmpAligned
+            mov ebx, TileH
             mul ebx
             mov TileSizeBMP, eax
 
@@ -853,7 +839,12 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
             ;----------------------------------
             ; TILE DATA ENTRY BMP
             ;----------------------------------
-            Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, TileSizeBMP ; Alloc mem for TileBMP
+            mov eax, TileSizeBMP
+            .IF eax > TileSizeRAW
+                Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, TileSizeBMP ; Alloc mem for TileBMP
+            .ELSE
+                mov eax, TileRAW ; raw bmp same 
+            .ENDIF
             mov TileBMP, eax
             mov ebx, ptrCurrentTileData
             mov eax, TileBMP
@@ -862,7 +853,11 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
             mov [ebx].TILEDATA.TileSizeBMP, eax
             
             ; convert RAW to BMP
-            
+            mov eax, TileSizeBMP
+            .IF eax > TileSizeRAW
+                ; Only convert raw pixel data to dword aligned bmp palette data if BMP size for dword aligned > RAW size
+                Invoke MOSTileDataRAWtoBMP, TileRAW, TileBMP, TileSizeRAW, TileSizeBMP
+            .ENDIF            
             
             ;----------------------------------
             ; TILE DATA ENTRY INFO
@@ -877,10 +872,15 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
             mov [ebx].TILEDATA.TileH, eax
             mov eax, TileW
             mov [ebx].TILEDATA.TileW, eax
-            mov eax, TileHBmpAligned
-            mov [ebx].TILEDATA.TileHBmpAligned, eax
-            mov eax, TileWBmpAligned
-            mov [ebx].TILEDATA.TileWBmpAligned, eax
+            mov eax, ptrCurrentTilePalette
+            mov [ebx].TILEDATA.TilePalette, eax
+            
+            ;----------------------------------
+            ; TILE DATA BITMAP
+            ;----------------------------------
+            Invoke MOSTileDataBitmap, TileH, TileW, TileBMP, TileSizeBMP, ptrCurrentTilePalette
+            mov ebx, ptrCurrentTileData
+            mov [ebx].TILEDATA.TileBitmapHandle, eax
             
             ;----------------------------------
             ; Calc TileX/Y for next entry
@@ -902,6 +902,7 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
             .ENDIF
             
             ; Setup stuff for next entry
+            add ptrCurrentTilePalette, 1024
             add ptrCurrentTileData, SIZEOF TILEDATA
             add ptrCurrentTileEntryData, SIZEOF DWORD
             inc nTile
@@ -1187,6 +1188,40 @@ IEMOSTotalTiles ENDP
 
 IEMOS_ALIGN
 ;-------------------------------------------------------------------------------------
+; IEMOSImageDimensions - Returns width and height in pointer to variables provided
+;-------------------------------------------------------------------------------------
+IEMOSImageDimensions PROC USES EBX hIEMOS:DWORD, lpdwImageWidth:DWORD, lpdwImageHeight:DWORD
+    LOCAL dwImageWidth:DWORD
+    LOCAL dwImageHeight:DWORD
+    mov dwImageWidth, 0
+    mov dwImageHeight, 0
+    .IF hIEMOS != NULL
+        mov ebx, hIEMOS
+        mov ebx, [ebx].MOSINFO.MOSHeaderPtr
+        .IF ebx != NULL
+            movzx eax, word ptr [ebx].MOSV1_HEADER.ImageWidth
+            mov dwImageWidth, eax
+            movzx eax, word ptr [ebx].MOSV1_HEADER.ImageHeight
+            mov dwImageHeight, eax
+        .ENDIF
+    .ENDIF
+    .IF lpdwImageWidth != NULL
+        mov ebx, lpdwImageWidth
+        mov eax, dwImageWidth
+        mov [ebx], eax
+    .ENDIF
+    .IF lpdwImageHeight != NULL
+        mov ebx, lpdwImageHeight
+        mov eax, dwImageHeight
+        mov [ebx], eax
+    .ENDIF
+    xor eax, eax
+    ret
+IEMOSImageDimensions ENDP
+
+
+IEMOS_ALIGN
+;-------------------------------------------------------------------------------------
 ; IEMOSPalettes - Returns in eax a pointer to the palettes or NULL if not valid
 ;-------------------------------------------------------------------------------------
 IEMOSPalettes PROC USES EBX hIEMOS:DWORD
@@ -1456,7 +1491,7 @@ MOSSignature PROC pMOS:DWORD
     ; check signatures to determine version
     mov ebx, pMOS
     mov eax, [ebx]
-    .IF eax == ' MAB' ; MOS
+    .IF eax == ' SOM' ; MOS
         add ebx, 4
         mov eax, [ebx]
         .IF eax == '  1V' ; V1.0
@@ -1467,7 +1502,7 @@ MOSSignature PROC pMOS:DWORD
             mov eax, MOS_VERSION_INVALID
         .ENDIF
 
-    .ELSEIF eax == 'CMAB' ; MOSC
+    .ELSEIF eax == 'CSOM' ; MOSC
         add ebx, 4
         mov eax, [ebx]
         .IF eax == '  1V' ; V1.0
@@ -1576,14 +1611,26 @@ MOSJustFname ENDP
 
 IEMOS_ALIGN
 ;**************************************************************************
-;
+; Returns in eax width of data block as blocksize if column < columns -1
+; (column = nTile % columns)
+; 
+; otherwise returns in eax: imagewidth - (column * blocksize)
 ;**************************************************************************
-MOSGetTileDataWidth PROC USES EBX ECX EDX nTile:DWORD, dwBlockColumns:DWORD, dwBlockSize:DWORD, dwImageWidth:DWORD, bCOLSP2:DWORD, COLSmod:DWORD
-    .IF bCOLSP2 == TRUE ; do AND for modulus (quicker)
+MOSGetTileDataWidth PROC USES EBX ECX EDX nTile:DWORD, dwBlockColumns:DWORD, dwBlockSize:DWORD, dwImageWidth:DWORD
+    LOCAL COLSmod:DWORD
+    
+    mov eax, dwBlockColumns
+    dec eax
+    mov COLSmod, eax
+    
+    mov eax, dwBlockColumns
+    and eax, 1 ; ( a AND (b-1) )
+    .IF eax == 0 ; is divisable by 2?
         mov eax, nTile
-        and eax, COLSmod
+        and eax, COLSmod ; then use (a AND (b-1)) instead of div to get modulus
+        ; eax = column
         .IF eax < COLSmod
-            mov eax, dwImageWidth
+            mov eax, dwBlockSize
             ret
         .ENDIF
     .ELSE ; Use div for modulus otherwise
@@ -1592,86 +1639,57 @@ MOSGetTileDataWidth PROC USES EBX ECX EDX nTile:DWORD, dwBlockColumns:DWORD, dwB
         mov ecx, dwBlockColumns
         div ecx
         mov eax, edx
+        ; eax = column
         .IF eax < COLSmod
-            mov eax, dwImageWidth
+            mov eax, dwBlockSize
             ret
         .ENDIF
     .ENDIF
-
+    ; eax is column
     mov ebx, dwBlockSize
     mul ebx
     mov ebx, eax
     mov eax, dwImageWidth
     sub eax, ebx
-    
+    ; eax = imagewidth - (columns * blocksize)
     ret
 MOSGetTileDataWidth ENDP
 
 
 IEMOS_ALIGN
 ;**************************************************************************
+; Returns in eax height of data block as blocksize if row < rows -1
+; (row = nTile / columns)
 ;
+; otherwise returns in eax: imageheight - (row * blocksize)
 ;**************************************************************************
-MOSGetTileDataHeight PROC USES EBX ECX EDX nTile:DWORD, dwBlockRows:DWORD, dwBlockSize:DWORD, dwImageHeight:DWORD, bROWSP2:DWORD, ROWSmod:DWORD
-    .IF bROWSP2 == TRUE ; do AND for modulus (quicker)
-        mov eax, nTile
-        and eax, ROWSmod
-        .IF eax < ROWSmod
-            mov eax, dwImageHeight
-            ret
-        .ENDIF
-    .ELSE ; Use div for modulus otherwise
-        xor edx, edx
-        mov eax, nTile
-        mov ecx, dwBlockRows
-        div ecx
-        mov eax, edx
-        .IF eax < ROWSmod
-            mov eax, dwImageHeight
-            ret
-        .ENDIF
+MOSGetTileDataHeight PROC USES EBX ECX EDX nTile:DWORD, dwBlockRows:DWORD, dwBlockColumns:DWORD, dwBlockSize:DWORD, dwImageHeight:DWORD
+    LOCAL ROWSmod:DWORD
+    
+    mov eax, dwBlockRows
+    dec eax
+    mov ROWSmod, eax
+    
+    ; row = nTile / columns
+    xor edx, edx
+    mov eax, nTile
+    mov ecx, dwBlockColumns
+    div ecx
+    ; eax is row
+    .IF eax < ROWSmod
+        mov eax, dwBlockSize
+    .ELSE
+        ; eax is row
+        mov ebx, dwBlockSize
+        mul ebx
+        mov ebx, eax
+        mov eax, dwImageHeight
+        sub eax, ebx
+        ; eax = imageheight - (row * blocksize)
     .ENDIF
-
-    mov ebx, dwBlockSize
-    mul ebx
-    mov ebx, eax
-    mov eax, dwImageHeight
-    sub eax, ebx
     
     ret
 MOSGetTileDataHeight ENDP
-
-
-IEMOS_ALIGN
-;**************************************************************************
-;
-;**************************************************************************
-MOSIsCOLSP2 PROC dwBlockColumns:DWORD
-    mov eax, dwBlockColumns
-    and eax, 1 ; ( a AND (b-1) )
-    .IF eax == 0 ; divisable by 2
-        mov eax, TRUE
-    .ELSE
-        mov eax, FALSE
-    .ENDIF
-    ret
-MOSIsCOLSP2 ENDP
-
-
-IEMOS_ALIGN
-;**************************************************************************
-;
-;**************************************************************************
-MOSIsROWSP2 PROC dwBlockRows:DWORD
-    mov eax, dwBlockRows
-    and eax, 1 ; ( a AND (b-1) )
-    .IF eax == 0 ; divisable by 2
-        mov eax, TRUE
-    .ELSE
-        mov eax, FALSE
-    .ENDIF
-    ret
-MOSIsROWSP2 ENDP
 
 
 IEMOS_ALIGN
@@ -1683,24 +1701,83 @@ MOSCalcDwordAligned PROC USES ECX EDX dwWidthOrHeight:DWORD
         mov eax, 0
         ret
     .ENDIF
-    
-    xor edx, edx
     mov eax, dwWidthOrHeight
-    mov ecx, 4
-    div ecx ;edx contains remainder
-    .IF edx != 0
-        mov eax, 4
-        sub eax, edx
-        add eax, dwWidthOrHeight
-    .ELSE
+    and eax, 1 ; ( a AND (b-1) )
+    .IF eax == 0 ; if divisable by 2, use: and eax 3 - to div by 4    
         mov eax, dwWidthOrHeight
+        and eax, 3 ; div by 4, get remainder
+        add eax, dwWidthOrHeight
+    .ELSE ; else use div to get remainder and add to dwWidthOrHeight
+        xor edx, edx
+        mov eax, dwWidthOrHeight
+        mov ecx, 4
+        div ecx ;edx contains remainder
+        .IF edx != 0
+            mov eax, 4
+            sub eax, edx
+            add eax, dwWidthOrHeight
+        .ELSE
+            mov eax, dwWidthOrHeight
+        .ENDIF
     .ENDIF
     ; eax contains dword aligned value   
     ret
 MOSCalcDwordAligned endp
 
 
+IEMOS_ALIGN
+;**************************************************************************
 
+;**************************************************************************
+MOSTileDataRAWtoBMP PROC USES EBX EDI ESI pTileRAW:DWORD, pTileBMP:DWORD, dwTileSizeRAW:DWORD, dwTileSizeBMP:DWORD
+    
+    
+    ret
+MOSTileDataRAWtoBMP ENDP
+
+
+IEMOS_ALIGN
+;**************************************************************************
+; Returns in eax handle to tile data bitmap or NULL
+;**************************************************************************
+MOSTileDataBitmap PROC USES EBX dwTileHeight:DWORD, dwTileWidth:DWORD, pTileBMP:DWORD, dwTileSizeBMP:DWORD, pTilePalette:DWORD
+    LOCAL hdc:DWORD
+    LOCAL TileBitmapHandle:DWORD
+    Invoke RtlZeroMemory, Addr MOSTileBitmap, (SIZEOF BITMAPINFOHEADER + 1024)
+
+    lea ebx, MOSTileBitmap
+    mov [ebx].BITMAPINFOHEADER.biSize, 40d
+    mov eax, dwTileWidth
+    mov [ebx].BITMAPINFOHEADER.biWidth, eax
+    mov eax, dwTileHeight
+    neg eax
+    mov [ebx].BITMAPINFOHEADER.biHeight, eax
+    mov [ebx].BITMAPINFOHEADER.biPlanes, 1
+    mov [ebx].BITMAPINFOHEADER.biBitCount, 8
+    mov [ebx].BITMAPINFOHEADER.biCompression, BI_RGB
+    mov eax, dwTileSizeBMP
+    mov [ebx].BITMAPINFOHEADER.biSizeImage, eax
+    mov [ebx].BITMAPINFOHEADER.biXPelsPerMeter, 2835d
+    mov [ebx].BITMAPINFOHEADER.biYPelsPerMeter, 2835d
+    lea eax, MOSTileBitmap
+    lea ebx, [eax].BITMAPINFO.bmiColors
+    Invoke RtlMoveMemory, ebx, pTilePalette, 1024d
+    
+    Invoke CreateDC, Addr szMOSDisplayDC, NULL, NULL, NULL
+    ;Invoke GetDC, NULL
+    mov hdc, eax
+    Invoke CreateDIBitmap, hdc, Addr MOSTileBitmap, CBM_INIT, pTileBMP, Addr MOSTileBitmap, DIB_RGB_COLORS
+    .IF eax == NULL
+        IFDEF DEBUG32
+            PrintText 'CreateDIBitmap Failed'
+        ENDIF
+    .ENDIF
+    mov TileBitmapHandle, eax
+    Invoke DeleteDC, hdc
+    ;Invoke ReleaseDC, NULL, hdc
+    mov eax, TileBitmapHandle
+    ret
+MOSTileDataBitmap ENDP
 
 END
 

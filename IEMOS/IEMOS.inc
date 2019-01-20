@@ -51,6 +51,8 @@ IEMOSTileLookupEntry        PROTO :DWORD, :DWORD            ; hIEMOS, nTile. Ret
 IEMOSTileDataEntries        PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to TILEDATA array entries
 IEMOSTileDataEntry          PROTO :DWORD, :DWORD            ; hIEMOS, nTile. Returns in eax pointer to specific TILEDATA entry
 IEMOSTotalTiles             PROTO :DWORD                    ; hIEMOS. Returns in eax total tiles in MOS
+IEMOSImageDimensions        PROTO :DWORD, :DWORD, :DWORD    ; hIEMOS, lpdwImageWidth, lpdwImageHeight
+
 
 IEMOSPalettes               PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to the palettes array
 IEMOSTilePalette            PROTO :DWORD, :DWORD            ; hIEMOS, nTile. Returns in eax pointer to the tile's specific palette (256 entries of RGBQUADs)
@@ -106,6 +108,21 @@ IFNDEF TILELOOKUP_ENTRY
 TILELOOKUP_ENTRY        STRUCT
     TileDataOffset      DD 0    ; Offset to specific tile's data pixels from start of Tile Data ( Offset Palettes + (Size Palettes) + (Size TilelookupEntries) )
 TILELOOKUP_ENTRY        ENDS
+ENDIF
+
+IFNDEF TILEDATA
+TILEDATA                STRUCT
+    TileX               DD 0
+    TileY               DD 0
+    TileH               DD 0
+    TileW               DD 0
+    TileSizeRAW         DD 0
+    TileSizeBMP         DD 0
+    TilePalette         DD 0
+    TileRAW             DD 0
+    TileBMP             DD 0
+    TileBitmapHandle    DD 0
+TILEDATA                ENDS
 ENDIF
 
 IFNDEF DATABLOCK_ENTRY  ; Used in MOS V2
