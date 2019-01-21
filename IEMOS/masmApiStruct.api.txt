@@ -10,7 +10,7 @@ MOSV1_HEADER,Signature,Version,ImageWidth,ImageHeight,BlockColumns,BlockRows,Blo
 MOSV2_HEADER,Signature,Version,ImageWidth,ImageHeight,BlockEntriesCount,BlockEntriesOffset
 MOSC_HEADER,Signature,Version,UncompressedLength
 TILELOOKUP_ENTRY,TileDataOffset
-TILEDATA,TileX,TileY,TileH,TileW,TileSizeRAW,TileSizeBMP,TilePalette,TileRAW,TileBMP,TileBitmapHandle
+TILEDATA,TileX,TileY,TileW,TileH,TileSizeRAW,TileSizeBMP,TilePalette,TileRAW,TileBMP,TileBitmapHandle
 DATABLOCK_ENTRY,PVRZPage,SourceXCoord,SourceYCoord,FrameWidth,FrameHeight,TargetXCoord,TargetYCoord
 
 

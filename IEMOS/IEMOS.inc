@@ -41,30 +41,39 @@
 ;-----------------------------------------------------------------------------------------
 ; IEMOS Prototypes
 ;-----------------------------------------------------------------------------------------
-IEMOSOpen                   PROTO :DWORD, :DWORD            ; lpszMosFilename, dwOpenMode. Returns in eax a handle used in other functions: hIEMOS
-IEMOSMem                    PROTO :DWORD, :DWORD, :DWORD, :DWORD ; pMOSInMemory, lpszMosFilename, dwMosFilesize, dwOpenMode. Returns in eax a handle used in other functions: hIEMOS
+IEMOSOpen                   PROTO :DWORD,:DWORD             ; lpszMosFilename, dwOpenMode. Returns in eax a handle used in other functions: hIEMOS
+IEMOSMem                    PROTO :DWORD,:DWORD,:DWORD,:DWORD ; pMOSInMemory, lpszMosFilename, dwMosFilesize, dwOpenMode. Returns in eax a handle used in other functions: hIEMOS
 IEMOSClose                  PROTO :DWORD                    ; hIEMOS returned from IEMOSOpen.
 
+; Pointers to parts of MOS file:
 IEMOSHeader                 PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to a MOSV1_HEADER structure.
-IEMOSTileLookupEntries      PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to TileLookup array entries
-IEMOSTileLookupEntry        PROTO :DWORD, :DWORD            ; hIEMOS, nTile. Returns in eax pointer to specific TileLookup entry
-IEMOSTileDataEntries        PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to TILEDATA array entries
-IEMOSTileDataEntry          PROTO :DWORD, :DWORD            ; hIEMOS, nTile. Returns in eax pointer to specific TILEDATA entry
-IEMOSTotalTiles             PROTO :DWORD                    ; hIEMOS. Returns in eax total tiles in MOS
-IEMOSImageDimensions        PROTO :DWORD, :DWORD, :DWORD    ; hIEMOS, lpdwImageWidth, lpdwImageHeight
-
-
 IEMOSPalettes               PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to the palettes array
-IEMOSTilePalette            PROTO :DWORD, :DWORD            ; hIEMOS, nTile. Returns in eax pointer to the tile's specific palette (256 entries of RGBQUADs)
-IEMOSTilePaletteEntry       PROTO :DWORD, :DWORD, :DWORD    ; hIEMOS, nTile, PaletteIndex. eax contains pointer to RGBQUAD
-IEMOSTotalPalettes          PROTO :DWORD                    ; hIEMOS. Returns in eax total palettes in MOS (same as total tiles)
-
+IEMOSTileLookupEntries      PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to TileLookup array entries
+IEMOSTileLookupEntry        PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in eax pointer to specific TileLookup entry
+IEMOSTileDataEntries        PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to TILEDATA array entries
+IEMOSTileDataEntry          PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in eax pointer to specific TILEDATA entry
 IEMOSBlockEntries           PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to DATABLOCK_ENTRY array entries. For MOS V2 Only
-IEMOSBlockEntry             PROTO :DWORD, :DWORD            ; hIEMOS, nBlockEntry. Returns in eax pointer to a DATABLOCK_ENTRY structure. For MOS V2 Only
-IEMOSTotalBlockEntries      PROTO :DWORD                    ; hIEMOS. Returns in eax total no of Datablock entries. For MOS V2 Only
+IEMOSBlockEntry             PROTO :DWORD,:DWORD             ; hIEMOS, nBlockEntry. Returns in eax pointer to a DATABLOCK_ENTRY structure. For MOS V2 Only
 
+; MOS Basic Information:
+IEMOSTotalTiles             PROTO :DWORD                    ; hIEMOS. Returns in eax total tiles in MOS
+IEMOSTotalPalettes          PROTO :DWORD                    ; hIEMOS. Returns in eax total palettes in MOS (same as total tiles)
+IEMOSTotalBlockEntries      PROTO :DWORD                    ; hIEMOS. Returns in eax total no of Datablock entries. For MOS V2 Only
+IEMOSImageDimensions        PROTO :DWORD,:DWORD,:DWORD      ; hIEMOS, lpdwImageWidth, lpdwImageHeight
+
+; MOS Tile Data Information:
+IEMOSTileBitmap             PROTO :DWORD,:DWORD,:DWORD,:DWORD,:DWORD,:DWORD ; hIEMOS, nTile, lpdwTileWidth, lpdwTileHeight, lpdwTileXCoord, lpdwTileYCoord. Returns in eax HBITMAP or NULL
+IEMOSTileWidth              PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in tile width
+IEMOSTileHeight             PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in tile height
+IEMOSTileXCoord             PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in tile x coord
+IEMOSTileYCoord             PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in tile y coord
+IEMOSTileRAW                PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in pointer to RAW tile data.
+IEMOSTilePalette            PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in eax pointer to the tile's specific palette (256 entries of RGBQUADs)
+IEMOSTilePaletteValue       PROTO :DWORD,:DWORD,:DWORD      ; hIEMOS, nTile, PaletteIndex. eax contains RGBQUAD or -1 if not valid.
+
+; MOS File & Version Information:
 IEMOSFileName               PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to mos full path filename
-IEMOSFileNameOnly           PROTO :DWORD, :DWORD            ; hIEMOS, lpszFileNameOnly. eax contains True or false if succesfull. strips filename of path and ext information.
+IEMOSFileNameOnly           PROTO :DWORD,:DWORD             ; hIEMOS, lpszFileNameOnly. eax contains True or false if succesfull. strips filename of path and ext information.
 IEMOSFileSize               PROTO :DWORD                    ; hIEMOS. Returns in eax size of mos file in bytes
 IEMOSFileCompression        PROTO :DWORD                    ; hIEMOS. Returns in eax -1 = No Mos file, TRUE for MOSCV1, FALSE for MOS V1 or MOS V2 
 IEMOSVersion                PROTO :DWORD                    ; hIEMOS. Returns in eax 0 no mos, 1 = MOS V1, 2 = MOS V2, 3 = MOSC 
@@ -114,8 +123,8 @@ IFNDEF TILEDATA
 TILEDATA                STRUCT
     TileX               DD 0
     TileY               DD 0
-    TileH               DD 0
     TileW               DD 0
+    TileH               DD 0
     TileSizeRAW         DD 0
     TileSizeBMP         DD 0
     TilePalette         DD 0

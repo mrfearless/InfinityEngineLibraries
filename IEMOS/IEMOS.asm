@@ -141,8 +141,8 @@ IFNDEF TILEDATA
 TILEDATA                STRUCT
     TileX               DD 0
     TileY               DD 0
-    TileH               DD 0
     TileW               DD 0
+    TileH               DD 0
     TileSizeRAW         DD 0
     TileSizeBMP         DD 0
     TilePalette         DD 0
@@ -415,12 +415,21 @@ IEMOSClose PROC USES EAX EBX hIEMOS:DWORD
             mov eax, [ebx].TILEDATA.TileSizeRAW
             mov TileSizeRAW, eax
             
+            ; Clear memory of TileBMP if we had to convert TileRAW to a DWORD aligned TileBMP
+            ; File size will be greater in TileBMP if this is so.
             mov eax, [ebx].TILEDATA.TileSizeBMP
             .IF eax > TileSizeRAW            
                 mov eax, [ebx].TILEDATA.TileBMP
                 .IF eax != NULL
                     Invoke GlobalFree, eax
                 .ENDIF
+            .ENDIF
+            
+            ; Delete Bitmap Handle
+            mov ebx, ptrCurrentTileData
+            mov eax, [ebx].TILEDATA.TileBitmapHandle
+            .IF eax != NULL
+                Invoke DeleteObject, eax
             .ENDIF
             
             add ptrCurrentTileData, SIZEOF TILEDATA
@@ -878,9 +887,9 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
             ;----------------------------------
             ; TILE DATA BITMAP
             ;----------------------------------
-            Invoke MOSTileDataBitmap, TileH, TileW, TileBMP, TileSizeBMP, ptrCurrentTilePalette
-            mov ebx, ptrCurrentTileData
-            mov [ebx].TILEDATA.TileBitmapHandle, eax
+            ;Invoke MOSTileDataBitmap, TileH, TileW, TileBMP, TileSizeBMP, ptrCurrentTilePalette
+            ;mov ebx, ptrCurrentTileData
+            ;mov [ebx].TILEDATA.TileBitmapHandle, eax
             
             ;----------------------------------
             ; Calc TileX/Y for next entry
@@ -889,18 +898,12 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
             add eax, TileX
             .IF eax > ImageWidth
                 mov TileX, 0 ; reset TileX if greater than imagewidth
+                mov eax, TileH
+                add TileY, eax
             .ELSE
                 mov TileX, eax
             .ENDIF
-            
-            mov eax, TileH
-            add eax, TileY
-            .IF eax > ImageHeight
-                mov TileY, 0 ; reset TileY if greater than imagewidth
-            .ELSE
-                mov TileY, eax
-            .ENDIF
-            
+
             ; Setup stuff for next entry
             add ptrCurrentTilePalette, 1024
             add ptrCurrentTileData, SIZEOF TILEDATA
@@ -1275,24 +1278,25 @@ IEMOSTilePalette ENDP
 
 IEMOS_ALIGN
 ;-------------------------------------------------------------------------------------
-; IEMOSTilePaletteEntry - Returns in eax a pointer to the RGBQUAD of the specified 
-; palette index of the tile palette or NULL if not valid
+; IEMOSTilePaletteValue - Returns in eax a RGBQUAD of the specified 
+; palette index of the tile palette or -1 if not valid
 ;-------------------------------------------------------------------------------------
-IEMOSTilePaletteEntry PROC USES EBX hIEMOS:DWORD, nTile:DWORD, PaletteIndex:DWORD
+IEMOSTilePaletteValue PROC USES EBX hIEMOS:DWORD, nTile:DWORD, PaletteIndex:DWORD
     LOCAL TilePaletteOffset:DWORD
     
     .IF hIEMOS == NULL
-        mov eax, NULL
+        mov eax, -1
         ret
     .ENDIF
     
     .IF PaletteIndex > 255
-        mov eax, NULL
+        mov eax, -1
         ret
     .ENDIF
     
     Invoke IEMOSTilePalette, hIEMOS, nTile
     .IF eax == NULL
+        mov eax, -1
         ret
     .ENDIF
     mov TilePaletteOffset, eax
@@ -1301,9 +1305,10 @@ IEMOSTilePaletteEntry PROC USES EBX hIEMOS:DWORD, nTile:DWORD, PaletteIndex:DWOR
     mov ebx, 4 ; dword RGBA array size
     mul ebx
     add eax, TilePaletteOffset
+    mov eax, [eax]
 
     ret
-IEMOSTilePaletteEntry ENDP
+IEMOSTilePaletteValue ENDP
 
 
 IEMOS_ALIGN
@@ -1390,6 +1395,215 @@ IEMOSBlockEntry PROC USES EBX hIEMOS:DWORD, nBlockEntry:DWORD
     add eax, BlockEntriesPtr
     ret
 IEMOSBlockEntry ENDP
+
+
+IEMOS_ALIGN
+;-------------------------------------------------------------------------------------
+; IEMOSTileBitmap - Returns in eax HBITMAP or NULL. Optional variables pointed to, are 
+; filled in if eax is a HBITMAP (!NULL), otherwise vars (if supplied) will be set to 0
+;-------------------------------------------------------------------------------------
+IEMOSTileBitmap PROC USES EBX hIEMOS:DWORD, nTile:DWORD, lpdwTileWidth:DWORD, lpdwTileHeight:DWORD, lpdwTileXCoord:DWORD, lpdwTileYCoord:DWORD
+    LOCAL TilePaletteEntry:DWORD
+    LOCAL TileDataEntry:DWORD
+    LOCAL TileWidth:DWORD
+    LOCAL TileHeight:DWORD
+    LOCAL TileXCoord:DWORD
+    LOCAL TileYCoord:DWORD
+    LOCAL TileSizeBMP:DWORD
+    LOCAL TileBMP:DWORD
+    LOCAL TileBitmapHandle:DWORD
+    
+    mov TileWidth, 0
+    mov TileHeight, 0
+    mov TileXCoord, 0
+    mov TileYCoord, 0
+    mov TileBitmapHandle, 0
+    
+    .IF hIEMOS == NULL
+        jmp IEMOSTileBitmapExit
+    .ENDIF    
+    
+    Invoke IEMOSTileDataEntry, hIEMOS, nTile
+    .IF eax == NULL
+        jmp IEMOSTileBitmapExit
+    .ENDIF
+    mov TileDataEntry, eax
+
+    mov ebx, TileDataEntry
+    mov eax, [ebx].TILEDATA.TileW
+    .IF eax == 0
+        jmp IEMOSTileBitmapExit
+    .ENDIF
+    mov TileWidth, eax
+    mov eax, [ebx].TILEDATA.TileH
+    .IF eax == 0
+        jmp IEMOSTileBitmapExit
+    .ENDIF
+    mov TileHeight, eax
+    mov eax, [ebx].TILEDATA.TileX
+    mov TileXCoord, eax
+    mov eax, [ebx].TILEDATA.TileY
+    mov TileYCoord, eax
+    
+    mov eax, [ebx].TILEDATA.TileBitmapHandle
+    .IF eax != 0
+        mov TileBitmapHandle, eax
+        jmp IEMOSTileBitmapExit
+    .ENDIF    
+    
+    mov eax, [ebx].TILEDATA.TileSizeBMP
+    .IF eax == 0
+        jmp IEMOSTileBitmapExit
+    .ENDIF
+    mov TileSizeBMP, eax
+    mov eax, [ebx].TILEDATA.TileBMP
+    .IF eax == 0
+        jmp IEMOSTileBitmapExit
+    .ENDIF
+    mov TileBMP, eax
+
+    Invoke IEMOSTilePalette, hIEMOS, nTile
+    .IF eax == NULL
+        jmp IEMOSTileBitmapExit
+    .ENDIF
+    mov TilePaletteEntry, eax
+
+    Invoke MOSTileDataBitmap, TileWidth, TileHeight, TileBMP, TileSizeBMP, TilePaletteEntry
+    .IF eax != NULL ; save bitmap handle back to TILEDATA struct
+        mov TileBitmapHandle, eax
+        mov ebx, TileDataEntry
+        mov [ebx].TILEDATA.TileBitmapHandle, eax
+    .ENDIF
+
+IEMOSTileBitmapExit:
+
+    .IF lpdwTileWidth != NULL
+        mov ebx, lpdwTileWidth
+        mov eax, TileWidth
+        mov [ebx], eax
+    .ENDIF
+    
+    .IF lpdwTileHeight != NULL
+        mov ebx, lpdwTileHeight
+        mov eax, TileHeight
+        mov [ebx], eax
+    .ENDIF
+   
+    .IF lpdwTileXCoord != NULL
+        mov ebx, lpdwTileXCoord
+        mov eax, TileXCoord
+        mov [ebx], eax
+    .ENDIF
+    
+    .IF lpdwTileYCoord != NULL
+        mov ebx, lpdwTileYCoord
+        mov eax, TileYCoord
+        mov [ebx], eax
+    .ENDIF
+    
+    mov eax, TileBitmapHandle
+    ret
+IEMOSTileBitmap ENDP
+
+
+IEMOS_ALIGN
+;-------------------------------------------------------------------------------------
+; IEMOSTileWidth - Returns in eax width of tile.
+;-------------------------------------------------------------------------------------
+IEMOSTileWidth PROC USES EBX hIEMOS:DWORD, nTile:DWORD
+    .IF hIEMOS == NULL
+        mov eax, NULL
+        ret
+    .ENDIF    
+
+    Invoke IEMOSTileDataEntry, hIEMOS, nTile
+    .IF eax == NULL
+        ret
+    .ENDIF
+    mov ebx, eax
+    mov eax, [ebx].TILEDATA.TileW
+    ret
+IEMOSTileWidth ENDP
+
+
+IEMOS_ALIGN
+;-------------------------------------------------------------------------------------
+; IEMOSTileHeight - Returns in eax height of tile.
+;-------------------------------------------------------------------------------------
+IEMOSTileHeight PROC USES EBX hIEMOS:DWORD, nTile:DWORD
+    .IF hIEMOS == NULL
+        mov eax, NULL
+        ret
+    .ENDIF    
+
+    Invoke IEMOSTileDataEntry, hIEMOS, nTile
+    .IF eax == NULL
+        ret
+    .ENDIF
+    mov ebx, eax
+    mov eax, [ebx].TILEDATA.TileH
+    ret
+IEMOSTileHeight ENDP
+
+
+IEMOS_ALIGN
+;-------------------------------------------------------------------------------------
+; IEMOSTileXCoord - Returns in eax x coord of tile.
+;-------------------------------------------------------------------------------------
+IEMOSTileXCoord PROC USES EBX hIEMOS:DWORD, nTile:DWORD
+    .IF hIEMOS == NULL
+        mov eax, NULL
+        ret
+    .ENDIF    
+
+    Invoke IEMOSTileDataEntry, hIEMOS, nTile
+    .IF eax == NULL
+        ret
+    .ENDIF
+    mov ebx, eax
+    mov eax, [ebx].TILEDATA.TileX
+    ret
+IEMOSTileXCoord ENDP
+
+
+IEMOS_ALIGN
+;-------------------------------------------------------------------------------------
+; IEMOSTileYCoord - Returns in eax y coord of tile.
+;-------------------------------------------------------------------------------------
+IEMOSTileYCoord PROC USES EBX hIEMOS:DWORD, nTile:DWORD
+    .IF hIEMOS == NULL
+        mov eax, NULL
+        ret
+    .ENDIF    
+
+    Invoke IEMOSTileDataEntry, hIEMOS, nTile
+    .IF eax == NULL
+        ret
+    .ENDIF
+    mov ebx, eax
+    mov eax, [ebx].TILEDATA.TileY
+    ret
+IEMOSTileYCoord ENDP
+
+
+IEMOS_ALIGN
+;-------------------------------------------------------------------------------------
+; IEMOSTileRAW - Returns in eax pointer to RAW tile data.
+;-------------------------------------------------------------------------------------
+IEMOSTileRAW PROC USES EBX hIEMOS:DWORD, nTile:DWORD
+    .IF hIEMOS == NULL
+        mov eax, NULL
+        ret
+    .ENDIF    
+
+    Invoke IEMOSTileDataEntry, hIEMOS, nTile
+    .IF eax == NULL
+        ret
+    .ENDIF
+    mov ebx, eax
+    mov eax, [ebx].TILEDATA.TileRAW
+    ret
+IEMOSTileRAW ENDP
 
 
 IEMOS_ALIGN
@@ -1740,7 +1954,7 @@ IEMOS_ALIGN
 ;**************************************************************************
 ; Returns in eax handle to tile data bitmap or NULL
 ;**************************************************************************
-MOSTileDataBitmap PROC USES EBX dwTileHeight:DWORD, dwTileWidth:DWORD, pTileBMP:DWORD, dwTileSizeBMP:DWORD, pTilePalette:DWORD
+MOSTileDataBitmap PROC USES EBX dwTileWidth:DWORD, dwTileHeight:DWORD, pTileBMP:DWORD, dwTileSizeBMP:DWORD, pTilePalette:DWORD
     LOCAL hdc:DWORD
     LOCAL TileBitmapHandle:DWORD
     Invoke RtlZeroMemory, Addr MOSTileBitmap, (SIZEOF BITMAPINFOHEADER + 1024)
@@ -1778,6 +1992,9 @@ MOSTileDataBitmap PROC USES EBX dwTileHeight:DWORD, dwTileWidth:DWORD, pTileBMP:
     mov eax, TileBitmapHandle
     ret
 MOSTileDataBitmap ENDP
+
+
+
 
 END
 
