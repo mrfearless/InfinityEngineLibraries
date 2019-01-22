@@ -21,6 +21,7 @@ IEMOSTotalTiles,hIEMOS
 IEMOSTotalPalettes,hIEMOS
 IEMOSTotalBlockEntries,hIEMOS
 IEMOSImageDimensions,hIEMOS,lpdwImageWidth,lpdwImageHeight
+IEMOSBitmap,hIEMOS
 IEMOSTileBitmap,hIEMOS,nTile,lpdwTileWidth,lpdwTileHeight,lpdwTileXCoord,lpdwTileYCoord
 IEMOSTileWidth,hIEMOS,nTile
 IEMOSTileHeight,hIEMOS,nTile

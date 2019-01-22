@@ -67,10 +67,14 @@ includelib zlibstat.lib
 
 include IEMOS.inc
 
-;-------------------------------------------------------------------------
-; Prototypes for internal use
-;-------------------------------------------------------------------------
 
+; Internal functions start with MOS
+; External functions start with IEMOS 
+
+
+;-------------------------------------------------------------------------
+; Internal functions:
+;-------------------------------------------------------------------------
 MOSSignature            PROTO :DWORD
 MOSUncompress           PROTO :DWORD, :DWORD, :DWORD
 MOSJustFname            PROTO :DWORD, :DWORD
@@ -85,8 +89,12 @@ MOSIsROWSP2             PROTO :DWORD
 MOSCalcDwordAligned     PROTO :DWORD
 MOSTileDataRAWtoBMP     PROTO :DWORD, :DWORD, :DWORD, :DWORD
 MOSTileDataBitmap       PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
+MOSBitmapToTiles        PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
 
 
+;-------------------------------------------------------------------------
+; MOS Structures
+;-------------------------------------------------------------------------
 IFNDEF MOSV1_HEADER
 MOSV1_HEADER            STRUCT
     Signature           DD 0    ; 0x0000 	4 (char array) 	Signature ('MOS ')
@@ -155,7 +163,6 @@ ENDIF
 ;-------------------------------------------------------------------------
 ; Structures for internal use
 ;-------------------------------------------------------------------------
-
 IFNDEF MOSINFO
 MOSINFO                     STRUCT
     MOSOpenMode             DD 0
@@ -173,8 +180,8 @@ MOSINFO                     STRUCT
     MOSTotalTiles           DD 0 ; MOS V1
     MOSPaletteEntriesPtr    DD 0 ; no interal palette for MOS V2
     MOSPaletteEntriesSize   DD 0 ; MOS V1
-    MOSTileEntriesPtr       DD 0 ; MOS V1 ; TileLookup Entries
-    MOSTileEntriesSize      DD 0 ; MOS V1
+    MOSTileLookupEntriesPtr DD 0 ; MOS V1 ; TileLookup Entries
+    MOSTileLookupEntriesSize DD 0 ; MOS V1
     MOSTileDataPtr          DD 0 
     MOSTileDataSize         DD 0
     MOSBlockEntriesPtr      DD 0 ; for MOS V2
@@ -186,27 +193,25 @@ MOSINFO                     ENDS
 ENDIF
 
 .CONST
-
+BLOCKSIZE_DEFAULT           EQU 64
 
 
 .DATA
-MOSV1Header             db "MOS V1  ",0
-MOSV2Header             db "MOS V2  ",0
-MOSCHeader              db "MOSCV1  ",0
-MOSXHeader              db 12 dup (0)
-;MOSBMPInfo              BITMAPINFOHEADER <40d, 0, 0, 1, 8, BI_RGB, 0, 2835d, 2835d, 0, 0> ;Header
-MOSTileBitmap           DB (SIZEOF BITMAPINFOHEADER + 1024) dup (0)
-
-;MOSBMPPalette           db 1024 dup (0) ; BITMAPFILEHEADER <'BM', 0, 0, 0, 54d>
-szMOSDisplayDC          DB 'DISPLAY',0
+MOSV1Header                 DB "MOS V1  ",0
+MOSV2Header                 DB "MOS V2  ",0
+MOSCHeader                  DB "MOSCV1  ",0
+MOSXHeader                  DB 12 dup (0)
+MOSTileBitmap               DB (SIZEOF BITMAPINFOHEADER + 1024) dup (0)
+szMOSDisplayDC              DB 'DISPLAY',0
 
 .CODE
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSOpen - Returns handle in eax of opened mos file. NULL if could not alloc enough mem
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSOpen - Returns handle in eax of opened mos file. NULL if could not alloc
+; enough mem
+;------------------------------------------------------------------------------
 IEMOSOpen PROC USES EBX lpszMosFilename:DWORD, dwOpenMode:DWORD
     LOCAL hIEMOS:DWORD
     LOCAL hMOSFile:DWORD
@@ -346,9 +351,9 @@ IEMOSOpen ENDP
 
 
 IEMOS_ALIGN
-;----------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSClose - Close MOS File
-;----------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSClose PROC USES EAX EBX hIEMOS:DWORD
     LOCAL dwOpenMode:DWORD
     LOCAL TotalTiles:DWORD
@@ -379,7 +384,7 @@ IEMOSClose PROC USES EAX EBX hIEMOS:DWORD
         .ENDIF
 
         mov ebx, hIEMOS
-        mov eax, [ebx].MOSINFO.MOSTileEntriesPtr
+        mov eax, [ebx].MOSINFO.MOSTileLookupEntriesPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
         .ENDIF
@@ -495,10 +500,11 @@ IEMOSClose ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSMem - Returns handle in eax of opened bam file that is already loaded into memory. NULL if could not alloc enough mem
-; calls MOSV1Mem or MOSV2Mem depending on version of file found
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSMem - Returns handle in eax of opened bam file that is already loaded 
+; into memory. NULL if could not alloc enough mem calls MOSV1Mem or MOSV2Mem 
+; depending on version of file found
+;------------------------------------------------------------------------------
 IEMOSMem PROC pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD
     ; check signatures to determine version
     Invoke MOSSignature, pMOSInMemory
@@ -522,17 +528,18 @@ IEMOSMem ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; MOSV1Mem - Returns handle in eax of opened bam file that is already loaded into memory. NULL if could not alloc enough mem
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; MOSV1Mem - Returns handle in eax of opened bam file that is already loaded 
+; into memory. NULL if could not alloc enough mem
+;------------------------------------------------------------------------------
 MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD
     LOCAL hIEMOS:DWORD
     LOCAL MOSMemMapPtr:DWORD
     LOCAL OffsetPalettes:DWORD ; From raw mos
     LOCAL OffsetTileEntries:DWORD ; OffsetPalettes + (TotalTiles * 1024)
     LOCAL OffsetTileData:DWORD ; OffsetTileEntries + (TotalTiles * SIZEOF RGBQUAD)
-    LOCAL ptrCurrentTileEntry:DWORD ; begins with TileEntriesPtr
-    LOCAL ptrCurrentTileEntryData:DWORD ; from TileEntries DWORD pointers
+    LOCAL ptrCurrentTileLookupEntry:DWORD ; begins with TileLookupEntriesPtr
+    LOCAL ptrCurrentTileLookupEntryData:DWORD ; from TileLookupEntries DWORD pointers
     LOCAL ptrCurrentTileData:DWORD ; Current TILEDATA entry
     LOCAL ptrCurrentTilePalette:DWORD
     LOCAL ImageWidth:DWORD ; From raw mos
@@ -543,8 +550,8 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
     LOCAL TotalTiles:DWORD ; BlockColumns * BlockRows
     LOCAL PaletteEntriesPtr:DWORD ; MEMMapped File / Alloced MEM
     LOCAL PaletteEntriesSize:DWORD ; TotalTiles * 1024
-    LOCAL TileEntriesPtr:DWORD ; MEMMapped File / Alloced MEM
-    LOCAL TileEntriesSize:DWORD ; TotalTiles * SIZEOF RGBQUAD
+    LOCAL TileLookupEntriesPtr:DWORD ; MEMMapped File / Alloced MEM
+    LOCAL TileLookupEntriesSize:DWORD ; TotalTiles * SIZEOF RGBQUAD
     LOCAL TileDataPtr:DWORD ; pointer to TILEDATA arrays
     LOCAL TileDataSize:DWORD ; size of all TILEDATA arrays
     LOCAL nTile:DWORD
@@ -647,7 +654,7 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
     mov eax, TotalTiles
     mov ebx, SIZEOF DWORD
     mul ebx
-    mov TileEntriesSize, eax
+    mov TileLookupEntriesSize, eax
     
     mov eax, TotalTiles
     mov ebx, 1024d ; size of palette
@@ -655,7 +662,7 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
     mov PaletteEntriesSize, eax
     add eax, OffsetPalettes
     mov OffsetTileEntries, eax
-    add eax, TileEntriesSize
+    add eax, TileLookupEntriesSize
     mov OffsetTileData, eax
 
     ; Store back to MOSINFO structure
@@ -710,7 +717,7 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
     ;----------------------------------
     .IF TotalTiles > 0
         .IF dwOpenMode == IEMOS_MODE_WRITE
-            Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, TileEntriesSize
+            Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, TileLookupEntriesSize
             .IF eax == NULL
                 mov ebx, hIEMOS
                 mov eax, [ebx].MOSINFO.MOSHeaderPtr
@@ -726,27 +733,27 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
                 ret
             .ENDIF    
             mov ebx, hIEMOS
-            mov [ebx].MOSINFO.MOSTileEntriesPtr, eax
-            mov TileEntriesPtr, eax
+            mov [ebx].MOSINFO.MOSTileLookupEntriesPtr, eax
+            mov TileLookupEntriesPtr, eax
         
             mov ebx, MOSMemMapPtr
             add ebx, OffsetTileEntries
-            Invoke RtlMoveMemory, eax, ebx, TileEntriesSize
+            Invoke RtlMoveMemory, eax, ebx, TileLookupEntriesSize
         .ELSE
             mov ebx, hIEMOS
             mov eax, MOSMemMapPtr
             add eax, OffsetTileEntries
-            mov [ebx].MOSINFO.MOSTileEntriesPtr, eax
-            mov TileEntriesPtr, eax
+            mov [ebx].MOSINFO.MOSTileLookupEntriesPtr, eax
+            mov TileLookupEntriesPtr, eax
         .ENDIF
         mov ebx, hIEMOS
-        mov eax, TileEntriesSize
-        mov [ebx].MOSINFO.MOSTileEntriesSize, eax    
+        mov eax, TileLookupEntriesSize
+        mov [ebx].MOSINFO.MOSTileLookupEntriesSize, eax    
     .ELSE
         mov ebx, hIEMOS
-        mov [ebx].MOSINFO.MOSTileEntriesPtr, 0
-        mov [ebx].MOSINFO.MOSTileEntriesSize, 0
-        mov TileEntriesPtr, 0
+        mov [ebx].MOSINFO.MOSTileLookupEntriesPtr, 0
+        mov [ebx].MOSINFO.MOSTileLookupEntriesSize, 0
+        mov TileLookupEntriesPtr, 0
     .ENDIF
 
     ;----------------------------------
@@ -770,7 +777,7 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
             .IF eax != NULL
                 Invoke GlobalFree, eax
             .ENDIF
-            mov eax, [ebx].MOSINFO.MOSTileEntriesPtr
+            mov eax, [ebx].MOSINFO.MOSTileLookupEntriesPtr
             .IF eax != NULL
                 Invoke GlobalFree, eax
             .ENDIF            
@@ -785,12 +792,12 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
         mov [ebx].MOSINFO.MOSTileDataSize, eax        
         
         ; Setup for loop
-        mov eax, TileEntriesPtr
-        mov ptrCurrentTileEntry, eax
+        mov eax, TileLookupEntriesPtr
+        mov ptrCurrentTileLookupEntry, eax
      
         mov eax, MOSMemMapPtr
         add eax, OffsetTileData
-        mov ptrCurrentTileEntryData, eax
+        mov ptrCurrentTileLookupEntryData, eax
         
         mov eax, TileDataPtr
         mov ptrCurrentTileData, eax
@@ -804,10 +811,12 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
         mov eax, 0
         mov nTile, 0
         .WHILE eax < TotalTiles
-            
-            mov ebx, ptrCurrentTileEntry
+
+            mov ebx, ptrCurrentTileLookupEntry
             mov eax, [ebx]
-            add ptrCurrentTileEntryData, eax
+            add eax, MOSMemMapPtr
+            add eax, OffsetTileData  
+            mov ptrCurrentTileLookupEntryData, eax
             
             ;----------------------------------
             ; Calc Tile Data INFO
@@ -833,10 +842,10 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
                 Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, TileSizeRAW
                 mov TileRAW, eax
                 .IF eax != NULL
-                    Invoke RtlMoveMemory, TileRAW, ptrCurrentTileEntryData, TileSizeRAW
+                    Invoke RtlMoveMemory, TileRAW, ptrCurrentTileLookupEntryData, TileSizeRAW
                 .ENDIF
             .ELSE
-                mov eax, ptrCurrentTileEntryData
+                mov eax, ptrCurrentTileLookupEntryData
                 mov TileRAW, eax
             .ENDIF
             mov ebx, ptrCurrentTileData
@@ -907,7 +916,7 @@ MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dw
             ; Setup stuff for next entry
             add ptrCurrentTilePalette, 1024
             add ptrCurrentTileData, SIZEOF TILEDATA
-            add ptrCurrentTileEntryData, SIZEOF DWORD
+            add ptrCurrentTileLookupEntry, SIZEOF DWORD
             inc nTile
             mov eax, nTile
         .ENDW
@@ -925,9 +934,10 @@ MOSV1Mem ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; MOSV2Mem - Returns handle in eax of opened bam file that is already loaded into memory. NULL if could not alloc enough mem
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; MOSV2Mem - Returns handle in eax of opened bam file that is already loaded 
+; into memory. NULL if could not alloc enough mem
+;------------------------------------------------------------------------------
 MOSV2Mem PROC USES EBX ECX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD
     LOCAL hIEMOS:DWORD
     LOCAL MOSMemMapPtr:DWORD
@@ -1053,9 +1063,9 @@ MOSV2Mem ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSHeader - Returns in eax a pointer to header or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSHeader PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1068,26 +1078,27 @@ IEMOSHeader ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSTileLookupEntries - Returns in eax a pointer to the array of TileLookup entries
-; (DWORDs) or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSTileLookupEntries - Returns in eax a pointer to the array of TileLookup 
+; entries (DWORDs) or NULL if not valid
+;------------------------------------------------------------------------------
 IEMOSTileLookupEntries PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
         ret
     .ENDIF
     mov ebx, hIEMOS
-    mov eax, [ebx].MOSINFO.MOSTileEntriesPtr
+    mov eax, [ebx].MOSINFO.MOSTileLookupEntriesPtr
     ret
 IEMOSTileLookupEntries ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSTileLookupEntry - Returns in eax a pointer to specific TileLookup entry
-; which if read (DWORD) is an offset to the Tile Data from start of tile pixel data.
-;-------------------------------------------------------------------------------------
+; which if read (DWORD) is an offset to the Tile Data from start of tile pixel 
+; data.
+;------------------------------------------------------------------------------
 IEMOSTileLookupEntry PROC USES EBX hIEMOS:DWORD, nTile:DWORD
     LOCAL TileLookupEntries:DWORD
     
@@ -1123,9 +1134,10 @@ IEMOSTileLookupEntry ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSTileDataEntries - Returns in eax a pointer to the array of TILEDATA or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSTileDataEntries - Returns in eax a pointer to the array of TILEDATA or 
+; NULL if not valid
+;------------------------------------------------------------------------------
 IEMOSTileDataEntries PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1138,9 +1150,10 @@ IEMOSTileDataEntries ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSTileDataEntry - Returns in eax a pointer to a specific TILEDATA entry or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSTileDataEntry - Returns in eax a pointer to a specific TILEDATA entry or
+; NULL if not valid
+;------------------------------------------------------------------------------
 IEMOSTileDataEntry PROC USES EBX hIEMOS:DWORD, nTile:DWORD
     LOCAL TileDataEntries:DWORD
     .IF hIEMOS == NULL
@@ -1175,9 +1188,9 @@ IEMOSTileDataEntry ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSTotalTiles - Returns in eax total tiles in mos
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSTotalTiles PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1190,9 +1203,10 @@ IEMOSTotalTiles ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSImageDimensions - Returns width and height in pointer to variables provided
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSImageDimensions - Returns width and height in pointer to variables 
+; provided
+;------------------------------------------------------------------------------
 IEMOSImageDimensions PROC USES EBX hIEMOS:DWORD, lpdwImageWidth:DWORD, lpdwImageHeight:DWORD
     LOCAL dwImageWidth:DWORD
     LOCAL dwImageHeight:DWORD
@@ -1224,9 +1238,9 @@ IEMOSImageDimensions ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSPalettes - Returns in eax a pointer to the palettes or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSPalettes PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1239,9 +1253,10 @@ IEMOSPalettes ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSTilePalette - Returns in eax a pointer to the tile palette or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSTilePalette - Returns in eax a pointer to the tile palette or NULL if 
+; not valid
+;------------------------------------------------------------------------------
 IEMOSTilePalette PROC USES EBX hIEMOS:DWORD, nTile:DWORD
     LOCAL PaletteOffset:DWORD
 
@@ -1277,10 +1292,10 @@ IEMOSTilePalette ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSTilePaletteValue - Returns in eax a RGBQUAD of the specified 
 ; palette index of the tile palette or -1 if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSTilePaletteValue PROC USES EBX hIEMOS:DWORD, nTile:DWORD, PaletteIndex:DWORD
     LOCAL TilePaletteOffset:DWORD
     
@@ -1312,9 +1327,9 @@ IEMOSTilePaletteValue ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSTotalPalettes - Returns in eax total palettes (same as total tiles) in mos
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSTotalPalettes - Returns in eax total palettes (= total tiles) in mos
+;------------------------------------------------------------------------------
 IEMOSTotalPalettes PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1327,9 +1342,9 @@ IEMOSTotalPalettes ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSTotalBlockEntries - Returns in eax the total no of data block entries
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSTotalBlockEntries PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, 0
@@ -1343,9 +1358,10 @@ IEMOSTotalBlockEntries ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSBlockEntries - Returns in eax a pointer to data block entries or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSBlockEntries - Returns in eax a pointer to data block entries or NULL if
+; not valid
+;------------------------------------------------------------------------------
 IEMOSBlockEntries PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1361,9 +1377,10 @@ IEMOSBlockEntries ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSBlockEntry - Returns in eax a pointer to the specified Datablock entry or NULL
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSBlockEntry - Returns in eax a pointer to the specified Datablock entry 
+; or NULL
+;------------------------------------------------------------------------------
 IEMOSBlockEntry PROC USES EBX hIEMOS:DWORD, nBlockEntry:DWORD
     LOCAL BlockEntriesPtr:DWORD
     
@@ -1398,10 +1415,11 @@ IEMOSBlockEntry ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSTileBitmap - Returns in eax HBITMAP or NULL. Optional variables pointed to, are 
-; filled in if eax is a HBITMAP (!NULL), otherwise vars (if supplied) will be set to 0
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSTileBitmap - Returns in eax HBITMAP or NULL. Optional variables pointed 
+; to, are filled in if eax is a HBITMAP (!NULL), otherwise vars (if supplied) 
+; will be set to 0
+;------------------------------------------------------------------------------
 IEMOSTileBitmap PROC USES EBX hIEMOS:DWORD, nTile:DWORD, lpdwTileWidth:DWORD, lpdwTileHeight:DWORD, lpdwTileXCoord:DWORD, lpdwTileYCoord:DWORD
     LOCAL TilePaletteEntry:DWORD
     LOCAL TileDataEntry:DWORD
@@ -1507,9 +1525,92 @@ IEMOSTileBitmap ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSTileBitmap - Returns HBITMAP (of all combined tile bitmaps) or NULL.
+;------------------------------------------------------------------------------
+IEMOSBitmap PROC hIEMOS:DWORD
+    LOCAL hdc:DWORD
+    LOCAL hdcMem:DWORD
+    LOCAL hdcTile:DWORD
+    LOCAL SavedDCTile:DWORD
+    LOCAL hBitmap:DWORD
+    LOCAL hOldBitmap:DWORD
+    LOCAL hTileBitmap:DWORD
+    LOCAL ImageWidth:DWORD
+    LOCAL ImageHeight:DWORD
+    LOCAL TileX:DWORD
+    LOCAL TileY:DWORD
+    LOCAL TileW:DWORD
+    LOCAL TileH:DWORD
+    LOCAL TotalTiles:DWORD
+    LOCAL nTile:DWORD
+    
+    .IF hIEMOS == NULL
+        mov eax, NULL
+        ret
+    .ENDIF  
+    
+    Invoke IEMOSTotalTiles, hIEMOS
+    .IF eax == 0
+        ret
+    .ENDIF
+    mov TotalTiles, eax
+    
+    Invoke IEMOSImageDimensions, hIEMOS, Addr ImageWidth, Addr ImageHeight
+    .IF ImageWidth == 0 && ImageHeight == 0
+        mov eax, NULL
+        ret
+    .ENDIF
+    
+    Invoke CreateDC, Addr szMOSDisplayDC, NULL, NULL, NULL
+    mov hdc, eax
+
+    Invoke CreateCompatibleDC, hdc
+    mov hdcMem, eax
+
+    Invoke CreateCompatibleDC, hdc
+    mov hdcTile, eax
+
+    Invoke CreateCompatibleBitmap, hdc, ImageWidth, ImageHeight
+    mov hBitmap, eax
+    
+    Invoke SelectObject, hdcMem, hBitmap
+    mov hOldBitmap, eax
+    
+    Invoke SaveDC, hdcTile
+    mov SavedDCTile, eax
+    
+    mov eax, 0
+    mov nTile, 0
+    .WHILE eax < TotalTiles
+        Invoke IEMOSTileBitmap, hIEMOS, nTile, Addr TileW, Addr TileH, Addr TileX, Addr TileY
+        .IF eax != NULL
+            mov hTileBitmap, eax
+            Invoke SelectObject, hdcTile, hTileBitmap
+            Invoke BitBlt, hdcMem, TileX, TileY, TileW, TileH, hdcTile, 0, 0, SRCCOPY
+        .ENDIF
+
+        inc nTile
+        mov eax, nTile
+    .ENDW
+    
+    .IF hOldBitmap != 0
+        Invoke SelectObject, hdcMem, hOldBitmap
+    .ENDIF
+    Invoke RestoreDC, hdcTile, SavedDCTile
+    Invoke DeleteDC, hdcTile
+    Invoke DeleteDC, hdcMem
+    Invoke DeleteDC, hdc
+    
+    mov eax, hBitmap
+    ret
+IEMOSBitmap ENDP
+
+
+IEMOS_ALIGN
+;------------------------------------------------------------------------------
 ; IEMOSTileWidth - Returns in eax width of tile.
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSTileWidth PROC USES EBX hIEMOS:DWORD, nTile:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1527,9 +1628,9 @@ IEMOSTileWidth ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSTileHeight - Returns in eax height of tile.
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSTileHeight PROC USES EBX hIEMOS:DWORD, nTile:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1547,9 +1648,9 @@ IEMOSTileHeight ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSTileXCoord - Returns in eax x coord of tile.
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSTileXCoord PROC USES EBX hIEMOS:DWORD, nTile:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1567,9 +1668,9 @@ IEMOSTileXCoord ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSTileYCoord - Returns in eax y coord of tile.
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSTileYCoord PROC USES EBX hIEMOS:DWORD, nTile:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1587,9 +1688,9 @@ IEMOSTileYCoord ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSTileRAW - Returns in eax pointer to RAW tile data.
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSTileRAW PROC USES EBX hIEMOS:DWORD, nTile:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1607,9 +1708,10 @@ IEMOSTileRAW ENDP
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSFileName - returns in eax pointer to zero terminated string contained filename that is open or NULL if not opened
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSFileName - returns in eax pointer to zero terminated string contained 
+; filename that is open or NULL if not opened
+;------------------------------------------------------------------------------
 IEMOSFileName PROC USES EBX hIEMOS:DWORD
     LOCAL MosFilename:DWORD
     .IF hIEMOS == NULL
@@ -1630,9 +1732,10 @@ IEMOSFileName endp
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
-; IEMOSFileNameOnly - returns in eax true or false if it managed to pass to the buffer pointed at lpszFileNameOnly, the stripped filename without extension
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; IEMOSFileNameOnly - returns in eax true or false if it managed to pass to the 
+; buffer pointed at lpszFileNameOnly, the stripped filename without extension
+;------------------------------------------------------------------------------
 IEMOSFileNameOnly PROC hIEMOS:DWORD, lpszFileNameOnly:DWORD
     Invoke IEMOSFileName, hIEMOS
     .IF eax == NULL
@@ -1648,9 +1751,9 @@ IEMOSFileNameOnly endp
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOSFileSize - returns in eax size of file or NULL
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSFileSize PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1663,9 +1766,9 @@ IEMOSFileSize endp
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; -1 = No Mos file, TRUE for MOSCV1, FALSE for MOS V1 or MOS V2 
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSFileCompression PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, -1
@@ -1683,9 +1786,9 @@ IEMOSFileCompression endp
 
 
 IEMOS_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; 0 = No Mos file, 1 = MOS V1, 2 = MOS V2, 3 = MOSCV1 
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSVersion PROC USES EBX hIEMOS:DWORD
     .IF hIEMOS == NULL
         mov eax, NULL
@@ -1697,10 +1800,16 @@ IEMOSVersion PROC USES EBX hIEMOS:DWORD
 IEMOSVersion ENDP
 
 
+
+; INTERNAL FUNCTIONS
+
+
+
 IEMOS_ALIGN
-;-----------------------------------------------------------------------------------------
-; Checks the MOS signatures to determine if they are valid and if MOS file is compressed
-;-----------------------------------------------------------------------------------------
+;******************************************************************************
+; Checks the MOS signatures to determine if they are valid and if MOS file is 
+; compressed
+;******************************************************************************
 MOSSignature PROC pMOS:DWORD
     ; check signatures to determine version
     mov ebx, pMOS
@@ -1732,9 +1841,10 @@ MOSSignature endp
 
 
 IEMOS_ALIGN
-;-----------------------------------------------------------------------------------------
-; Uncompresses MOSC file to an area of memory that we allocate for the exact size of data
-;-----------------------------------------------------------------------------------------
+;******************************************************************************
+; Uncompresses MOSC file to an area of memory that we allocate for the exact 
+; size of data
+;******************************************************************************
 MOSUncompress PROC USES EBX hMOSFile:DWORD, pMOS:DWORD, dwSize:DWORD
     LOCAL dest:DWORD
     LOCAL src:DWORD
@@ -1775,9 +1885,9 @@ MOSUncompress endp
 
 
 IEMOS_ALIGN
-;**************************************************************************
+;******************************************************************************
 ; Strip path name to just filename Without extention
-;**************************************************************************
+;******************************************************************************
 MOSJustFname PROC szFilePathName:DWORD, szFileName:DWORD
     LOCAL LenFilePathName:DWORD
     LOCAL nPosition:DWORD
@@ -1824,12 +1934,12 @@ MOSJustFname ENDP
 
 
 IEMOS_ALIGN
-;**************************************************************************
+;******************************************************************************
 ; Returns in eax width of data block as blocksize if column < columns -1
 ; (column = nTile % columns)
 ; 
 ; otherwise returns in eax: imagewidth - (column * blocksize)
-;**************************************************************************
+;******************************************************************************
 MOSGetTileDataWidth PROC USES EBX ECX EDX nTile:DWORD, dwBlockColumns:DWORD, dwBlockSize:DWORD, dwImageWidth:DWORD
     LOCAL COLSmod:DWORD
     
@@ -1871,12 +1981,12 @@ MOSGetTileDataWidth ENDP
 
 
 IEMOS_ALIGN
-;**************************************************************************
+;******************************************************************************
 ; Returns in eax height of data block as blocksize if row < rows -1
 ; (row = nTile / columns)
 ;
 ; otherwise returns in eax: imageheight - (row * blocksize)
-;**************************************************************************
+;******************************************************************************
 MOSGetTileDataHeight PROC USES EBX ECX EDX nTile:DWORD, dwBlockRows:DWORD, dwBlockColumns:DWORD, dwBlockSize:DWORD, dwImageHeight:DWORD
     LOCAL ROWSmod:DWORD
     
@@ -1907,9 +2017,9 @@ MOSGetTileDataHeight ENDP
 
 
 IEMOS_ALIGN
-;**************************************************************************
+;******************************************************************************
 ; Calc dword aligned size for height or width value
-;**************************************************************************
+;******************************************************************************
 MOSCalcDwordAligned PROC USES ECX EDX dwWidthOrHeight:DWORD
     .IF dwWidthOrHeight == 0
         mov eax, 0
@@ -1940,9 +2050,9 @@ MOSCalcDwordAligned endp
 
 
 IEMOS_ALIGN
-;**************************************************************************
+;******************************************************************************
 
-;**************************************************************************
+;******************************************************************************
 MOSTileDataRAWtoBMP PROC USES EBX EDI ESI pTileRAW:DWORD, pTileBMP:DWORD, dwTileSizeRAW:DWORD, dwTileSizeBMP:DWORD
     
     
@@ -1951,9 +2061,9 @@ MOSTileDataRAWtoBMP ENDP
 
 
 IEMOS_ALIGN
-;**************************************************************************
+;******************************************************************************
 ; Returns in eax handle to tile data bitmap or NULL
-;**************************************************************************
+;******************************************************************************
 MOSTileDataBitmap PROC USES EBX dwTileWidth:DWORD, dwTileHeight:DWORD, pTileBMP:DWORD, dwTileSizeBMP:DWORD, pTilePalette:DWORD
     LOCAL hdc:DWORD
     LOCAL TileBitmapHandle:DWORD
@@ -1993,6 +2103,92 @@ MOSTileDataBitmap PROC USES EBX dwTileWidth:DWORD, dwTileHeight:DWORD, pTileBMP:
     ret
 MOSTileDataBitmap ENDP
 
+
+IEMOS_ALIGN
+;******************************************************************************
+; Returns in eax total tiles.
+;******************************************************************************
+MOSBitmapToTiles PROC USES EBX hBitmap:DWORD, lpdwTileDataArray:DWORD, lpdwPaletteArray:DWORD, lpdwImageWidth:DWORD, lpdwImageHeight:DWORD, lpdwBlockColumns:DWORD, lpdwBlockRows:DWORD
+    LOCAL bm:BITMAP
+    LOCAL ImageWidth:DWORD
+    LOCAL ImageHeight:DWORD
+    LOCAL Columns:DWORD
+    LOCAL Rows:DWORD
+    LOCAL TileRightWidth:DWORD
+    LOCAL TileBottomHeight:DWORD
+    LOCAL TileW:DWORD    
+    LOCAL TileH:DWORD
+    LOCAL TotalTiles:DWORD
+    
+    ;GetDIBits https://docs.microsoft.com/en-us/windows/desktop/api/wingdi/nf-wingdi-getdibits
+    ; https://www.autoitscript.com/forum/topic/74330-getdibits/
+    ;https://stackoverflow.com/questions/46562369/winapi-gdi-how-to-use-getdibits-to-get-color-table-synthesized-for-a-bitmap
+    ;http://forums.codeguru.com/showthread.php?175394-How-to-save-a-bitmap-correctly
+    ; do it in reverse
+    
+    ; get bitmap image width and height
+
+    ; calc columns, rows, blocksize and total tiles
+    
+    ; alloc TILEDATA for total tiles
+    ; loop through tiles and
+    ; get tile width, height, x, y, tilesizebmp, tileBMP
+    ; get tileBMP GDIBits and GDI color table for tile palette
+    ; strip dword alignment from tileBMP to convert to tileRAW and find tilesizeraw
+    ; 
+
+    .IF hBitmap == NULL
+        mov eax, 0
+        ret
+    .ENDIF
+    
+    Invoke RtlZeroMemory, Addr bm, SIZEOF BITMAP
+    Invoke GetObject, hBitmap, SIZEOF bm, Addr bm
+    .IF eax == 0
+        ret
+    .ENDIF
+
+    mov eax, bm.bmWidth
+    mov ImageWidth, eax
+    mov eax, bm.bmHeight
+    mov ImageHeight, eax
+
+    .IF ImageWidth == 0 || ImageHeight == 0
+        mov eax, 0
+        ret
+    .ENDIF
+    
+    ; 200 x 36
+    ; If imagewidth >= BLOCKSIZE_DEFAULT
+    ;   imagewidth % BLOCKSIZE_DEFAULT = no of columns
+    ;   if remainder != 0
+    ;       then inc no columns and last col is this width TileRightWidth
+    ;       TileRightWidth = remainder
+    ;   else
+    ;       TileRightWidth = BLOCKSIZE_DEFAULT
+    ;   endif
+    ;   TileW = BLOCKSIZE_DEFAULT
+    ; else ; imagewidth < BLOCKSIZE_DEFAULT
+    ;   columns = 1
+    ;   TileW = imagewidth
+    ; endif
+    
+    ; If imageheight >= BLOCKSIZE_DEFAULT
+    ;   imageheight % BLOCKSIZE_DEFAULT = no of rows
+    ;   if remainder != 0
+    ;       then inc no rows and last rows is this width TileBottomHeight
+    ;   endif
+    ;   TileH = BLOCKSIZE_DEFAULT
+    ; else
+    ;   TileH = imageheight
+    ; endif
+    ;
+    ; TotalTiles = columns x rows
+    
+    
+    ret
+
+MOSBitmapToTiles ENDP
 
 
 
