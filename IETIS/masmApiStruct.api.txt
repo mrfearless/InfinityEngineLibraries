@@ -1,5 +1,5 @@
 ;--------------------------------------------------------------------------------------------------
-; IEBAM Additions 
+; IETIS Additions 
 ;
 ; http://github.com/mrfearless/InfinityEngineLibraries
 ;
@@ -7,3 +7,5 @@
 ;
 ;--------------------------------------------------------------------------------------------------
 TISV1_HEADER,Signature,Version,TilesCount,TilesSectionLength,OffsetTilesData,TileDimension
+TISV1_TILEDATA,TilePalette,TilePixelData
+TISV1_TILEDATA_PVRZ,PVRZPage,XCoord,YCoord

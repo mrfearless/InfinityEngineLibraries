@@ -1,9 +1,23 @@
 ;------------------------------------------------------------------------------------------------
-; IEBAM Additions 
+; IETIS Additions 
 ;
 ; http://github.com/mrfearless/InfinityEngineLibraries
 ;
 ; Paste this text at the end of \Radasm\masm\masmApiCall.api to add these to Radasm
 ;
 ;------------------------------------------------------------------------------------------------
-
+IETISOpen,lpszTisFilename,dwOpenMode
+IETISMem,pTISInMemory,lpszTisFilename,dwTisFilesize,dwOpenMode
+IETISClose,hIETIS
+IETISHeader,hIETIS
+IETISTileDataEntries,hIETIS
+IETISTileDataEntry,hIETIS,nTile
+IETISTotalTiles,hIETIS
+IETISTileDimension,hIETIS
+IETISTileRAW,hIETIS,nTile
+IETISTilePalette,hIETIS,nTile
+IETISTilePaletteValue,hIETIS,nTile,PaletteIndex
+IETISFileName,hIETIS
+IETISFileNameOnly,hIETIS,lpszFileNameOnly
+IETISFileSize,hIETIS
+IETISVersion,hIETIS

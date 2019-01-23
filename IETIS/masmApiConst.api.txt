@@ -1,8 +1,10 @@
 ;------------------------------------------------------------------------------------------------
-; IEBAM Additions 
+; IETIS Additions 
 ;
 ; http://github.com/mrfearless/InfinityEngineLibraries
 ;
 ; Paste this text at the end of \Radasm\masm\masmApiConst.api to add these to Radasm
 ;
 ;------------------------------------------------------------------------------------------------
+2IETISOpen,IETIS_MODE_WRITE,IETIS_MODE_READONLY
+4IETISMem,IETIS_MODE_WRITE,IETIS_MODE_READONLY
