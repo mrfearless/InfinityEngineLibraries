@@ -143,9 +143,94 @@ NEWTISHeader            TISV1_HEADER <"TIS ", "V1  ", 0, 0, 24d, 64d>
 
 IETIS_ALIGN
 ;------------------------------------------------------------------------------
-; IETISOpen
+; IETISOpen - Returns handle in eax of opened tis file. NULL if could not alloc enough mem
 ;------------------------------------------------------------------------------
 IETISOpen PROC USES EBX lpszTisFilename:DWORD, dwOpenMode:DWORD
+    LOCAL hIETIS:DWORD
+    LOCAL hTISFile:DWORD
+    LOCAL TISFilesize:DWORD
+    LOCAL SigReturn:DWORD
+    LOCAL TISMemMapHandle:DWORD
+    LOCAL TISMemMapPtr:DWORD
+    LOCAL pTIS:DWORD
+
+    .IF dwOpenMode == IETIS_MODE_READONLY ; readonly
+        Invoke CreateFile, lpszTisFilename, GENERIC_READ, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
+    .ELSE
+        Invoke CreateFile, lpszTisFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
+    .ENDIF
+
+    .IF eax == INVALID_HANDLE_VALUE
+        mov eax, FALSE
+        ret
+    .ENDIF
+    mov hTISFile, eax
+
+    Invoke GetFileSize, hTISFile, NULL
+    mov TISFilesize, eax
+
+    ;---------------------------------------------------                
+    ; File Mapping: Create file mapping for main .erf
+    ;---------------------------------------------------
+    .IF dwOpenMode == IETIS_MODE_READONLY ; readonly
+        Invoke CreateFileMapping, hTISFile, NULL, PAGE_READONLY, 0, 0, NULL ; Create memory mapped file
+    .ELSE
+        Invoke CreateFileMapping, hTISFile, NULL, PAGE_READWRITE, 0, 0, NULL ; Create memory mapped file
+    .ENDIF   
+    .IF eax == NULL
+        mov eax, FALSE
+        ret
+    .ENDIF
+    mov TISMemMapHandle, eax
+    
+    .IF dwOpenMode == IETIS_MODE_READONLY ; readonly
+        Invoke MapViewOfFileEx, TISMemMapHandle, FILE_MAP_READ, 0, 0, 0, NULL
+    .ELSE
+        Invoke MapViewOfFileEx, TISMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0, NULL
+    .ENDIF
+    .IF eax == NULL
+        mov eax, FALSE
+        ret
+    .ENDIF
+    mov TISMemMapPtr, eax
+
+    Invoke TISSignature, TISMemMapPtr
+    mov SigReturn, eax
+    .IF SigReturn == TIS_VERSION_INVALID ; not a valid erf file
+        Invoke UnmapViewOfFile, TISMemMapPtr
+        Invoke CloseHandle, TISMemMapHandle
+        Invoke CloseHandle, hTISFile
+        mov eax, NULL
+        ret    
+    
+    .ELSE ; TIS V1 or TIS V1 PVRZ
+        Invoke IETISMem, TISMemMapPtr, lpszTisFilename, TISFilesize, dwOpenMode
+        mov hIETIS, eax
+        .IF hIETIS == NULL
+            Invoke UnmapViewOfFile, TISMemMapPtr
+            Invoke CloseHandle, TISMemMapHandle
+            Invoke CloseHandle, hTISFile
+            mov eax, NULL
+            ret    
+        .ENDIF
+        .IF dwOpenMode == IETIS_MODE_WRITE ; write (default)
+            Invoke UnmapViewOfFile, TISMemMapPtr
+            Invoke CloseHandle, TISMemMapHandle
+            Invoke CloseHandle, hTISFile
+        .ELSE ; else readonly, so keep mapping around till we close file
+            mov ebx, hIETIS
+            mov eax, TISMemMapHandle
+            mov [ebx].TISINFO.TISMemMapHandle, eax
+            mov eax, hTISFile
+            mov [ebx].TISINFO.TISFileHandle, eax
+        .ENDIF
+
+    .ENDIF
+    ; save original version to handle for later use so we know if orignal file opened was standard TIS
+    mov ebx, hIETIS
+    mov eax, SigReturn
+    mov [ebx].TISINFO.TISVersion, eax
+    mov eax, hIETIS
     ret
 IETISOpen ENDP
 
@@ -155,15 +240,197 @@ IETIS_ALIGN
 ; IETISMem
 ;------------------------------------------------------------------------------
 IETISMem PROC USES EBX pTISInMemory:DWORD, lpszTisFilename:DWORD, dwTisFilesize:DWORD, dwOpenMode:DWORD
+    LOCAL hIETIS:DWORD
+    LOCAL TISMemMapPtr:DWORD
+    LOCAL TotalTiles:DWORD
+    LOCAL TileDataPtr:DWORD
+    LOCAL TileDataSize:DWORD
+    LOCAL OffsetTileData:DWORD
+    LOCAL TileDataEntrySize:DWORD
+    LOCAL TilePixel:DWORD
+    LOCAL Version:DWORD
+
+    mov eax, pTISInMemory
+    mov TISMemMapPtr, eax       
+
+    ;----------------------------------
+    ; Alloc mem for our IETIS Handle
+    ;----------------------------------
+    Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, SIZEOF TISINFO
+    .IF eax == NULL
+        ret
+    .ENDIF
+    mov hIETIS, eax
+    
+    mov ebx, hIETIS
+    mov eax, dwOpenMode
+    mov [ebx].TISINFO.TISOpenMode, eax
+    mov eax, TISMemMapPtr
+    mov [ebx].TISINFO.TISMemMapPtr, eax
+    
+    lea eax, [ebx].TISINFO.TISFilename
+    Invoke szCopy, lpszTisFilename, eax
+    
+    mov ebx, hIETIS
+    mov eax, dwTisFilesize
+    mov [ebx].TISINFO.TISFilesize, eax
+
+    ;----------------------------------
+    ; TIS Header
+    ;----------------------------------
+    .IF dwOpenMode == IETIS_MODE_WRITE
+        Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, SIZEOF TISV1_HEADER
+        .IF eax == NULL
+            Invoke GlobalFree, hIETIS
+            mov eax, NULL
+            ret
+        .ENDIF    
+        mov ebx, hIETIS
+        mov [ebx].TISINFO.TISHeaderPtr, eax
+        mov ebx, TISMemMapPtr
+        Invoke RtlMoveMemory, eax, ebx, SIZEOF TISV1_HEADER
+    .ELSE
+        mov ebx, hIETIS
+        mov eax, TISMemMapPtr
+        mov [ebx].TISINFO.TISHeaderPtr, eax
+    .ENDIF
+    mov ebx, hIETIS
+    mov eax, SIZEOF TISV1_HEADER
+    mov [ebx].TISINFO.TISHeaderSize, eax   
+
+    ;----------------------------------
+    ; File Counts, Offsets & Sizes
+    ;----------------------------------
+    mov ebx, [ebx].TISINFO.TISHeaderPtr
+    mov eax, [ebx].TISV1_HEADER.TilesCount
+    mov TotalTiles, eax
+    mov eax, [ebx].TISV1_HEADER.OffsetTilesData
+    mov OffsetTileData, eax
+    mov eax, [ebx].TISV1_HEADER.TilesSectionLength
+    mov TileDataEntrySize, eax
+    mov eax, [ebx].TISV1_HEADER.TileDimension
+    mov TilePixel, eax
+
+    mov eax, TotalTiles
+    .IF TileDataEntrySize == TIS_TILEDATASIZE_V1 ; TIS V1
+        mov Version, TIS_VERSION_TIS_V1
+        mov ebx, SIZEOF TISV1_TILEDATA
+    .ELSE
+        mov Version, TIS_VERSION_TIS_V1P
+        mov ebx, SIZEOF TISV1_TILEDATA_PVRZ ; TIS V1 PVRZ
+    .ENDIF
+    mul ebx
+    mov TileDataSize, eax
+
+    ;----------------------------------
+    ; Tile File Entries
+    ;----------------------------------
+    .IF TotalTiles > 0
+        .IF dwOpenMode == IETIS_MODE_WRITE
+            Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, TileDataSize
+            .IF eax == NULL
+                mov ebx, hIETIS
+                mov eax, [ebx].TISINFO.TISHeaderPtr
+                Invoke GlobalFree, eax    
+                Invoke GlobalFree, hIETIS
+                mov eax, NULL    
+                ret
+            .ENDIF    
+            mov ebx, hIETIS
+            mov [ebx].TISINFO.TISTileDataPtr, eax
+        
+            mov ebx, TISMemMapPtr
+            add ebx, OffsetTileData
+            Invoke RtlMoveMemory, eax, ebx, TileDataSize
+        .ELSE
+            mov ebx, hIETIS
+            mov eax, TISMemMapPtr
+            add eax, OffsetTileData
+            mov [ebx].TISINFO.TISTileDataPtr, eax
+        .ENDIF
+        mov ebx, hIETIS
+        mov eax, TileDataSize
+        mov [ebx].TISINFO.TISTileDataSize, eax
+
+    .ELSE
+        mov ebx, hIETIS
+        mov [ebx].TISINFO.TISTileDataPtr, 0
+        mov [ebx].TISINFO.TISTileDataSize, 0
+    .ENDIF
+    mov eax, hIETIS
     ret
 IETISMem ENDP
 
 
 IETIS_ALIGN
 ;------------------------------------------------------------------------------
-; IETISClose
+; IETISClose - Frees memory used by control data structure
 ;------------------------------------------------------------------------------
 IETISClose PROC USES EBX hIETIS:DWORD
+    .IF hIETIS == NULL
+        mov eax, 0
+        ret
+    .ENDIF
+
+    mov ebx, hIETIS
+    mov eax, [ebx].TISINFO.TISOpenMode
+    .IF eax == IETIS_MODE_WRITE ; Write Mode
+        mov ebx, hIETIS
+        mov eax, [ebx].TISINFO.TISHeaderPtr
+        .IF eax != NULL
+            Invoke GlobalFree, eax
+        .ENDIF
+    
+        mov ebx, hIETIS
+        mov eax, [ebx].TISINFO.TISTileDataPtr
+        .IF eax != NULL
+            Invoke GlobalFree, eax
+        .ENDIF
+    .ENDIF
+    
+    mov ebx, hIETIS
+    mov eax, [ebx].TISINFO.TISVersion
+    .IF eax == TIS_VERSION_INVALID ; non TIS
+        ; do nothing
+
+    .ELSE ; TIS - straight raw tis, so if  opened in readonly, unmap file, otherwise free mem
+
+        mov ebx, hIETIS
+        mov eax, [ebx].TISINFO.TISOpenMode
+        .IF eax == IETIS_MODE_READONLY ; Read Only
+            mov ebx, hIETIS
+            mov eax, [ebx].TISINFO.TISMemMapPtr
+            .IF eax != NULL
+                Invoke UnmapViewOfFile, eax
+            .ENDIF
+
+            mov ebx, hIETIS
+            mov eax, [ebx].TISINFO.TISMemMapHandle
+            .IF eax != NULL
+                Invoke CloseHandle, eax
+            .ENDIF
+
+            mov ebx, hIETIS
+            mov eax, [ebx].TISINFO.TISFileHandle
+            .IF eax != NULL
+                Invoke CloseHandle, eax
+            .ENDIF
+
+        .ELSE ; free mem if write mode
+            mov ebx, hIETIS
+            mov eax, [ebx].TISINFO.TISMemMapPtr
+            .IF eax != NULL
+                Invoke GlobalFree, eax
+            .ENDIF
+        .ENDIF
+    .ENDIF
+    
+    mov eax, hIETIS
+    .IF eax != NULL
+        Invoke GlobalFree, eax
+    .ENDIF
+
+    mov eax, 0
     ret
 IETISClose ENDP
 
@@ -267,39 +534,134 @@ IETISTotalTiles ENDP
 
 IETIS_ALIGN
 ;------------------------------------------------------------------------------
-; IETISTileDimension
+; IETISTileDimension - Returns in eax tile pixel dimension or 0
 ;------------------------------------------------------------------------------
 IETISTileDimension PROC USES EBX hIETIS:DWORD
+    .IF hIETIS == NULL
+        mov eax, 0
+        ret
+    .ENDIF
+    mov ebx, hIETIS
+    mov ebx, [ebx].TISINFO.TISHeaderPtr
+    .IF ebx != 0
+        mov eax, [ebx].TISV1_HEADER.TileDimension
+    .ELSE
+        mov eax, 0
+    .ENDIF    
     ret
 IETISTileDimension ENDP
 
 
 IETIS_ALIGN
 ;------------------------------------------------------------------------------
-; IETISTileRAW
+; IETISTilePixelData - Returns in eax pointer to tile pixel data stored in
+; the tile data block. Currently only supports palette based TIS.
+; WIP - TODO add support to read PVRZ
 ;------------------------------------------------------------------------------
-IETISTileRAW PROC USES EBX hIETIS:DWORD, nTile:DWORD
+IETISTilePixelData PROC USES EBX hIETIS:DWORD, nTile:DWORD
+    LOCAL TileDataEntry:DWORD
+    
+    .IF hIETIS == NULL
+        mov eax, NULL
+        ret
+    .ENDIF
+    
+    ; At some point remove to support TIS V1 PVRZ
+    Invoke IETISVersion, hIETIS
+    .IF eax == TIS_VERSION_TIS_V1P || eax == TIS_VERSION_INVALID
+        mov eax, NULL
+        ret
+    .ENDIF
+    
+    Invoke IETISTileDataEntry, hIETIS, nTile
+    .IF eax == NULL
+        ret
+    .ENDIF
+    mov TileDataEntry, eax
+    add eax, TIS_TILEPALETTESIZE ; add size of palette to get to pixel data
+    
     ret
-IETISTileRAW ENDP
+IETISTilePixelData ENDP
 
 
 IETIS_ALIGN
 ;------------------------------------------------------------------------------
-; IETISTilePalette
+; IETISTilePalette. Returns in eax pointer to specific tile's palette or NULL
 ;------------------------------------------------------------------------------
 IETISTilePalette PROC USES EBX hIETIS:DWORD, nTile:DWORD
+    LOCAL TileDataEntries:DWORD
+    
+    .IF hIETIS == NULL
+        mov eax, NULL
+        ret
+    .ENDIF
+
+    Invoke IETISVersion, hIETIS
+    .IF eax == TIS_VERSION_TIS_V1P || eax == TIS_VERSION_INVALID
+        mov eax, 0
+        ret
+    .ENDIF    
+    
+    Invoke IETISTotalTiles, hIETIS
+    .IF nTile >= eax ; 0 based tile index
+        mov eax, NULL
+        ret
+    .ENDIF
+    
+    Invoke IETISTileDataEntries, hIETIS
+    .IF eax == NULL
+        ret
+    .ENDIF
+    .IF nTile == 0
+        ; eax contains TileDataEntries which is tile 0's start
+        ; which is the start of tile 0's palette also
+        ret
+    .ENDIF    
+    mov TileDataEntries, eax        
+    
+    ; only TIS V1 and not TIS V1 PVRZ should reach this point
+    
+    mov ebx, SIZEOF TISV1_TILEDATA
+    mov eax, nTile
+    mul ebx
+    add eax, TileDataEntries      
+
     ret
 IETISTilePalette ENDP
 
 
 IETIS_ALIGN
 ;------------------------------------------------------------------------------
-; IETISTilePaletteValue
+; IETISTilePaletteValue. Returns in eax RGBQUAD value or -1
 ;------------------------------------------------------------------------------
 IETISTilePaletteValue PROC USES EBX hIETIS:DWORD, nTile:DWORD, PaletteIndex:DWORD
+    LOCAL TilePaletteOffset:DWORD
+    
+    .IF hIETIS == NULL
+        mov eax, -1
+        ret
+    .ENDIF
+    
+    .IF PaletteIndex > 255
+        mov eax, -1
+        ret
+    .ENDIF
+    
+    Invoke IETISTilePalette, hIETIS, nTile
+    .IF eax == NULL
+        mov eax, -1
+        ret
+    .ENDIF
+    mov TilePaletteOffset, eax
+
+    mov eax, PaletteIndex
+    mov ebx, 4 ; dword RGBA array size
+    mul ebx
+    add eax, TilePaletteOffset
+    mov eax, [eax]
+    
     ret
 IETISTilePaletteValue ENDP
-
 
 
 IETIS_ALIGN
@@ -389,9 +751,9 @@ TISSignature PROC USES EBX pTIS:DWORD
         .IF eax == '  1V' ; V1
             mov ebx, pTIS
             mov eax, [ebx].TISV1_HEADER.TilesSectionLength
-            .IF eax == 5120d ; Palette based
+            .IF eax == TIS_TILEDATASIZE_V1 ; 5120d - Palette based
                 mov eax, TIS_VERSION_TIS_V1
-            .ELSEIF eax == 12 ; PVRZ
+            .ELSEIF eax == TIS_TILEDATASIZE_V1P ; 12d - PVRZ
                 mov eax, TIS_VERSION_TIS_V1P
             .ELSE
                 mov eax, TIS_VERSION_INVALID

@@ -56,7 +56,7 @@ IETISTotalTiles             PROTO :DWORD                    ; hIETIS. Returns in
 IETISTileDimension          PROTO :DWORD                    ; hIETIS. Returns in eax tile dimension (tile size is x * x)
 
 ; TIS Tile Data Information:
-IETISTileRAW                PROTO :DWORD,:DWORD             ; hIETIS, nTile. Returns in pointer to RAW tile data.
+IETISTilePixelData          PROTO :DWORD,:DWORD             ; hIETIS, nTile. Returns in pointer to RAW tile pixel data.
 IETISTilePalette            PROTO :DWORD,:DWORD             ; hIETIS, nTile. Returns in eax pointer to the tile's specific palette (256 entries of RGBQUADs)
 IETISTilePaletteValue       PROTO :DWORD,:DWORD,:DWORD      ; hIETIS, nTile, PaletteIndex. eax contains RGBQUAD or -1 if not valid.
 
@@ -112,5 +112,8 @@ TIS_VERSION_INVALID         EQU 0 ; Not a TIS or invalid
 TIS_VERSION_TIS_V1          EQU 1 ; TIS_V1
 TIS_VERSION_TIS_V1P         EQU 2 ; TIS_V1 PVRZ
 
-
+TIS_TILEDATASIZE_V1P        EQU 12    ; for PVRZ based TIS
+TIS_TILEDATASIZE_V1         EQU 5120d ; for palette based TIS
+TIS_TILEPIXELSIZE           EQU 4096d ; for palette based TIS
+TIS_TILEPALETTESIZE         EQU 1024d ; RGBQUAD * 256 entries
 
