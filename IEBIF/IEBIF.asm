@@ -68,8 +68,6 @@ includelib masm32.lib
 includelib zlibstat128.lib
 ;includelib zlib-ng.lib
 
-include IETIS.inc ; added to add support to extract tiles and create new TISV1_HEADER
-
 include IEBIF.inc
 
 ;DEBUG32 EQU 1
@@ -181,6 +179,17 @@ TILE_ENTRY              STRUCT
 TILE_ENTRY              ENDS
 ENDIF
 
+IFNDEF TISV1_HEADER_FOR_BIF_FOR_BIF
+TISV1_HEADER_FOR_BIF    STRUCT
+    Signature           DD 0 ; 0x0000   4 (bytes)       Signature ('TIS ')
+    Version             DD 0 ; 0x0004   4 (bytes)       Version ('V1  ')
+    TilesCount          DD 0 ; 0x0008   4 (dword)       Count of tiles within this tileset
+    TilesSectionLength  DD 0 ; 0x000c   4 (dword)       Length of tiles section *
+    OffsetTilesData     DD 0 ; 0x0010   4 (dword)       Tile header size, offset to tiles, always 24d
+    TileDimension       DD 0 ; 0x0014   4 (dword)       Dimension of 1 tile in pixels (64x64) 64 ?
+TISV1_HEADER_FOR_BIF    ENDS
+ENDIF
+
 IFNDEF BIFINFO
 BIFINFO                 STRUCT
     BIFOpenMode         DD 0
@@ -238,7 +247,7 @@ IEMODE_WRITE            EQU 0
 IEMODE_READONLY         EQU 1
 
 .DATA
-TISV1Header             TISV1_HEADER <" SIT", "  1V", 0, 0, 24d, 64d>
+TISV1Header             TISV1_HEADER_FOR_BIF <" SIT", "  1V", 0, 0, 24d, 64d>
 BIFFV1Header            db "BIFFV1  ",0
 BIFFV11Header           db "BIFFV1.1",0
 BIFCHeader              db "BIF V1.0",0
@@ -1714,16 +1723,16 @@ IEBIFExtractTile PROC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutputFilenam
     .ENDIF
     mov hOutputFile, eax
 
-    ; update TISV1_HEADER for our new extracted tile
+    ; update TISV1_HEADER_FOR_BIF for our new extracted tile
     lea ebx, TISV1Header
     mov eax, TilesCount
-    mov [ebx].TISV1_HEADER.TilesCount, eax
+    mov [ebx].TISV1_HEADER_FOR_BIF.TilesCount, eax
     mov eax, TileSize
-    mov [ebx].TISV1_HEADER.TilesSectionLength, eax
+    mov [ebx].TISV1_HEADER_FOR_BIF.TilesSectionLength, eax
     
     
     mov eax, ResourceSize
-    add eax, SIZEOF TISV1_HEADER ;TISV1Header
+    add eax, SIZEOF TISV1_HEADER_FOR_BIF ;TISV1Header
     mov ResSizeWithHeader, eax
     Invoke CreateFileMapping, hOutputFile, NULL, PAGE_READWRITE, 0, ResSizeWithHeader, NULL ;ResourceSize
     .IF eax == NULL
@@ -1742,9 +1751,9 @@ IEBIFExtractTile PROC USES EBX hIEBIF:DWORD, nTileEntry:DWORD, lpszOutputFilenam
     .ENDIF
     mov MemMapPtr, eax
 
-    Invoke RtlMoveMemory, MemMapPtr, Addr TISV1Header, SIZEOF TISV1_HEADER
+    Invoke RtlMoveMemory, MemMapPtr, Addr TISV1Header, SIZEOF TISV1_HEADER_FOR_BIF
     mov ebx, MemMapPtr
-    add ebx, SIZEOF TISV1_HEADER
+    add ebx, SIZEOF TISV1_HEADER_FOR_BIF
     
     ;Invoke BIFCopyMemory, ebx, ResourceData, ResourceSize
     Invoke RtlMoveMemory, ebx, ResourceData, ResourceSize ; MemMapPtr
