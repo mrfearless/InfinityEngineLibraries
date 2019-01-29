@@ -2390,23 +2390,15 @@ IERESResTypeToString PROC dwResType:DWORD
 IERESResTypeToString ENDP
 
 
+;-------------------------------------------------------------------------------------
 ; Paul Dixon's utoa_ex function. unsigned dword to ascii. 
+;-------------------------------------------------------------------------------------
 OPTION PROLOGUE:NONE
 OPTION EPILOGUE:NONE
-
-align 16
-
+ALIGN 16
 RESutoa_ex PROC uvar:DWORD, pbuffer:DWORD
-
-  ; --------------------------------------------------------------------------------
-  ; this algorithm was written by Paul Dixon and has been converted to MASM notation
-  ; --------------------------------------------------------------------------------
-    push ecx
-    push edx
-
     mov eax, [esp+4]                ; uvar      : unsigned variable to convert
     mov ecx, [esp+8]                ; pbuffer   : pointer to result buffer
-
     push esi
     push edi
 
@@ -2507,11 +2499,7 @@ RESutoa_ex PROC uvar:DWORD, pbuffer:DWORD
 
     pop edi
     pop esi
-    
-    pop edx
-    pop ecx
-    
-    ret 16; 8
+    ret 8
 
   align 16
   ZeroSupressed:
@@ -2554,17 +2542,11 @@ RESutoa_ex PROC uvar:DWORD, pbuffer:DWORD
 
     pop edi
     pop esi
-
-    pop edx
-    pop ecx
-
-    ret 16 ;8
-
+    ret 8
 RESutoa_ex ENDP
-
 OPTION PROLOGUE:PrologueDef
 OPTION EPILOGUE:EpilogueDef
-
+;-------------------------------------------------------------------------------------
 
 
 
