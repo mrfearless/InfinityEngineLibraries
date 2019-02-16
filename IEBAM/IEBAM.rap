@@ -50,7 +50,7 @@ Group=Assembly,Misc
 4=2
 5=2
 [AutoLoad]
-AutoLoad=2,1,3
+AutoLoad=1
 [RADebugBP]
 1=
 3=
@@ -89,17 +89,17 @@ ProductVer2Range=0
 ProductVer3Range=0
 ProductVer4Range=0
 [PTimer]
-PTimer=394371638
+PTimer=402979976
 [Collapse]
-1=18057472,1073758497,558975314,1350871560,,512,,536870922,4096
+1=18022656,1082147105,558975314,8694280,,512,,536870922,
 3=
 2=
 4=
 5=
 [Size]
-1=0,0,0,0,79828
+1=0,0,0,0,10764
 3=0,0,0,0,117
-2=0,0,0,0,4149
+2=0,0,0,0,10345
 4=0,0,0,0,455
 5=0,0,0,0,366
 [GroupExpand]
@@ -118,13 +118,13 @@ GroupExpand=1,1,0
 [BreakPoint]
 0=
 [Find]
-1="BAMTotalCycles"
-2="BAMCalcDwordAligned"
-3="dwOpenMode == 1"
-4="IdwOpenMode == IEBAM_MODE_WRITE"
-5="dwOpenMode == 0"
-6="FILE_SHARE_READ+FILE_SHARE_WRITE"
-7="GENERIC_READ+GENERIC_WRITE"
-8="GMEM_FIXED+GMEM_ZEROINIT"
-9="PUBLIC "
-10="FrameLookupSize"
+1="BITMAPINFOHEADER"
+2="BAMTotalCycles"
+3="BAMCalcDwordAligned"
+4="dwOpenMode == 1"
+5="IdwOpenMode == IEBAM_MODE_WRITE"
+6="dwOpenMode == 0"
+7="FILE_SHARE_READ+FILE_SHARE_WRITE"
+8="GENERIC_READ+GENERIC_WRITE"
+9="GMEM_FIXED+GMEM_ZEROINIT"
+10="PUBLIC "

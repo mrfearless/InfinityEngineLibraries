@@ -149,7 +149,7 @@ IERIMOpen PROC USES EBX lpszRimFilename:DWORD, dwOpenMode:DWORD
         Invoke CreateFile, lpszRimFilename, GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
     .ENDIF
     .IF eax == INVALID_HANDLE_VALUE
-        mov eax, FALSE
+        mov eax, NULL
         ret
     .ENDIF
     mov hRIMFile, eax
@@ -166,7 +166,8 @@ IERIMOpen PROC USES EBX lpszRimFilename:DWORD, dwOpenMode:DWORD
         Invoke CreateFileMapping, hRIMFile, NULL, PAGE_READWRITE, 0, 0, NULL ; Create memory mapped file
     .ENDIF   
     .IF eax == NULL
-        mov eax, FALSE
+        Invoke CloseHandle, hRIMFile  
+        mov eax, NULL
         ret
     .ENDIF
     mov RIMMemMapHandle, eax
@@ -177,7 +178,9 @@ IERIMOpen PROC USES EBX lpszRimFilename:DWORD, dwOpenMode:DWORD
         Invoke MapViewOfFileEx, RIMMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0, NULL
     .ENDIF
     .IF eax == NULL
-        mov eax, FALSE
+        Invoke CloseHandle, RIMMemMapHandle
+        Invoke CloseHandle, hRIMFile    
+        mov eax, NULL
         ret
     .ENDIF
     mov RIMMemMapPtr, eax

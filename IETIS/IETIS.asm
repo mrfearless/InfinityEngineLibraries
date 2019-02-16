@@ -161,7 +161,7 @@ IETISOpen PROC USES EBX lpszTisFilename:DWORD, dwOpenMode:DWORD
     .ENDIF
 
     .IF eax == INVALID_HANDLE_VALUE
-        mov eax, FALSE
+        mov eax, NULL
         ret
     .ENDIF
     mov hTISFile, eax
@@ -178,7 +178,8 @@ IETISOpen PROC USES EBX lpszTisFilename:DWORD, dwOpenMode:DWORD
         Invoke CreateFileMapping, hTISFile, NULL, PAGE_READWRITE, 0, 0, NULL ; Create memory mapped file
     .ENDIF   
     .IF eax == NULL
-        mov eax, FALSE
+        Invoke CloseHandle, hTISFile
+        mov eax, NULL
         ret
     .ENDIF
     mov TISMemMapHandle, eax
@@ -189,7 +190,9 @@ IETISOpen PROC USES EBX lpszTisFilename:DWORD, dwOpenMode:DWORD
         Invoke MapViewOfFileEx, TISMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0, NULL
     .ENDIF
     .IF eax == NULL
-        mov eax, FALSE
+        Invoke CloseHandle, TISMemMapHandle
+        Invoke CloseHandle, hTISFile
+        mov eax, NULL
         ret
     .ENDIF
     mov TISMemMapPtr, eax

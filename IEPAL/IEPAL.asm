@@ -182,7 +182,7 @@ IEPALOpen PROC PUBLIC USES EBX lpszPalFilename:DWORD, dwOpenMode:DWORD
     .ENDIF
     ;PrintDec eax
     .IF eax == INVALID_HANDLE_VALUE
-        mov eax, FALSE
+        mov eax, NULL
         ret
     .ENDIF
     
@@ -200,8 +200,8 @@ IEPALOpen PROC PUBLIC USES EBX lpszPalFilename:DWORD, dwOpenMode:DWORD
         Invoke CreateFileMapping, hPALFile, NULL, PAGE_READWRITE, 0, 0, NULL ; Create memory mapped file
     .ENDIF   
     .IF eax == NULL
-        ;PrintText 'Mapping Failed'
-        mov eax, FALSE
+        Invoke CloseHandle, hPALFile
+        mov eax, NULL
         ret
     .ENDIF
     mov PALMemMapHandle, eax
@@ -212,8 +212,9 @@ IEPALOpen PROC PUBLIC USES EBX lpszPalFilename:DWORD, dwOpenMode:DWORD
         Invoke MapViewOfFileEx, PALMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0, NULL
     .ENDIF
     .IF eax == NULL
-        ;PrintText 'Mapping View Failed'
-        mov eax, FALSE
+        Invoke CloseHandle, PALMemMapHandle
+        Invoke CloseHandle, hPALFile
+        mov eax, NULL
         ret
     .ENDIF
     mov PALMemMapPtr, eax

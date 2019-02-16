@@ -228,7 +228,7 @@ IEMOSOpen PROC USES EBX lpszMosFilename:DWORD, dwOpenMode:DWORD
     .ENDIF
  
     .IF eax == INVALID_HANDLE_VALUE
-        mov eax, FALSE
+        mov eax, NULL
         ret
     .ENDIF
     mov hMOSFile, eax
@@ -245,7 +245,8 @@ IEMOSOpen PROC USES EBX lpszMosFilename:DWORD, dwOpenMode:DWORD
         Invoke CreateFileMapping, hMOSFile, NULL, PAGE_READWRITE, 0, 0, NULL ; Create memory mapped file
     .ENDIF   
     .IF eax == NULL
-        mov eax, FALSE
+        Invoke CloseHandle, hMOSFile      
+        mov eax, NULL
         ret
     .ENDIF
     mov MOSMemMapHandle, eax
@@ -256,7 +257,9 @@ IEMOSOpen PROC USES EBX lpszMosFilename:DWORD, dwOpenMode:DWORD
         Invoke MapViewOfFileEx, MOSMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0, NULL
     .ENDIF
     .IF eax == NULL
-        mov eax, FALSE
+        Invoke CloseHandle, MOSMemMapHandle
+        Invoke CloseHandle, hMOSFile    
+        mov eax, NULL
         ret
     .ENDIF
     mov MOSMemMapPtr, eax
@@ -1810,7 +1813,7 @@ IEMOS_ALIGN
 ; Checks the MOS signatures to determine if they are valid and if MOS file is 
 ; compressed
 ;******************************************************************************
-MOSSignature PROC pMOS:DWORD
+MOSSignature PROC USES EBX pMOS:DWORD
     ; check signatures to determine version
     mov ebx, pMOS
     mov eax, [ebx]
@@ -1948,7 +1951,7 @@ MOSGetTileDataWidth PROC USES EBX ECX EDX nTile:DWORD, dwBlockColumns:DWORD, dwB
     mov COLSmod, eax
     
     mov eax, dwBlockColumns
-    and eax, 1 ; ( a AND (b-1) )
+    and eax, 1 ; ( a AND (b-1) = mod )
     .IF eax == 0 ; is divisable by 2?
         mov eax, nTile
         and eax, COLSmod ; then use (a AND (b-1)) instead of div to get modulus

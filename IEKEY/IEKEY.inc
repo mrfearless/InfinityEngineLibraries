@@ -101,7 +101,7 @@ ENDIF
 
 IFNDEF KEY_HEADER_V1
 KEY_HEADER_V1           STRUCT
-    Signature           DD 0 ; 0x0000   4 (bytes)       Signature ('BAM ')
+    Signature           DD 0 ; 0x0000   4 (bytes)       Signature ('KEY ')
     Version             DD 0 ; 0x0004   4 (bytes)       Version ('V1 ')
     BifEntriesCount     DD 0 ; 0x0008   4 (dword)       Count of BIF entries
     ResEntriesCount     DD 0 ; 0x000c   4 (dword)       Count of resource entries

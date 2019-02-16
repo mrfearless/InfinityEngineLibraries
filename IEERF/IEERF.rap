@@ -59,10 +59,10 @@ Group=Assembly,Misc
 [AutoLoad]
 AutoLoad=2,3,1,4,5
 [Size]
-5=0,0,0,0,644
-1=0,0,0,0,20619
+5=0,0,0,0,366
+1=0,0,0,0,6227
 2=0,0,0,0,5040
-4=0,0,0,0,455
+4=0,0,0,0,361
 3=0,0,0,0,360
 [Find]
 1="rim"
@@ -110,9 +110,9 @@ ProductVer2Range=0
 ProductVer3Range=0
 ProductVer4Range=0
 [PTimer]
-PTimer=11785610
+PTimer=17003064
 [Collapse]
-1=693403936,37759113,131200
+1=693403936,33564801,128
 2=
 5=
 3=

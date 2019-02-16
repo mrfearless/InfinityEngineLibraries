@@ -167,7 +167,7 @@ IEERFOpen PROC USES EBX lpszErfFilename:DWORD, dwOpenMode:DWORD
     .ENDIF
 
     .IF eax == INVALID_HANDLE_VALUE
-        mov eax, FALSE
+        mov eax, NULL
         ret
     .ENDIF
     mov hERFFile, eax
@@ -184,7 +184,8 @@ IEERFOpen PROC USES EBX lpszErfFilename:DWORD, dwOpenMode:DWORD
         Invoke CreateFileMapping, hERFFile, NULL, PAGE_READWRITE, 0, 0, NULL ; Create memory mapped file
     .ENDIF   
     .IF eax == NULL
-        mov eax, FALSE
+        Invoke CloseHandle, hERFFile 
+        mov eax, NULL
         ret
     .ENDIF
     mov ERFMemMapHandle, eax
@@ -195,7 +196,9 @@ IEERFOpen PROC USES EBX lpszErfFilename:DWORD, dwOpenMode:DWORD
         Invoke MapViewOfFileEx, ERFMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0, NULL
     .ENDIF
     .IF eax == NULL
-        mov eax, FALSE
+        Invoke CloseHandle, ERFMemMapHandle
+        Invoke CloseHandle, hERFFile    
+        mov eax, NULL
         ret
     .ENDIF
     mov ERFMemMapPtr, eax

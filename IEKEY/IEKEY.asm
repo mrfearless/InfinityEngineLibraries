@@ -222,7 +222,7 @@ IEKEYOpen PROC PUBLIC USES EBX lpszKeyFilename:DWORD, dwOpenMode:DWORD ; 0 = wri
         Invoke CreateFile, lpszKeyFilename, GENERIC_READ+GENERIC_WRITE, FILE_SHARE_READ+FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL
     .ENDIF
     .IF eax == INVALID_HANDLE_VALUE
-        mov eax, FALSE
+        mov eax, NULL
         ret
     .ENDIF
     
@@ -248,8 +248,8 @@ IEKEYOpen PROC PUBLIC USES EBX lpszKeyFilename:DWORD, dwOpenMode:DWORD ; 0 = wri
         Invoke CreateFileMapping, hKEYFile, NULL, PAGE_READWRITE, 0, 0, NULL ; Create memory mapped file
     .ENDIF 
     .IF eax == NULL
-        ;PrintText 'Mapping Failed'
-        mov eax, FALSE
+        Invoke CloseHandle, hKEYFile
+        mov eax, NULL
         ret
     .ENDIF
     mov KEYMemMapHandle, eax
@@ -260,8 +260,9 @@ IEKEYOpen PROC PUBLIC USES EBX lpszKeyFilename:DWORD, dwOpenMode:DWORD ; 0 = wri
         Invoke MapViewOfFileEx, KEYMemMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, 0, NULL
     .ENDIF
     .IF eax == NULL
-        ;PrintText 'Mapping View Failed'
-        mov eax, FALSE
+        Invoke CloseHandle, KEYMemMapHandle
+        Invoke CloseHandle, hKEYFile
+        mov eax, NULL
         ret
     .ENDIF
     mov KEYMemMapPtr, eax       
