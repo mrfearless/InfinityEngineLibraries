@@ -16,4 +16,4 @@ The Infinity Engine file formats are also found in a number of other games, whic
 - IERES - Resource file types
 - IERIM - Archive container files
 - IETIS - Graphical tilesets files
-
+- IETLK - Game strings for dialogs, talking, items etc
