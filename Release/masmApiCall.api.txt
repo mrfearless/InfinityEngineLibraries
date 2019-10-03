@@ -171,4 +171,32 @@ IERIMVersion,hIERIM
 IERIMExtractFile,hIERIM,nFileEntry,lpszOutputFilename
 ;
 ; IETIS
-
+IETISOpen,lpszTisFilename,dwOpenMode
+IETISMem,pTISInMemory,lpszTisFilename,dwTisFilesize,dwOpenMode
+IETISClose,hIETIS
+IETISHeader,hIETIS
+IETISTileDataEntries,hIETIS
+IETISTileDataEntry,hIETIS,nTile
+IETISTotalTiles,hIETIS
+IETISTileDimension,hIETIS
+IETISTilePixelData,hIETIS,nTile
+IETISTilePalette,hIETIS,nTile
+IETISTilePaletteValue,hIETIS,nTile,PaletteIndex
+IETISFileName,hIETIS
+IETISFileNameOnly,hIETIS,lpszFileNameOnly
+IETISFileSize,hIETIS
+IETISVersion,hIETIS
+;
+; IETLK
+IETLKOpen,lpszTlkFilename,dwOpenMode
+IETLKMem,pTLKInMemory,lpszTlkFilename,dwTlkFilesize,dwOpenMode
+IETLKClose,hIETLK
+IETLKHeader,hIETLK
+IETLKStringDataOffset,hIETLK
+IETLKStrRefEntries,hIETLK
+IETLKStrRefEntry,hIETLK,nStrRef
+IETLKTotalStrRefs,hIETLK
+IETLKFileName,hIETLK
+IETLKFileNameOnly,hIETLK,lpszFileNameOnly
+IETLKFileSize,hIETLK
+IETLKVersion,hIETLK

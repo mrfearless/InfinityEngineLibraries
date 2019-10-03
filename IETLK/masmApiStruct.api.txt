@@ -1,0 +1,8 @@
+;------------------------------------------------------------------------------------------------
+; IETLK x86 Library
+;
+; Paste this text at the end of \Radasm\masm\masmApiStruct.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+TLKV1_HEADER,Signature,Version,LangID,NoStrRefEntries,StringDataOffset
+TLKV1_ENTRY,StrRefType,StrRefSound,StrRefVolume,StrRefPitch,StrRefStringOffset,StrRefStringLength

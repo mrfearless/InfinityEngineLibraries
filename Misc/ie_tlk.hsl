@@ -1,0 +1,103 @@
+/*****************************************************************************
+* ie_tlk.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .tlk file format 
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 
+*                         
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine TLK V1 File Format") ;
+#pragma fileextensions(".tlk;") ;
+#pragma byteorder(little_endian);
+#pragma maxarray(65536)
+#pragma hide()
+/*****************************************************************************
+* TLKV1_ENTRY Data Type Definition
+*****************************************************************************/
+typedef struct tagTLKV1_ENTRY
+{
+	WORD StrRefType;
+	char StrRefSound[8];
+	DWORD StrRefVolume;
+	DWORD StrRefPitch;
+	DWORD StrRefStringOffset;
+	DWORD StrRefStringLength;
+
+} TLKV1_ENTRY ;
+
+
+/*****************************************************************************
+* TLKV1_HEADER
+*****************************************************************************/
+typedef struct tagTLKV1_HEADER {
+    CHAR Signature[4];
+    // TLK
+    #pragma verify match_var_int("Signature[0]", "0x54")
+    #pragma verify match_var_int("Signature[1]", "0x4C")
+    #pragma verify match_var_int("Signature[2]", "0x4B")
+    #pragma verify match_var_int("Signature[3]", "0x20")
+    
+    CHAR Version[4];
+    // V1
+    #pragma verify match_var_int("Version[0]", "0x56")
+    #pragma verify match_var_int("Version[1]", "0x31")
+    #pragma verify match_var_int("Version[2]", "0x20")
+    #pragma verify match_var_int("Version[3]", "0x20")
+
+    WORD LangID;
+    DWORD NoStrRefEntries;
+    DWORD StringDataOffset;
+
+} TLKV1_HEADER; 
+
+#pragma show()
+/*****************************************************************************
+* TLKV1
+*****************************************************************************/
+struct TLKV1
+{
+    #pragma lockAt(0)
+    TLKV1_HEADER TLKV1_Header ;
+    
+    TLKV1_ENTRY StRefEntries[TLKV1_Header.NoStrRefEntries];
+	
+	struct StringData {
+		blob Strings[TLKV1_Header.StringDataOffset - ( __getSizeOf(StRefEntries) + TLKV1_Header.StringDataOffset)];
+	};
+	
+    //blob Strings[TLKV1_Header.StringDataOffset - ( __getSizeOf(StRefEntries) + __getSizeOf(TLKV1_Header) )];
+    //
+    //if (TLKV1_HEADER.StringDataOffset > 24)
+    //{
+    //    struct StringData {
+    //        blob Strings[TLKV1_Header.StringDataOffset - ( __getSizeOf(StRefEntries) + TLKV1_Header.StringDataOffset)];
+    //    };
+    //};
+    //if (TLKV1_Header.StringDataOffset == 24)
+    //{
+    //    struct StringData {
+    //        blob Strings[TLKV1_Header.ResEntriesOffset - ( __getSizeOf(StRefEntries) + __getSizeOf(TLKV1_Header) )];
+    //    };
+    //};
+
+ 
+} ;
+
+/*****************************************************************************
+* TLKV1 AutoParse Function
+*****************************************************************************/
+/*function AutoParse_TLKV1
+{
+    UQWord pos = 0 ;
+    UQWord end = __getDocSize() ;
+    __setCaretPos(0);
+    pos += __addStructureAt(pos, "TLKV1", "") ;
+}*/

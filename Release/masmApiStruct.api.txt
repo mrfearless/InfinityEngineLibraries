@@ -64,5 +64,12 @@ RIM_FILE_ENTRY,ResourceName,ResourceType,ResourceIndex,ResourceOffset,ResourceSi
 ;
 ; IETIS
 TISV1_HEADER,Signature,Version,TilesCount,TilesSectionLength,OffsetTilesData,TileDimension
+TISV1_TILEDATA,TilePalette,TilePixelData
+TISV1_TILEDATA_PVRZ,PVRZPage,XCoord,YCoord
+;
+; IETLK
+TLKV1_HEADER,Signature,Version,LangID,NoStrRefEntries,StringDataOffset
+TLKV1_ENTRY,StrRefType,StrRefSound,StrRefVolume,StrRefPitch,StrRefStringOffset,StrRefStringLength
+
 
 

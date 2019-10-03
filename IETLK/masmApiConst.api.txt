@@ -1,0 +1,8 @@
+;------------------------------------------------------------------------------------------------
+; IETLK x86 Library
+;
+; Paste this text at the end of \Radasm\masm\masmApiConst.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+2IETLKOpen,IETLK_MODE_WRITE,IETLK_MODE_READONLY
+4IETLKMem,IETLK_MODE_WRITE,IETLK_MODE_READONLY

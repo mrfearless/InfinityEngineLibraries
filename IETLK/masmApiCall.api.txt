@@ -1,0 +1,18 @@
+;------------------------------------------------------------------------------------------------
+; IETLK x86 Library
+;
+; Paste this text at the end of \Radasm\masm\masmApiCall.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+IETLKOpen,lpszTlkFilename,dwOpenMode
+IETLKMem,pTLKInMemory,lpszTlkFilename,dwTlkFilesize,dwOpenMode
+IETLKClose,hIETLK
+IETLKHeader,hIETLK
+IETLKStringDataOffset,hIETLK
+IETLKStrRefEntries,hIETLK
+IETLKStrRefEntry,hIETLK,nStrRef
+IETLKTotalStrRefs,hIETLK
+IETLKFileName,hIETLK
+IETLKFileNameOnly,hIETLK,lpszFileNameOnly
+IETLKFileSize,hIETLK
+IETLKVersion,hIETLK
