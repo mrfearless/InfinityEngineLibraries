@@ -2,11 +2,7 @@
 ;
 ; IEMOS
 ;
-; Copyright (c) 2018 by fearless
-;
-; All Rights Reserved
-;
-; http://www.LetTheLight.in
+; Copyright (c) 2019 by fearless
 ;
 ; http://github.com/mrfearless/InfinityEngineLibraries
 ;
@@ -60,8 +56,10 @@ IEMOSTotalTiles             PROTO :DWORD                    ; hIEMOS. Returns in
 IEMOSTotalPalettes          PROTO :DWORD                    ; hIEMOS. Returns in eax total palettes in MOS (same as total tiles)
 IEMOSTotalBlockEntries      PROTO :DWORD                    ; hIEMOS. Returns in eax total no of Datablock entries. For MOS V2 Only
 IEMOSImageDimensions        PROTO :DWORD,:DWORD,:DWORD      ; hIEMOS, lpdwImageWidth, lpdwImageHeight
+IEMOSColumnsRows            PROTO :DWORD,:DWORD,:DWORD      ; hIEMOS, lpdwColumns, lpdwRows
+IEMOSPixelBlockSize         PROTO :DWORD                    ; hIEMOS
 IEMOSBitmap                 PROTO :DWORD                    ; hIEMOS. Returns in eax HBITMAP (of all combined tiles to create the whole bitmap) or NULL.
-MOSTileDataBitmap       PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
+
 ; MOS Tile Data Information:
 IEMOSTileBitmap             PROTO :DWORD,:DWORD,:DWORD,:DWORD,:DWORD,:DWORD ; hIEMOS, nTile, lpdwTileWidth, lpdwTileHeight, lpdwTileXCoord, lpdwTileYCoord. Returns in eax HBITMAP or NULL
 IEMOSTileWidth              PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in tile width
