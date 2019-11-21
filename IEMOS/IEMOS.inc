@@ -77,6 +77,8 @@ IEMOSFileSize               PROTO :DWORD                    ; hIEMOS. Returns in
 IEMOSFileCompression        PROTO :DWORD                    ; hIEMOS. Returns in eax -1 = No Mos file, TRUE for MOSCV1, FALSE for MOS V1 or MOS V2 
 IEMOSVersion                PROTO :DWORD                    ; hIEMOS. Returns in eax 0 no mos, 1 = MOS V1, 2 = MOS V2, 3 = MOSC 
 
+IEMOSUncompressMOS          PROTO :DWORD, :DWORD            ; lpszMosInputFilename to uncompress, lpszMosOutputFilename (optional) to write out uncompressed mos as (null=same filename as lpszMosInputFilename)
+
 ;-----------------------------------------------------------------------------------------
 ; IEMOS Structures
 ;-----------------------------------------------------------------------------------------
@@ -158,7 +160,20 @@ MOS_VERSION_MOS_V10         EQU 1 ; MOS_V1.0
 MOS_VERSION_MOS_V20         EQU 2 ; MOS_V2.0
 MOS_VERSION_MOSCV10         EQU 3 ; MOSCV1.0 (Compressed Blocks)
 
-
+; IEMOSUncompressMOS return values
+MU_SUCCESS                  EQU 0
+MU_MOS_INVALID              EQU -1
+MU_MOS_ALREADY_UNCOMPRESSED EQU -2
+MU_MOS_FORMAT_UNSUPPORTED   EQU -3
+MU_MOS_TOO_LARGE            EQU -4
+MU_MOS_OUTPUTFILE_CREATION  EQU -5
+MU_MOS_OUTPUTFILE_MAPPING   EQU -6
+MU_MOS_OUTPUTFILE_VIEW      EQU -7
+MU_MOS_INPUTFILE_OPEN       EQU -8
+MU_MOS_INPUTFILE_MAPPING    EQU -9
+MU_MOS_INPUTFILE_VIEW       EQU -10
+MU_MOS_INPUTFILE_ZEROSIZE   EQU -11
+MU_MOS_UNCOMPRESS_ERROR     EQU -12
 
 
 

@@ -71,9 +71,10 @@ include IEMOS.inc
 ;-------------------------------------------------------------------------
 ; Internal functions:
 ;-------------------------------------------------------------------------
-MOSSignature            PROTO :DWORD
-MOSUncompress           PROTO :DWORD, :DWORD, :DWORD
-MOSJustFname            PROTO :DWORD, :DWORD
+EXTERNDEF MOSSignature      :PROTO :DWORD
+EXTERNDEF MOSJustFname      :PROTO :DWORD, :DWORD
+EXTERNDEF MOSUncompress     :PROTO :DWORD, :DWORD, :DWORD
+
 
 MOSV1Mem                PROTO :DWORD, :DWORD, :DWORD, :DWORD
 MOSV2Mem                PROTO :DWORD, :DWORD, :DWORD, :DWORD
@@ -230,7 +231,7 @@ IEMOSOpen PROC USES EBX lpszMosFilename:DWORD, dwOpenMode:DWORD
 
     Invoke GetFileSize, hMOSFile, NULL
     mov MOSFilesize, eax
-
+    
     ;---------------------------------------------------                
     ; File Mapping: Create file mapping for main .mos
     ;---------------------------------------------------
@@ -258,7 +259,7 @@ IEMOSOpen PROC USES EBX lpszMosFilename:DWORD, dwOpenMode:DWORD
         ret
     .ENDIF
     mov MOSMemMapPtr, eax
-
+    
     Invoke MOSSignature, MOSMemMapPtr
     mov SigReturn, eax
     .IF SigReturn == MOS_VERSION_INVALID ; not a valid mos file
@@ -402,31 +403,10 @@ IEMOSClose PROC USES EAX EBX hIEMOS:DWORD
     mov eax, [ebx].MOSINFO.MOSTotalTiles
     mov TotalTiles, eax
     
-    .IF TotalTiles > 0
+    .IF TotalTiles > 0 && TileDataPtr != 0
         mov nTile, 0
         mov eax, 0
         .WHILE eax < TotalTiles
-            mov ebx, ptrCurrentTileData
-            .IF dwOpenMode == IEMOS_MODE_WRITE ; Write Mode
-                mov eax, [ebx].TILEDATA.TileRAW
-                .IF eax != NULL
-                    Invoke GlobalFree, eax
-                .ENDIF
-            .ENDIF
-            
-            mov ebx, ptrCurrentTileData
-            mov eax, [ebx].TILEDATA.TileSizeRAW
-            mov TileSizeRAW, eax
-            
-            ; Clear memory of TileBMP if we had to convert TileRAW to a DWORD aligned TileBMP
-            ; File size will be greater in TileBMP if this is so.
-            mov eax, [ebx].TILEDATA.TileSizeBMP
-            .IF eax > TileSizeRAW            
-                mov eax, [ebx].TILEDATA.TileBMP
-                .IF eax != NULL
-                    Invoke GlobalFree, eax
-                .ENDIF
-            .ENDIF
             
             ; Delete Bitmap Handle
             mov ebx, ptrCurrentTileData
@@ -435,6 +415,20 @@ IEMOSClose PROC USES EAX EBX hIEMOS:DWORD
                 Invoke DeleteObject, eax
             .ENDIF
             
+            .IF dwOpenMode == IEMOS_MODE_WRITE
+                mov ebx, ptrCurrentTileData
+                mov eax, [ebx].TILEDATA.TileRAW
+                .IF eax != NULL
+                    Invoke GlobalFree, eax
+                .ENDIF
+            .ENDIF
+
+            mov ebx, ptrCurrentTileData            
+            mov eax, [ebx].TILEDATA.TileBMP
+            .IF eax != NULL
+                Invoke GlobalFree, eax
+            .ENDIF
+
             add ptrCurrentTileData, SIZEOF TILEDATA
             inc nTile
             mov eax, nTile
@@ -1635,7 +1629,8 @@ IEMOSBitmap PROC hIEMOS:DWORD
         ret
     .ENDIF
     
-    Invoke CreateDC, Addr szMOSDisplayDC, NULL, NULL, NULL
+    ;Invoke CreateDC, Addr szMOSDisplayDC, NULL, NULL, NULL
+    Invoke GetDC, 0
     mov hdc, eax
 
     Invoke CreateCompatibleDC, hdc
@@ -1686,7 +1681,8 @@ IEMOSBitmap PROC hIEMOS:DWORD
     Invoke RestoreDC, hdcTile, SavedDCTile
     Invoke DeleteDC, hdcTile
     Invoke DeleteDC, hdcMem
-    Invoke DeleteDC, hdc
+    ;Invoke DeleteDC, hdc
+    Invoke ReleaseDC, 0, hdc
     
     mov eax, hBitmap
     ret
@@ -1893,134 +1889,6 @@ IEMOSVersion ENDP
 
 IEMOS_ALIGN
 ;******************************************************************************
-; Checks the MOS signatures to determine if they are valid and if MOS file is 
-; compressed
-;******************************************************************************
-MOSSignature PROC USES EBX pMOS:DWORD
-    ; check signatures to determine version
-    mov ebx, pMOS
-    mov eax, [ebx]
-    .IF eax == ' SOM' ; MOS
-        add ebx, 4
-        mov eax, [ebx]
-        .IF eax == '  1V' ; V1.0
-            mov eax, MOS_VERSION_MOS_V10
-        .ELSEIF eax == '  2V' ; V2.0
-            mov eax, MOS_VERSION_MOS_V20
-        .ELSE
-            mov eax, MOS_VERSION_INVALID
-        .ENDIF
-
-    .ELSEIF eax == 'CSOM' ; MOSC
-        add ebx, 4
-        mov eax, [ebx]
-        .IF eax == '  1V' ; V1.0
-            mov eax, MOS_VERSION_MOSCV10
-        .ELSE
-            mov eax, MOS_VERSION_INVALID
-        .ENDIF            
-    .ELSE
-        mov eax, MOS_VERSION_INVALID
-    .ENDIF
-    ret
-MOSSignature endp
-
-
-IEMOS_ALIGN
-;******************************************************************************
-; Uncompresses MOSC file to an area of memory that we allocate for the exact 
-; size of data
-;******************************************************************************
-MOSUncompress PROC USES EBX hMOSFile:DWORD, pMOS:DWORD, dwSize:DWORD
-    LOCAL dest:DWORD
-    LOCAL src:DWORD
-    LOCAL MOSU_Size:DWORD
-    LOCAL BytesRead:DWORD
-    LOCAL MOSFilesize:DWORD
-    LOCAL MOSC_UncompressedSize:DWORD
-    LOCAL MOSC_CompressedSize:DWORD
-    
-    Invoke GetFileSize, hMOSFile, NULL
-    mov MOSFilesize, eax
-    mov ebx, pMOS
-    mov eax, [ebx].MOSC_HEADER.UncompressedLength
-    mov MOSC_UncompressedSize, eax
-    mov eax, MOSFilesize
-    sub eax, 0Ch ; take away the MOSC header 12 bytes = 0xC
-    mov MOSC_CompressedSize, eax ; set correct compressed size = length of file minus MOSC header length
-
-    Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, MOSC_UncompressedSize
-    .IF eax != NULL
-        mov dest, eax
-        mov eax, pMOS ;MOSMemMapPtr
-        add eax, 0Ch ; add MOSC Header to Memory map to start at correct offset for uncompressing
-        mov src, eax
-        Invoke uncompress, dest, Addr MOSC_UncompressedSize, src, MOSC_CompressedSize
-        .IF eax == Z_OK ; ok
-            mov eax, MOSC_UncompressedSize
-            mov ebx, dwSize
-            mov [ebx], eax
-        
-            mov eax, dest
-            ret
-        .ENDIF
-    .ENDIF                  
-    mov eax, 0        
-    ret
-MOSUncompress endp
-
-
-IEMOS_ALIGN
-;******************************************************************************
-; Strip path name to just filename Without extention
-;******************************************************************************
-MOSJustFname PROC szFilePathName:DWORD, szFileName:DWORD
-    LOCAL LenFilePathName:DWORD
-    LOCAL nPosition:DWORD
-    
-    Invoke szLen, szFilePathName
-    mov LenFilePathName, eax
-    mov nPosition, eax
-    
-    .IF LenFilePathName == 0
-        mov byte ptr [edi], 0
-        ret
-    .ENDIF
-    
-    mov esi, szFilePathName
-    add esi, eax
-    
-    mov eax, nPosition
-    .WHILE eax != 0
-        movzx eax, byte ptr [esi]
-        .IF al == '\' || al == ':' || al == '/'
-            inc esi
-            .BREAK
-        .ENDIF
-        dec esi
-        dec nPosition
-        mov eax, nPosition
-    .ENDW
-    mov edi, szFileName
-    mov eax, nPosition
-    .WHILE eax != LenFilePathName
-        movzx eax, byte ptr [esi]
-        .IF al == '.' ; stop here
-            .BREAK
-        .ENDIF
-        mov byte ptr [edi], al
-        inc edi
-        inc esi
-        inc nPosition
-        mov eax, nPosition
-    .ENDW
-    mov byte ptr [edi], 0h
-    ret
-MOSJustFname ENDP
-
-
-IEMOS_ALIGN
-;******************************************************************************
 ; Returns in eax width of data block as blocksize if column < columns -1
 ; (column = nTile % columns)
 ; 
@@ -2205,8 +2073,8 @@ MOSTileDataBitmap PROC USES EBX dwTileWidth:DWORD, dwTileHeight:DWORD, pTileBMP:
     lea ebx, [eax].BITMAPINFO.bmiColors
     Invoke RtlMoveMemory, ebx, pTilePalette, 1024d
     
-    Invoke CreateDC, Addr szMOSDisplayDC, NULL, NULL, NULL
-    ;Invoke GetDC, NULL
+    ;Invoke CreateDC, Addr szMOSDisplayDC, NULL, NULL, NULL
+    Invoke GetDC, 0
     mov hdc, eax
     Invoke CreateDIBitmap, hdc, Addr MOSTileBitmap, CBM_INIT, pTileBMP, Addr MOSTileBitmap, DIB_RGB_COLORS
     .IF eax == NULL
@@ -2215,8 +2083,8 @@ MOSTileDataBitmap PROC USES EBX dwTileWidth:DWORD, dwTileHeight:DWORD, pTileBMP:
         ENDIF
     .ENDIF
     mov TileBitmapHandle, eax
-    Invoke DeleteDC, hdc
-    ;Invoke ReleaseDC, NULL, hdc
+    ;Invoke DeleteDC, hdc
+    Invoke ReleaseDC, 0, hdc
     mov eax, TileBitmapHandle
     ret
 MOSTileDataBitmap ENDP
@@ -2307,6 +2175,7 @@ MOSBitmapToTiles PROC USES EBX hBitmap:DWORD, lpdwTileDataArray:DWORD, lpdwPalet
     ret
 
 MOSBitmapToTiles ENDP
+
 
 
 
