@@ -4,6 +4,8 @@
 .model flat,stdcall
 option casemap:none
 
+include windows.inc
+
 include IEBAM.inc
 
 BAMSignature      PROTO pBAM:DWORD
@@ -45,4 +47,4 @@ BAMSignature PROC pBAM:DWORD
 BAMSignature endp
 
 
-END
+IEBAM_LIBEND

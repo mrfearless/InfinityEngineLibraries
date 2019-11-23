@@ -12,6 +12,7 @@ The Infinity Engine file formats are also found in a number of other games, whic
 - IEBIF - Archive container files
 - IEERF - Archive container files
 - IEKEY - Index of resources in archive containers files
+- IEMOS - Mosaic image files
 - IEPAL - Palettes in BAM files
 - IERES - Resource file types
 - IERIM - Archive container files

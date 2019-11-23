@@ -199,9 +199,46 @@ FRAMEDATA               STRUCT
 FRAMEDATA               ENDS
 ENDIF
 
+IFNDEF BAMINFO
+BAMINFO                     STRUCT
+    BAMOpenMode             DD 0
+    BAMFilename             DB MAX_PATH DUP (0)
+    BAMFilesize             DD 0
+    BAMVersion              DD 0
+    BAMCompressed           DD 0
+    BAMHeaderPtr            DD 0
+    BAMHeaderSize           DD 0
+    BAMTotalFrames          DD 0
+    BAMTotalCycles          DD 0
+    BAMTotalBlocks          DD 0 ; for BAM V2
+    BAMFrameEntriesPtr      DD 0
+    BAMFrameEntriesSize     DD 0
+    BAMCycleEntriesPtr      DD 0
+    BAMCycleEntriesSize     DD 0
+    BAMBlockEntriesPtr      DD 0 ; for BAM V2
+    BAMBlockEntriesSize     DD 0 ; for BAM V2
+    BAMPalettePtr           DD 0 ; no interal palette for BAM V2
+    BAMPaletteSize          DD 1024d
+    BAMFrameLookupPtr       DD 0
+    BAMFrameLookupSize      DD 0
+    BAMFrameDataEntriesPtr  DD 0 ; custom array of FRAMEDATA
+    BAMFrameDataEntriesSize DD 0
+    BAMMemMapPtr            DD 0
+    BAMMemMapHandle         DD 0
+    BAMFileHandle           DD 0    
+BAMINFO                     ENDS
+ENDIF
+
 
 .CONST
-
+;------------------------------------------
+; Conditional for IEBAM Library DLL compiling
+;------------------------------------------
+IFDEF IEBAM_DLL
+    IEBAM_LIBEND TEXTEQU <>
+ELSE
+    IEBAM_LIBEND TEXTEQU <END>
+ENDIF
 IEBAM_ALIGN                 TEXTEQU <ALIGN 16>
 ; IEBAMOpen open mode:
 IEBAM_MODE_WRITE            EQU 0

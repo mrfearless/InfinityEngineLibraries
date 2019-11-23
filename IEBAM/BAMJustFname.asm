@@ -1,11 +1,25 @@
+;==============================================================================
+;
+; IEBAM Library
+;
+; Copyright (c) 2019 by fearless
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+;==============================================================================
 .686
 .MMX
 .XMM
 .model flat,stdcall
 option casemap:none
 
-include masm32.inc
-includelib masm32.lib
+include windows.inc
+include user32.inc
+include kernel32.inc
+
+includelib user32.lib
+includelib kernel32.lib
+
 include IEBAM.inc
 
 BAMJustFname            PROTO szFilePathName:DWORD, szFileName:DWORD
@@ -15,14 +29,14 @@ BAMJustFname            PROTO szFilePathName:DWORD, szFileName:DWORD
 
 
 IEBAM_ALIGN
-;**************************************************************************
+;------------------------------------------------------------------------------
 ; Strip path name to just filename Without extention
-;**************************************************************************
+;------------------------------------------------------------------------------
 BAMJustFname PROC szFilePathName:DWORD, szFileName:DWORD
     LOCAL LenFilePathName:DWORD
     LOCAL nPosition:DWORD
     
-    Invoke szLen, szFilePathName
+    Invoke lstrlen, szFilePathName
     mov LenFilePathName, eax
     mov nPosition, eax
     
@@ -63,4 +77,4 @@ BAMJustFname PROC szFilePathName:DWORD, szFileName:DWORD
 BAMJustFname ENDP
 
 
-END
+IEBAM_LIBEND
