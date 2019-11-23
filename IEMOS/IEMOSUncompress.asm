@@ -17,15 +17,15 @@ includelib zlibstat128.lib
 
 include IEMOS.inc
 
-MOSUncompress           PROTO :DWORD, :DWORD, :DWORD
+MOSUncompress               PROTO hMOSFile:DWORD, pMOS:DWORD, dwSize:DWORD
 
 
-EXTERNDEF MOSSignature      :PROTO :DWORD
-EXTERNDEF MOSJustFname      :PROTO :DWORD, :DWORD
+EXTERNDEF MOSSignature      :PROTO pMOS:DWORD
+EXTERNDEF MOSJustFname      :PROTO szFilePathName:DWORD, szFileName:DWORD
 
 .DATA
-UncompressTmpExt        DB ".tmp",0
-UncompressMOSExt        DB ".mos",0
+UncompressTmpExt            DB ".tmp",0
+UncompressMOSExt            DB ".mos",0
 
 
 .CODE

@@ -2,11 +2,7 @@
 ;
 ; IEBAM
 ;
-; Copyright (c) 2018 by fearless
-;
-; All Rights Reserved
-;
-; http://www.LetTheLight.in
+; Copyright (c) 2019 by fearless
 ;
 ; http://github.com/mrfearless/InfinityEngineLibraries
 ;
@@ -58,26 +54,35 @@ includelib gdi32.lib
 includelib masm32.lib
 includelib zlibstat.lib
 
+DEBUG32 EQU 1
+IFDEF DEBUG32
+    PRESERVEXMMREGS equ 1
+    includelib M:\Masm32\lib\Debug32.lib
+    DBG32LIB equ 1
+    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
+    include M:\Masm32\include\debug32.inc
+ENDIF
+
 include IEBAM.inc
 
+; Internal functions start with BAM
+; External functions start with IEBAM
 
-;DEBUG32 EQU 1
-;IFDEF DEBUG32
-;    PRESERVEXMMREGS equ 1
-;    includelib M:\Masm32\lib\Debug32.lib
-;    DBG32LIB equ 1
-;    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
-;    include M:\Masm32\include\debug32.inc
-;ENDIF
+;------------------------------------------------------------------------------
+; Internal functions:
+;------------------------------------------------------------------------------
+EXTERNDEF BAMSignature      :PROTO pBAM:DWORD
+EXTERNDEF BAMUncompress     :PROTO hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
+EXTERNDEF BAMJustFname      :PROTO szFilePathName:DWORD, szFileName:DWORD
 
+BAMCalcDwordAligned         PROTO dwWidthOrHeight:DWORD
+BAMFrameDataBitmap          PROTO dwFrameWidth:DWORD, dwFrameHeight:DWORD, pFrameBMP:DWORD, dwFrameSizeBMP:DWORD, pFramePalette:DWORD
 
-BAMSignature            PROTO :DWORD
-BAMUncompress           PROTO :DWORD, :DWORD, :DWORD
-BAMJustFname            PROTO :DWORD, :DWORD
-BAMCalcDwordAligned     PROTO :DWORD
+BAMFrameUnRLE               PROTO pFrameRLE:DWORD, pFrameRAW:DWORD, FrameRLESize:DWORD, FrameRAWSize:DWORD, FrameWidth:DWORD
+BAMFrameRAWToFrameBMP       PROTO pFrameRAW:DWORD, pFrameBMP:DWORD, FrameRAWSize:DWORD, FrameBMPSize:DWORD, FrameWidth:DWORD
 
-BAMV1Mem                PROTO :DWORD, :DWORD, :DWORD, :DWORD
-BAMV2Mem                PROTO :DWORD, :DWORD, :DWORD, :DWORD
+BAMV1Mem                    PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
+BAMV2Mem                    PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
 
 
 
@@ -85,7 +90,9 @@ RGBCOLOR macro r:REQ,g:REQ,b:REQ
 exitm <( ( ( ( r )  or  ( ( ( g ) )  shl  8 ) )  or  ( ( ( b ) )  shl  16 ) ) ) >
 ENDM
 
-
+;------------------------------------------------------------------------------
+; BAM Structures
+;------------------------------------------------------------------------------
 IFNDEF BAMV1_HEADER
 BAMV1_HEADER            STRUCT
     Signature           DD 0 ; 0x0000   4 (bytes)       Signature ('BAM ')
@@ -175,11 +182,17 @@ FRAMELOOKUPTABLE        STRUCT
 FRAMELOOKUPTABLE        ENDS
 ENDIF
 
+
+;------------------------------------------------------------------------------
+; Structures for internal use
+;------------------------------------------------------------------------------
 IFNDEF FRAMEDATA
 FRAMEDATA               STRUCT
     FrameCompressed     DD 0 ; Flag for compressed RLE encoding or not
     FrameWidth          DD 0
     FrameHeight         DD 0
+    FrameXcoord         DD 0
+    FrameYcoord         DD 0
     FrameSizeRAW        DD 0 ; total dimension size of FrameRAW = width * height
     FrameSizeRLE        DD 0
     FrameSizeBMP        DD 0
@@ -223,23 +236,21 @@ BAMINFO                     ENDS
 
 
 .DATA
-BAMV1Header             db "BAM V1  ",0
-BAMV2Header             db "BAM V2  ",0
-BAMCHeader              db "BAMCV1  ",0
-BAMXHeader              db 12 dup (0)
-;BAMBMPInfo              BITMAPINFO <{40d, 0, 0, 1, 8, BI_RGB, 0, 0, 0, 0, 0 }, {0}>
-BAMBMPInfo              BITMAPINFOHEADER <40d, 0, 0, 1, 8, BI_RGB, 0, 0, 0, 0, 0> ;Header
-BAMBMPPalette           db 1024 dup (0) ; BITMAPFILEHEADER <'BM', 0, 0, 0, 54d>
-
+BAMV1Header                 DB "BAM V1  ",0
+BAMV2Header                 DB "BAM V2  ",0
+BAMCHeader                  DB "BAMCV1  ",0
+BAMXHeader                  DB 12 dup (0)
+BAMBMPPalette               DB 1024 dup (0) ; BITMAPFILEHEADER <'BM', 0, 0, 0, 54d>
+BAMFrameBitmap              DB (SIZEOF BITMAPINFOHEADER + 1024) dup (0)
 
 
 .CODE
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMOpen - Returns handle in eax of opened bam file. NULL if could not alloc enough mem
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMOpen PROC USES EBX lpszBamFilename:DWORD, dwOpenMode:DWORD
     LOCAL hIEBAM:DWORD
     LOCAL hBAMFile:DWORD
@@ -382,10 +393,10 @@ IEBAMOpen ENDP
 
 
 IEBAM_ALIGN
-;----------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMClose - Close BAM File
-;----------------------------------------------------------------------------
-IEBAMClose PROC USES EAX EBX hIEBAM:DWORD
+;------------------------------------------------------------------------------
+IEBAMClose PROC USES EBX hIEBAM:DWORD
     LOCAL FrameDataEntriesPtr:DWORD
     LOCAL FrameDataOffset:DWORD
     LOCAL FrameLookupEntriesPtr:DWORD
@@ -450,14 +461,11 @@ IEBAMClose PROC USES EAX EBX hIEBAM:DWORD
             .IF eax != NULL
                 Invoke GlobalFree, eax
             .ENDIF
-;            mov ebx, FrameDataOffset
-;            mov eax, [ebx].FRAMEDATA.FrameBitmapHandle
-;            .IF eax != NULL
-;                Invoke DeleteObject, eax
-;                IFDEF DEBUGLOG
-;                DebugLogMsg "IEBAMClose::DeleteObject-FrameBitmapHandle::Success", DEBUGLOG_INFO, 3
-;                ENDIF                  
-;            .ENDIF
+            mov ebx, FrameDataOffset
+            mov eax, [ebx].FRAMEDATA.FrameBitmapHandle
+            .IF eax != NULL
+                Invoke DeleteObject, eax
+            .ENDIF
             mov ebx, FrameDataOffset
             mov eax, [ebx].FRAMEDATA.FrameBMP
             .IF eax != NULL
@@ -563,10 +571,10 @@ IEBAMClose ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMMem - Returns handle in eax of opened bam file that is already loaded into memory. NULL if could not alloc enough mem
 ; calls BAMV1Mem or BAMV2Mem depending on version of file found
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMMem PROC pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
     ; check signatures to determine version
     Invoke BAMSignature, pBAMInMemory
@@ -590,10 +598,10 @@ IEBAMMem ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; BAMV1Mem - Returns handle in eax of opened bam file that is already loaded into memory. NULL if could not alloc enough mem
-;-------------------------------------------------------------------------------------
-BAMV1Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
+;------------------------------------------------------------------------------
+BAMV1Mem PROC USES EBX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
     LOCAL hIEBAM:DWORD
     LOCAL BAMMemMapPtr:DWORD
     LOCAL TotalFrameEntries:DWORD
@@ -631,6 +639,8 @@ BAMV1Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamF
     LOCAL FrameDataRLE:DWORD
     LOCAL FrameWidth:DWORD
     LOCAL FrameHeight:DWORD
+    LOCAL FrameXcoord:DWORD
+    LOCAL FrameYcoord:DWORD
     LOCAL FrameWidthDwordAligned:DWORD
     LOCAL FrameInfo:DWORD
     LOCAL FrameSize:DWORD
@@ -828,7 +838,6 @@ BAMV1Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamF
     ;----------------------------------
     ; Palette
     ;----------------------------------      
-  
     .IF dwOpenMode == IEBAM_MODE_WRITE
         Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, 1024d ; alloc space for palette
         .IF eax == NULL
@@ -1038,22 +1047,15 @@ BAMV1Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamF
             mov FrameWidth, eax
             movzx eax, word ptr [ebx].FRAMEV1_ENTRY.FrameHeight
             mov FrameHeight, eax
+            movzx eax, word ptr [ebx].FRAMEV1_ENTRY.FrameXcoord
+            mov FrameXcoord, eax
+            movzx eax, word ptr [ebx].FRAMEV1_ENTRY.FrameYcoord
+            mov FrameYcoord, eax
             mov eax, [ebx].FRAMEV1_ENTRY.FrameInfo
             mov FrameInfo, eax
 
             .IF FrameWidth != 0 && FrameHeight != 0
-                ; calc dword aligned width
-                xor edx, edx
-                mov eax, FrameWidth
-                mov ecx, 4
-                div ecx ;edx contains remainder
-                .IF edx != 0
-                    mov eax, 4
-                    sub eax, edx
-                    add eax, FrameWidth
-                .ELSE
-                    mov eax, FrameWidth
-                .ENDIF
+                Invoke BAMCalcDwordAligned, FrameWidth
                 mov FrameWidthDwordAligned, eax
             .ELSE
                 mov FrameWidthDwordAligned, 0
@@ -1134,6 +1136,10 @@ BAMV1Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamF
             mov [ebx].FRAMEDATA.FrameWidth, eax
             mov eax, FrameHeight
             mov [ebx].FRAMEDATA.FrameHeight, eax
+            mov eax, FrameXcoord
+            mov [ebx].FRAMEDATA.FrameXcoord, eax
+            mov eax, FrameYcoord
+            mov [ebx].FRAMEDATA.FrameYcoord, eax
             mov eax, FrameDataRawPtr
             mov [ebx].FRAMEDATA.FrameRAW, eax
             mov eax, FrameDataRlePtr
@@ -1147,7 +1153,7 @@ BAMV1Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamF
                 .IF FrameDataRawPtr != 0
                     Invoke RtlMoveMemory, FrameDataRawPtr, eax, FrameSizeRAW
                 .ENDIF
-                Invoke IEBAMFrameRAWToFrameBMP, FrameDataRawPtr, FrameDataBmpPtr, FrameSizeRAW, FrameSizeBMP, FrameWidth
+                Invoke BAMFrameRAWToFrameBMP, FrameDataRawPtr, FrameDataBmpPtr, FrameSizeRAW, FrameSizeBMP, FrameWidth
 
             .ELSE ; compressed
                 Invoke RtlMoveMemory, FrameDataRlePtr, eax, FrameSizeRLE
@@ -1178,6 +1184,10 @@ BAMV1Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamF
                         mov FrameWidth, eax
                         mov eax, [ebx].FRAMEDATA.FrameHeight
                         mov FrameHeight, eax
+                        mov eax, [ebx].FRAMEDATA.FrameXcoord
+                        mov FrameXcoord, eax
+                        mov eax, [ebx].FRAMEDATA.FrameYcoord
+                        mov FrameYcoord, eax
                         mov eax, [ebx].FRAMEDATA.FrameRAW
                         mov FrameDataRawPtr, eax
                         mov eax, [ebx].FRAMEDATA.FrameRLE
@@ -1200,14 +1210,14 @@ BAMV1Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamF
                     .ENDIF
                         
                 .ELSE ; otherwise unRLE mem to raw storage
-                    Invoke IEBAMFrameUnRLE, FrameDataRlePtr, FrameDataRawPtr, FrameSizeRLE, FrameSizeRAW, FrameWidth ; unRLE compressed frame
+                    Invoke BAMFrameUnRLE, FrameDataRlePtr, FrameDataRawPtr, FrameSizeRLE, FrameSizeRAW, FrameWidth ; unRLE compressed frame
                     .IF eax == -1
                     .ENDIF
                     mov FrameSizeRAW, eax
                     mov ebx, FrameDataEntryPtr
                     mov [ebx].FRAMEDATA.FrameSizeRAW, eax ; put correct raw size here
                     
-                    Invoke IEBAMFrameRAWToFrameBMP, FrameDataRawPtr, FrameDataBmpPtr, FrameSizeRAW, FrameSizeBMP, FrameWidth
+                    Invoke BAMFrameRAWToFrameBMP, FrameDataRawPtr, FrameDataBmpPtr, FrameSizeRAW, FrameSizeBMP, FrameWidth
                 .ENDIF
             .ENDIF
             
@@ -1231,10 +1241,10 @@ BAMV1Mem ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; BAMV2Mem - Returns handle in eax of opened bam file that is already loaded into memory. NULL if could not alloc enough mem
-;-------------------------------------------------------------------------------------
-BAMV2Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
+;------------------------------------------------------------------------------
+BAMV2Mem PROC USES EBX ECX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
     LOCAL hIEBAM:DWORD
     LOCAL BAMMemMapPtr:DWORD
     LOCAL TotalFrameEntries:DWORD
@@ -1268,6 +1278,8 @@ BAMV2Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamF
     LOCAL FrameDataRLE:DWORD
     LOCAL FrameWidth:DWORD
     LOCAL FrameHeight:DWORD
+    LOCAL FrameXcoord:DWORD
+    LOCAL FrameYcoord:DWORD
     LOCAL FrameWidthDwordAligned:DWORD
     LOCAL FrameHeightDwordAligned:DWORD
     LOCAL FrameSize:DWORD
@@ -1676,6 +1688,10 @@ BAMV2Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamF
             mov FrameWidth, eax
             movzx eax, word ptr [ebx].FRAMEV2_ENTRY.FrameHeight
             mov FrameHeight, eax
+            movzx eax, word ptr [ebx].FRAMEV2_ENTRY.FrameXcoord
+            mov FrameXcoord, eax
+            movzx eax, word ptr [ebx].FRAMEV2_ENTRY.FrameYcoord
+            mov FrameYcoord, eax
             movzx eax, word ptr [ebx].FRAMEV2_ENTRY.DataBlockIndex
             mov DataBlockIndex, eax
             movzx eax, word ptr [ebx].FRAMEV2_ENTRY.DataBlockCount
@@ -1727,6 +1743,10 @@ BAMV2Mem PROC USES EBX ECX EDX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamF
             mov [ebx].FRAMEDATA.FrameWidth, eax
             mov eax, FrameHeight
             mov [ebx].FRAMEDATA.FrameHeight, eax
+            mov eax, FrameXcoord
+            mov [ebx].FRAMEDATA.FrameXcoord, eax
+            mov eax, FrameYcoord
+            mov [ebx].FRAMEDATA.FrameYcoord, eax
             mov eax, FrameDataRawPtr
             mov [ebx].FRAMEDATA.FrameRAW, eax
             mov eax, FrameDataRlePtr
@@ -1757,9 +1777,9 @@ BAMV2Mem ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMHeader - Returns in eax a pointer to header or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMHeader PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, NULL
@@ -1772,9 +1792,9 @@ IEBAMHeader ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMTotalFrameEntries - Returns in eax the total no of frame entries
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMTotalFrameEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, 0
@@ -1802,9 +1822,9 @@ IEBAMTotalFrameEntries ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMTotalCycleEntries - Returns in eax the total no of cycle entries
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMTotalCycleEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, 0
@@ -1832,9 +1852,9 @@ IEBAMTotalCycleEntries ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMTotalBlockEntries - Returns in eax the total no of data block entries
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMTotalBlockEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, 0
@@ -1852,9 +1872,9 @@ IEBAMTotalBlockEntries ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMFrameEntries - Returns in eax a pointer to frame entries or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFrameEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, NULL
@@ -1867,9 +1887,9 @@ IEBAMFrameEntries ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMCycleEntries - Returns in eax a pointer to cycle entries or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMCycleEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, NULL
@@ -1882,9 +1902,9 @@ IEBAMCycleEntries ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMBlockEntries - Returns in eax a pointer to data block entries or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMBlockEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, NULL
@@ -1897,9 +1917,9 @@ IEBAMBlockEntries ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMFrameEntry - Returns in eax a pointer to the specified frame entry or NULL
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFrameEntry PROC USES EBX hIEBAM:DWORD, nFrameEntry:DWORD
     LOCAL TotalFrameEntries:DWORD
     LOCAL FrameEntriesPtr:DWORD
@@ -1944,9 +1964,9 @@ IEBAMFrameEntry ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMCycleEntry - Returns in eax a pointer to the specified cycle entry or NULL 
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMCycleEntry PROC USES EBX hIEBAM:DWORD, nCycleEntry:DWORD
     LOCAL TotalCycleEntries:DWORD
     LOCAL CycleEntriesPtr:DWORD
@@ -1983,9 +2003,9 @@ IEBAMCycleEntry ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMBlockEntry - Returns in eax a pointer to the specified Datablock entry or NULL 
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMBlockEntry PROC USES EBX hIEBAM:DWORD, nBlockEntry:DWORD
     LOCAL TotalBlockEntries:DWORD
     LOCAL BlockEntriesPtr:DWORD
@@ -2022,9 +2042,9 @@ IEBAMBlockEntry ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMPalette - Returns in eax a pointer to the palette or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMPalette PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, NULL
@@ -2037,9 +2057,9 @@ IEBAMPalette ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMFrameLookupEntries - Returns in eax a pointer to the frame lookup indexes or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFrameLookupEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, NULL
@@ -2052,9 +2072,9 @@ IEBAMFrameLookupEntries ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMFrameLookupEntry - Returns in eax a pointer to the frame lookup NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFrameLookupEntry PROC USES EBX hIEBAM:DWORD, nCycle:DWORD
     LOCAL FrameLookupEntries:DWORD
     LOCAL TotalCycleEntries:DWORD
@@ -2086,9 +2106,9 @@ IEBAMFrameLookupEntry ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMFrameDataEntries - Returns in eax a pointer to the framedata entries or NULL if not valid
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFrameDataEntries PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, NULL
@@ -2101,9 +2121,9 @@ IEBAMFrameDataEntries ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMFrameDataEntry - returns in eax pointer to frame data or NULL if not found
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFrameDataEntry PROC USES EBX hIEBAM:DWORD, nFrameEntry:DWORD
     LOCAL FrameDataEntriesPtr:DWORD
     .IF hIEBAM == NULL
@@ -2126,9 +2146,9 @@ IEBAMFrameDataEntry ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMFileName - returns in eax pointer to zero terminated string contained filename that is open or NULL if not opened
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFileName PROC USES EBX hIEBAM:DWORD
     LOCAL BamFilename:DWORD
     .IF hIEBAM == NULL
@@ -2149,9 +2169,9 @@ IEBAMFileName endp
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMFileNameOnly - returns in eax true or false if it managed to pass to the buffer pointed at lpszFileNameOnly, the stripped filename without extension
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFileNameOnly PROC hIEBAM:DWORD, lpszFileNameOnly:DWORD
     Invoke IEBAMFileName, hIEBAM
     .IF eax == NULL
@@ -2167,9 +2187,9 @@ IEBAMFileNameOnly endp
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAMFileSize - returns in eax size of file or 0
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFileSize PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, 0
@@ -2182,9 +2202,9 @@ IEBAMFileSize endp
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; -1 = No Bam file, TRUE for BAMCV1, FALSE for BAM V1 or BAM V2 
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFileCompression PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, -1
@@ -2202,9 +2222,9 @@ IEBAMFileCompression endp
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; 0 = No Bam file, 1 = BAM V1, 2 = BAM V2, 3 = BAMCV1 
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMVersion PROC USES EBX hIEBAM:DWORD
     .IF hIEBAM == NULL
         mov eax, 0
@@ -2217,10 +2237,10 @@ IEBAMVersion ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; Unroll RLE compressed bam frame to RAW data. Returns Frame Size or NULL
-;-------------------------------------------------------------------------------------
-IEBAMFrameUnRLE PROC USES EBX ECX EDX pFrameRLE:DWORD, pFrameRAW:DWORD, FrameRLESize:DWORD, FrameRAWSize:DWORD, FrameWidth:DWORD
+;------------------------------------------------------------------------------
+BAMFrameUnRLE PROC USES EDI ESI pFrameRLE:DWORD, pFrameRAW:DWORD, FrameRLESize:DWORD, FrameRAWSize:DWORD, FrameWidth:DWORD
     LOCAL FrameWidthDwordAligned:DWORD
     LOCAL pZeroExpandedRLE:DWORD
     LOCAL RLECurrentPos:DWORD
@@ -2250,25 +2270,25 @@ IEBAMFrameUnRLE PROC USES EBX ECX EDX pFrameRLE:DWORD, pFrameRAW:DWORD, FrameRLE
     
     mov eax, 0
     .WHILE eax < FrameRLESize
-        mov ebx, pFrameRLE
-        add ebx, RLECurrentPos
+        mov esi, pFrameRLE
+        add esi, RLECurrentPos
         
-        movzx eax, byte ptr [ebx]
+        movzx eax, byte ptr [esi]
         .IF al == 0h
             mov ecx, RLECurrentPos ; check not at end for next char
             inc ecx
             .IF ecx < FrameRLESize
-                inc ebx
-                movzx eax, byte ptr [ebx] ; al contains amount of 0's to copy
+                inc esi
+                movzx eax, byte ptr [esi] ; al contains amount of 0's to copy
                 inc eax ; for +1 count
                 mov ZeroTotal, eax
                 mov ZeroCount, 0
                 mov eax, 0
-                mov edx, pFrameRAW ;pZeroExpandedRLE
-                add edx, RAWCurrentPos ;ZEROCurrentPos
+                mov edi, pFrameRAW ;pZeroExpandedRLE
+                add edi, RAWCurrentPos ;ZEROCurrentPos
                 .WHILE eax < ZeroTotal
-                    mov byte ptr [edx], 0h
-                    inc edx
+                    mov byte ptr [edi], 0h
+                    inc edi
                     inc RAWCurrentPos ;ZEROCurrentPos
                     inc FrameSize ;ZeroSize
                     inc ZeroCount
@@ -2278,17 +2298,17 @@ IEBAMFrameUnRLE PROC USES EBX ECX EDX pFrameRLE:DWORD, pFrameRAW:DWORD, FrameRLE
                 inc RLECurrentPos
 
             .ELSE ; if this char is the last one and we have a 0 then just copy it
-                mov edx, pFrameRAW ;pZeroExpandedRLE
-                add edx, RAWCurrentPos ;ZEROCurrentPos
-                mov byte ptr [edx], al
+                mov edi, pFrameRAW ;pZeroExpandedRLE
+                add edi, RAWCurrentPos ;ZEROCurrentPos
+                mov byte ptr [edi], al
                 inc RAWCurrentPos ;ZEROCurrentPos
                 inc FrameSize ;ZeroSize
                 inc RLECurrentPos
             .ENDIF
         .ELSE
-            mov edx, pFrameRAW ;pZeroExpandedRLE
-            add edx, RAWCurrentPos ;ZEROCurrentPos
-            mov byte ptr [edx], al
+            mov edi, pFrameRAW ;pZeroExpandedRLE
+            add edi, RAWCurrentPos ;ZEROCurrentPos
+            mov byte ptr [edi], al
             inc RAWCurrentPos ;ZEROCurrentPos
             inc FrameSize ;ZeroSize
             inc RLECurrentPos
@@ -2299,32 +2319,23 @@ IEBAMFrameUnRLE PROC USES EBX ECX EDX pFrameRLE:DWORD, pFrameRAW:DWORD, FrameRLE
 
     mov eax, FrameSize
     ret
-IEBAMFrameUnRLE endp
+BAMFrameUnRLE endp
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; Converts FrameRAW data to FrameBMP for use in bitmap creation
-;-------------------------------------------------------------------------------------
-IEBAMFrameRAWToFrameBMP PROC USES EBX ECX EDX pFrameRAW:DWORD, pFrameBMP:DWORD, FrameRAWSize:DWORD, FrameBMPSize:DWORD, FrameWidth:DWORD
+;------------------------------------------------------------------------------
+BAMFrameRAWToFrameBMP PROC USES EDI ESI pFrameRAW:DWORD, pFrameBMP:DWORD, FrameRAWSize:DWORD, FrameBMPSize:DWORD, FrameWidth:DWORD
     LOCAL TotalBytesWritten:DWORD
     LOCAL RAWCurrentPos:DWORD
     LOCAL BMPCurrentPos:DWORD
     LOCAL LastWidth:DWORD
     LOCAL FrameWidthDwordAligned:DWORD
+    
     Invoke RtlZeroMemory, pFrameBMP, FrameBMPSize
     
-    xor edx, edx
-    mov eax, FrameWidth
-    mov ecx, 4
-    div ecx ;edx contains remainder
-    .IF edx != 0
-        mov eax, 4
-        sub eax, edx
-        add eax, FrameWidth
-    .ELSE
-        mov eax, FrameWidth
-    .ENDIF    
+    Invoke BAMCalcDwordAligned, FrameWidth
     mov FrameWidthDwordAligned, eax
 
     mov TotalBytesWritten, 0
@@ -2336,26 +2347,27 @@ IEBAMFrameRAWToFrameBMP PROC USES EBX ECX EDX pFrameRAW:DWORD, pFrameBMP:DWORD, 
         mov eax, BMPCurrentPos
         .IF eax < FrameWidth
             mov eax, FrameWidth
-            mov ebx, BMPCurrentPos
-            sub eax, ebx
+            sub eax, BMPCurrentPos
+            ;mov ebx, BMPCurrentPos
+            ;sub eax, ebx
             mov LastWidth, eax
             add TotalBytesWritten, eax
  
-            mov ebx, pFrameRAW
-            mov edx, pFrameBMP
-            add edx, RAWCurrentPos
-            Invoke RtlMoveMemory, edx, ebx, LastWidth
+            mov esi, pFrameRAW
+            mov edi, pFrameBMP
+            add edi, RAWCurrentPos
+            Invoke RtlMoveMemory, edi, esi, LastWidth
             .BREAK
 
         .ELSE
-            mov ebx, pFrameRAW
-            add ebx, BMPCurrentPos
-            sub ebx, FrameWidth
+            mov esi, pFrameRAW
+            add esi, BMPCurrentPos
+            sub esi, FrameWidth
             
-            mov edx, pFrameBMP
-            add edx, RAWCurrentPos
+            mov edi, pFrameBMP
+            add edi, RAWCurrentPos
             
-            Invoke RtlMoveMemory, edx, ebx, FrameWidth
+            Invoke RtlMoveMemory, edi, esi, FrameWidth
             mov eax, FrameWidthDwordAligned
             add TotalBytesWritten, eax
             
@@ -2370,83 +2382,123 @@ IEBAMFrameRAWToFrameBMP PROC USES EBX ECX EDX pFrameRAW:DWORD, pFrameBMP:DWORD, 
         mov eax, BMPCurrentPos
     .ENDW
     ret
-IEBAMFrameRAWToFrameBMP endp
+BAMFrameRAWToFrameBMP endp
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
-; Gets handle to BAM Frame and returns it in eax as a bitmap handle or NULL otherwise
-;-------------------------------------------------------------------------------------
-IEBAMFrameBitmap PROC USES EBX hWin:DWORD, hIEBAM:DWORD, nFrame:DWORD
-    LOCAL PalettePtr:DWORD
-    LOCAL FrameDataOffset:DWORD
-    LOCAL FrameDataBMP:DWORD
+;------------------------------------------------------------------------------
+; IEBAMFrameBitmap - Returns in eax HBITMAP or NULL. Optional variables pointed 
+; to, are filled in if eax is a HBITMAP (!NULL), otherwise vars (if supplied) 
+; will be set to 0
+;------------------------------------------------------------------------------
+IEBAMFrameBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD, lpdwFrameXCoord:DWORD, lpdwFrameYCoord:DWORD
+    LOCAL FramePalette:DWORD
+    LOCAL FrameDataEntry:DWORD
     LOCAL FrameWidth:DWORD
     LOCAL FrameHeight:DWORD
+    LOCAL FrameXCoord:DWORD
+    LOCAL FrameYCoord:DWORD
     LOCAL FrameSizeBMP:DWORD
+    LOCAL FrameBMP:DWORD
     LOCAL FrameBitmapHandle:DWORD
-    LOCAL hdc:HDC
-
-    .IF hIEBAM == NULL
-        mov eax, NULL
-        ret
-    .ENDIF
     
-    Invoke IEBAMTotalFrameEntries, hIEBAM
-    .IF nFrame >= eax
-        mov eax, NULL
-        ret
-    .ENDIF
+    mov FrameWidth, 0
+    mov FrameHeight, 0
+    mov FrameXCoord, 0
+    mov FrameYCoord, 0
+    mov FrameBitmapHandle, 0
+    
+    .IF hIEBAM == NULL
+        jmp IEBAMFrameBitmapExit
+    .ENDIF    
     
     Invoke IEBAMFrameDataEntry, hIEBAM, nFrame
     .IF eax == NULL
-        ret
+        jmp IEBAMFrameBitmapExit
     .ENDIF
-    mov FrameDataOffset, eax
+    mov FrameDataEntry, eax
 
-    mov ebx, FrameDataOffset
-    mov eax, [EBX].FRAMEDATA.FrameSizeBMP
-    mov FrameSizeBMP, eax
-    mov eax, [EBX].FRAMEDATA.FrameWidth
+    mov ebx, FrameDataEntry
+    mov eax, [ebx].FRAMEDATA.FrameWidth
+    .IF eax == 0
+        jmp IEBAMFrameBitmapExit
+    .ENDIF
     mov FrameWidth, eax
-    mov eax, [EBX].FRAMEDATA.FrameHeight
+    mov eax, [ebx].FRAMEDATA.FrameHeight
+    .IF eax == 0
+        jmp IEBAMFrameBitmapExit
+    .ENDIF
     mov FrameHeight, eax
-    mov eax, [EBX].FRAMEDATA.FrameBMP
-    mov FrameDataBMP, eax
+    mov eax, [ebx].FRAMEDATA.FrameXcoord
+    mov FrameXCoord, eax
+    mov eax, [ebx].FRAMEDATA.FrameYcoord
+    mov FrameYCoord, eax
+    
+    mov eax, [ebx].FRAMEDATA.FrameBitmapHandle
+    .IF eax != 0
+        mov FrameBitmapHandle, eax
+        jmp IEBAMFrameBitmapExit
+    .ENDIF    
+    
+    mov eax, [ebx].FRAMEDATA.FrameSizeBMP
+    .IF eax == 0
+        jmp IEBAMFrameBitmapExit
+    .ENDIF
+    mov FrameSizeBMP, eax
+    mov eax, [ebx].FRAMEDATA.FrameBMP
+    .IF eax == 0
+        jmp IEBAMFrameBitmapExit
+    .ENDIF
+    mov FrameBMP, eax
 
     Invoke IEBAMPalette, hIEBAM
-    mov PalettePtr, eax
+    .IF eax == NULL
+        jmp IEBAMFrameBitmapExit
+    .ENDIF
+    mov FramePalette, eax
 
-    ; fill bitmapinfoheader values
-    lea ebx, BAMBMPInfo
-    mov eax, FrameSizeBMP
-    mov [ebx].BITMAPINFOHEADER.biSizeImage, eax        
-
-    mov eax, FrameWidth
-    mov [ebx].BITMAPINFOHEADER.biWidth, eax
-    mov eax, FrameHeight
-    mov [ebx].BITMAPINFOHEADER.biHeight, eax
-    
-    Invoke GetDC, hWin
-    mov hdc, eax
-    .IF hdc == NULL
-        mov eax, NULL
-        ret
+    Invoke BAMFrameDataBitmap, FrameWidth, FrameHeight, FrameBMP, FrameSizeBMP, FramePalette
+    .IF eax != NULL ; save bitmap handle back to TILEDATA struct
+        mov FrameBitmapHandle, eax
+        mov ebx, FrameDataEntry
+        mov [ebx].FRAMEDATA.FrameBitmapHandle, eax
     .ENDIF
 
-    Invoke CreateDIBitmap, hdc, Addr BAMBMPInfo, CBM_INIT, FrameDataBMP, PalettePtr, DIB_RGB_COLORS  ;PalettePtr
-    mov FrameBitmapHandle, eax
+IEBAMFrameBitmapExit:
 
-    Invoke ReleaseDC, hWin, hdc
+    .IF lpdwFrameWidth != NULL
+        mov ebx, lpdwFrameWidth
+        mov eax, FrameWidth
+        mov [ebx], eax
+    .ENDIF
+    
+    .IF lpdwFrameHeight != NULL
+        mov ebx, lpdwFrameHeight
+        mov eax, FrameHeight
+        mov [ebx], eax
+    .ENDIF
+   
+    .IF lpdwFrameXCoord != NULL
+        mov ebx, lpdwFrameXCoord
+        mov eax, FrameXCoord
+        mov [ebx], eax
+    .ENDIF
+    
+    .IF lpdwFrameYCoord != NULL
+        mov ebx, lpdwFrameYCoord
+        mov eax, FrameYCoord
+        mov [ebx], eax
+    .ENDIF
+    
     mov eax, FrameBitmapHandle
     ret
-IEBAMFrameBitmap endp
+IEBAMFrameBitmap ENDP
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; Returns frame no for particular cycle and index into sequence or -1
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMFrameLookupSequence PROC USES EBX hIEBAM:DWORD, nCycle:DWORD, CycleIndex:DWORD
     LOCAL FrameLookupOffset:DWORD
     LOCAL SequenceSize:DWORD
@@ -2496,9 +2548,9 @@ IEBAMFrameLookupSequence endp
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; Returns count of frames in particular cycle or 0
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMCycleFrameCount PROC USES EBX hIEBAM:DWORD, nCycle:DWORD
     .IF hIEBAM == NULL
         mov eax, 0
@@ -2516,11 +2568,11 @@ IEBAMCycleFrameCount endp
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; Returns in eax TRUE if sucessful or FALSE otherwise. On return lpdwFrameHeight and 
 ; lpdwFrameWidth will contain the values
-;-------------------------------------------------------------------------------------
-IEBAMFrameWidthHeight PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD
+;------------------------------------------------------------------------------
+IEBAMFrameDimensions PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD
     LOCAL FrameEntryOffset:DWORD
     LOCAL FrameWidth:DWORD
     LOCAL FrameHeight:DWORD
@@ -2556,7 +2608,7 @@ IEBAMFrameWidthHeight PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:D
     
     mov eax, TRUE
     ret
-IEBAMFrameWidthHeight ENDP
+IEBAMFrameDimensions ENDP
 
 
 IEBAM_ALIGN
@@ -2629,9 +2681,9 @@ IEBAMFindMaxWidthHeight endp
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; Returns in eax pointer to palette RGBAQUAD entry, or NULL otherwise
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEBAMPaletteEntry PROC USES EBX hIEBAM:DWORD, PaletteIndex:DWORD
     LOCAL PaletteOffset:DWORD
 
@@ -2660,10 +2712,10 @@ IEBAMPaletteEntry endp
 
 
 IEBAM_ALIGN
-;-------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; Returns in eax ColorRef of the RLEColorIndex or -1 otherwise
-;-------------------------------------------------------------------------------------
-IEBAMRLEColorIndexColorRef PROC USES EBX hIEBAM
+;------------------------------------------------------------------------------
+IEBAMRLEColorIndexColorRef PROC USES EBX hIEBAM:DWORD
     LOCAL BamHeaderPtr:DWORD
     LOCAL RLEColorIndex:DWORD
     LOCAL ABGR:DWORD
@@ -2786,129 +2838,53 @@ IEBAMConvertARGBtoABGR ENDP
 
 
 IEBAM_ALIGN
-;-----------------------------------------------------------------------------------------
-; Checks the BAM signatures to determine if they are valid and if BAM file is compressed
-;-----------------------------------------------------------------------------------------
-BAMSignature PROC pBAM:DWORD
-    ; check signatures to determine version
-    mov ebx, pBAM
-    mov eax, [ebx]
-    .IF eax == ' MAB' ; BAM
-        add ebx, 4
-        mov eax, [ebx]
-        .IF eax == '  1V' ; V1.0
-            mov eax, BAM_VERSION_BAM_V10
-        .ELSEIF eax == '  2V' ; V2.0
-            mov eax, BAM_VERSION_BAM_V20
-        .ELSE
-            mov eax, BAM_VERSION_INVALID
-        .ENDIF
+;******************************************************************************
+; Returns in eax handle to frame data bitmap or NULL
+;******************************************************************************
+BAMFrameDataBitmap PROC USES EBX dwFrameWidth:DWORD, dwFrameHeight:DWORD, pFrameBMP:DWORD, dwFrameSizeBMP:DWORD, pFramePalette:DWORD
+    LOCAL dwFrameWidthDword:DWORD
+    LOCAL hdc:DWORD
+    LOCAL FrameBitmapHandle:DWORD
+    
+    Invoke RtlZeroMemory, Addr BAMFrameBitmap, (SIZEOF BITMAPINFOHEADER + 1024)
 
-    .ELSEIF eax == 'CMAB' ; BAMC
-        add ebx, 4
-        mov eax, [ebx]
-        .IF eax == '  1V' ; V1.0
-            mov eax, BAM_VERSION_BAMCV10
-        .ELSE
-            mov eax, BAM_VERSION_INVALID
-        .ENDIF            
-    .ELSE
-        mov eax, BAM_VERSION_INVALID
+    Invoke BAMCalcDwordAligned, dwFrameWidth
+    mov dwFrameWidthDword, eax
+
+    lea ebx, BAMFrameBitmap
+    mov [ebx].BITMAPINFOHEADER.biSize, 40d
+    
+    mov eax, dwFrameWidthDword
+    mov [ebx].BITMAPINFOHEADER.biWidth, eax
+    mov eax, dwFrameHeight
+    neg eax
+    mov [ebx].BITMAPINFOHEADER.biHeight, eax
+    mov [ebx].BITMAPINFOHEADER.biPlanes, 1
+    mov [ebx].BITMAPINFOHEADER.biBitCount, 8
+    mov [ebx].BITMAPINFOHEADER.biCompression, BI_RGB
+    mov eax, dwFrameSizeBMP
+    mov [ebx].BITMAPINFOHEADER.biSizeImage, eax
+    mov [ebx].BITMAPINFOHEADER.biXPelsPerMeter, 2835d
+    mov [ebx].BITMAPINFOHEADER.biYPelsPerMeter, 2835d
+    lea eax, BAMFrameBitmap
+    lea ebx, [eax].BITMAPINFO.bmiColors
+    Invoke RtlMoveMemory, ebx, pFramePalette, 1024d
+    
+    ;Invoke CreateDC, Addr szMOSDisplayDC, NULL, NULL, NULL
+    Invoke GetDC, 0
+    mov hdc, eax
+    Invoke CreateDIBitmap, hdc, Addr BAMFrameBitmap, CBM_INIT, pFrameBMP, Addr BAMFrameBitmap, DIB_RGB_COLORS
+    .IF eax == NULL
+        IFDEF DEBUG32
+            PrintText 'CreateDIBitmap Failed'
+        ENDIF
     .ENDIF
+    mov FrameBitmapHandle, eax
+    ;Invoke DeleteDC, hdc
+    Invoke ReleaseDC, 0, hdc
+    mov eax, FrameBitmapHandle
     ret
-BAMSignature endp
-
-
-IEBAM_ALIGN
-;-----------------------------------------------------------------------------------------
-; Uncompresses BAMC file to an area of memory that we allocate for the exact size of data
-;-----------------------------------------------------------------------------------------
-BAMUncompress PROC USES EBX hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
-    LOCAL dest:DWORD
-    LOCAL src:DWORD
-    LOCAL BAMU_Size:DWORD
-    LOCAL BytesRead:DWORD
-    LOCAL BAMFilesize:DWORD
-    LOCAL BAMC_UncompressedSize:DWORD
-    LOCAL BAMC_CompressedSize:DWORD
-    
-    Invoke GetFileSize, hBAMFile, NULL
-    mov BAMFilesize, eax
-    mov ebx, pBAM
-    mov eax, [ebx].BAMC_HEADER.UncompressedLength
-    mov BAMC_UncompressedSize, eax
-    mov eax, BAMFilesize
-    sub eax, 0Ch ; take away the BAMC header 12 bytes = 0xC
-    mov BAMC_CompressedSize, eax ; set correct compressed size = length of file minus BAMC header length
-
-    Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, BAMC_UncompressedSize
-    .IF eax != NULL
-        mov dest, eax
-        mov eax, pBAM ;BAMMemMapPtr
-        add eax, 0Ch ; add BAMC Header to Memory map to start at correct offset for uncompressing
-        mov src, eax
-        Invoke uncompress, dest, Addr BAMC_UncompressedSize, src, BAMC_CompressedSize
-        .IF eax == Z_OK ; ok
-            mov eax, BAMC_UncompressedSize
-            mov ebx, dwSize
-            mov [ebx], eax
-        
-            mov eax, dest
-            ret
-        .ENDIF
-    .ENDIF                  
-    mov eax, 0        
-    ret
-BAMUncompress endp
-
-
-IEBAM_ALIGN
-;**************************************************************************
-; Strip path name to just filename Without extention
-;**************************************************************************
-BAMJustFname PROC szFilePathName:DWORD, szFileName:DWORD
-    LOCAL LenFilePathName:DWORD
-    LOCAL nPosition:DWORD
-    
-    Invoke szLen, szFilePathName
-    mov LenFilePathName, eax
-    mov nPosition, eax
-    
-    .IF LenFilePathName == 0
-        mov byte ptr [edi], 0
-        ret
-    .ENDIF
-    
-    mov esi, szFilePathName
-    add esi, eax
-    
-    mov eax, nPosition
-    .WHILE eax != 0
-        movzx eax, byte ptr [esi]
-        .IF al == '\' || al == ':' || al == '/'
-            inc esi
-            .BREAK
-        .ENDIF
-        dec esi
-        dec nPosition
-        mov eax, nPosition
-    .ENDW
-    mov edi, szFileName
-    mov eax, nPosition
-    .WHILE eax != LenFilePathName
-        movzx eax, byte ptr [esi]
-        .IF al == '.' ; stop here
-            .BREAK
-        .ENDIF
-        mov byte ptr [edi], al
-        inc edi
-        inc esi
-        inc nPosition
-        mov eax, nPosition
-    .ENDW
-    mov byte ptr [edi], 0h
-    ret
-BAMJustFname ENDP
+BAMFrameDataBitmap ENDP
 
 
 IEBAM_ALIGN
@@ -2920,20 +2896,46 @@ BAMCalcDwordAligned PROC USES ECX EDX dwWidthOrHeight:DWORD
         mov eax, 0
         ret
     .ENDIF
-    
-    xor edx, edx
     mov eax, dwWidthOrHeight
-    mov ecx, 4
-    div ecx ;edx contains remainder
-    .IF edx != 0
-        mov eax, 4
-        sub eax, edx
-        add eax, dwWidthOrHeight
-    .ELSE
+    and eax, 1 ; ( a AND (b-1) )
+    .IF eax == 0 ; if divisable by 2, use: and eax 3 - to div by 4    
         mov eax, dwWidthOrHeight
+        and eax, 3 ; div by 4, get remainder
+        add eax, dwWidthOrHeight
+    .ELSE ; else use div to get remainder and add to dwWidthOrHeight
+        xor edx, edx
+        mov eax, dwWidthOrHeight
+        mov ecx, 4
+        div ecx ;edx contains remainder
+        .IF edx != 0
+            mov eax, 4
+            sub eax, edx
+            add eax, dwWidthOrHeight
+        .ELSE
+            mov eax, dwWidthOrHeight
+        .ENDIF
     .ENDIF
     ; eax contains dword aligned value   
     ret
+
+;    .IF dwWidthOrHeight == 0
+;        mov eax, 0
+;        ret
+;    .ENDIF
+;    
+;    xor edx, edx
+;    mov eax, dwWidthOrHeight
+;    mov ecx, 4
+;    div ecx ;edx contains remainder
+;    .IF edx != 0
+;        mov eax, 4
+;        sub eax, edx
+;        add eax, dwWidthOrHeight
+;    .ELSE
+;        mov eax, dwWidthOrHeight
+;    .ENDIF
+;    ; eax contains dword aligned value   
+;    ret
 BAMCalcDwordAligned endp
 
 
@@ -2956,9 +2958,9 @@ BAMCalcDwordAligned endp
 
 
 
-;;-----------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ;; _GetFrameDataOffset
-;;-----------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ;_GetFrameDataOffset PROC PRIVATE USES EBX hIEBAM:DWORD, nFrame:DWORD
 ;    LOCAL FrameEntriesPtr:DWORD
 ;    
@@ -2977,9 +2979,9 @@ BAMCalcDwordAligned endp
 ;
 ;_GetFrameDataOffset ENDP
 ;
-;;-----------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ;; _GetFrameDataRLE
-;;-----------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ;_GetFrameDataRLE PROC PRIVATE USES EBX hIEBAM:DWORD, nFrame:DWORD
 ;    LOCAL FrameEntriesPtr:DWORD
 ;    

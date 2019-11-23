@@ -37,3 +37,4 @@ IEMOSFileNameOnly,hIEMOS,lpszFileNameOnly
 IEMOSFileSize,hIEMOS
 IEMOSFileCompression,hIEMOS
 IEMOSVersion,hIEMOS
+IEMOSUncompressMOS,lpszMosFilenameIN,lpszMosFilenameOUT

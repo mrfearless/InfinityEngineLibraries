@@ -32,11 +32,13 @@ IEBAMFileCompression,hIEBAM
 IEBAMVersion,hIEBAM
 IEBAMFrameUnRLE,pFrameRLE,pFrameRAW,FrameRLESize,FrameRAWSize,FrameWidth
 IEBAMFrameRAWToFrameBMP,pFrameRAW,pFrameBMP,FrameRAWSize,FrameBMPSize,FrameWidth
-IEBAMFrameBitmap,hWin,hIEBAM,nFrame
 IEBAMFrameLookupSequence,hIEBAM,nCycle,SequenceIndex
 IEBAMCycleFrameCount,hIEBAM,nCycle
-IEBAMFrameWidthHeight,hIEBAM,nFrame,lpdwFrameWidth,lpdwFrameHeight
+IEBAMFrameDimensions,hIEBAM,nFrame,lpdwFrameWidth,lpdwFrameHeight
 IEBAMFindMaxWidthHeight,hIEBAM,lpdwFrameWidth,lpdwFrameHeight
+IEBAMFrameBitmap,hIEBAM,nFrame,lpdwFrameWidth,lpdwFrameHeight,lpdwFrameXCoord,lpdwFrameYCoord
+IEBAMBitmap,hIEBAM,nFrame
 IEBAMRLEColorIndexColorRef,hIEBAM
 IEBAMConvertABGRtoARGB,hIEBAM,ABGR
 IEBAMConvertARGBtoABGR,hIEBAM,ARGB
+IEBAMUncompressBAM,lpszBamFilenameIN,lpszBamFilenameOUT

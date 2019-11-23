@@ -37,72 +37,75 @@
 ;-----------------------------------------------------------------------------------------
 ; IEMOS Prototypes
 ;-----------------------------------------------------------------------------------------
-IEMOSOpen                   PROTO :DWORD,:DWORD             ; lpszMosFilename, dwOpenMode. Returns in eax a handle used in other functions: hIEMOS
-IEMOSMem                    PROTO :DWORD,:DWORD,:DWORD,:DWORD ; pMOSInMemory, lpszMosFilename, dwMosFilesize, dwOpenMode. Returns in eax a handle used in other functions: hIEMOS
-IEMOSClose                  PROTO :DWORD                    ; hIEMOS returned from IEMOSOpen.
+IEMOSOpen                   PROTO lpszMosFilename:DWORD, dwOpenMode:DWORD ; eax = handle used in other functions: hIEMOS
+IEMOSMem                    PROTO pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD ; eax = handle used in other functions: hIEMOS
+IEMOSClose                  PROTO hIEMOS:DWORD
 
 ; Pointers to parts of MOS file:
-IEMOSHeader                 PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to a MOSV1_HEADER structure.
-IEMOSPalettes               PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to the palettes array
-IEMOSTileLookupEntries      PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to TileLookup array entries
-IEMOSTileLookupEntry        PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in eax pointer to specific TileLookup entry
-IEMOSTileDataEntries        PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to TILEDATA array entries
-IEMOSTileDataEntry          PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in eax pointer to specific TILEDATA entry
-IEMOSBlockEntries           PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to DATABLOCK_ENTRY array entries. For MOS V2 Only
-IEMOSBlockEntry             PROTO :DWORD,:DWORD             ; hIEMOS, nBlockEntry. Returns in eax pointer to a DATABLOCK_ENTRY structure. For MOS V2 Only
+IEMOSHeader                 PROTO hIEMOS:DWORD ; eax = pointer to a MOSV1_HEADER structure.
+IEMOSPalettes               PROTO hIEMOS:DWORD ; eax = pointer to the palettes array
+IEMOSTileLookupEntries      PROTO hIEMOS:DWORD ; eax = pointer to TileLookup array entries
+IEMOSTileLookupEntry        PROTO hIEMOS:DWORD, nTile:DWORD ; eax = pointer to specific TileLookup entry
+IEMOSTileDataEntries        PROTO hIEMOS:DWORD ; eax = pointer to TILEDATA array entries
+IEMOSTileDataEntry          PROTO hIEMOS:DWORD, nTile:DWORD ; eax = pointer to specific TILEDATA entry
+IEMOSBlockEntries           PROTO hIEMOS:DWORD ; eax = pointer to DATABLOCK_ENTRY array entries. For MOS V2 Only
+IEMOSBlockEntry             PROTO hIEMOS:DWORD, nBlockEntry:DWORD ; eax = pointer to a DATABLOCK_ENTRY structure. For MOS V2 Only
 
 ; MOS Basic Information:
-IEMOSTotalTiles             PROTO :DWORD                    ; hIEMOS. Returns in eax total tiles in MOS
-IEMOSTotalPalettes          PROTO :DWORD                    ; hIEMOS. Returns in eax total palettes in MOS (same as total tiles)
-IEMOSTotalBlockEntries      PROTO :DWORD                    ; hIEMOS. Returns in eax total no of Datablock entries. For MOS V2 Only
-IEMOSImageDimensions        PROTO :DWORD,:DWORD,:DWORD      ; hIEMOS, lpdwImageWidth, lpdwImageHeight
-IEMOSColumnsRows            PROTO :DWORD,:DWORD,:DWORD      ; hIEMOS, lpdwColumns, lpdwRows
-IEMOSPixelBlockSize         PROTO :DWORD                    ; hIEMOS
-IEMOSBitmap                 PROTO :DWORD                    ; hIEMOS. Returns in eax HBITMAP (of all combined tiles to create the whole bitmap) or NULL.
+IEMOSTotalTiles             PROTO hIEMOS:DWORD ; eax = total tiles in MOS
+IEMOSTotalPalettes          PROTO hIEMOS:DWORD ; eax = total palettes in MOS (same as total tiles)
+IEMOSTotalBlockEntries      PROTO hIEMOS:DWORD ; eax = total no of Datablock entries. For MOS V2 Only
+IEMOSImageDimensions        PROTO hIEMOS:DWORD, lpdwImageWidth:DWORD, lpdwImageHeight:DWORD
+IEMOSColumnsRows            PROTO hIEMOS:DWORD, lpdwColumns:DWORD, lpdwRows:DWORD
+IEMOSPixelBlockSize         PROTO hIEMOS:DWORD ; eax = pixel block size
 
 ; MOS Tile Data Information:
-IEMOSTileBitmap             PROTO :DWORD,:DWORD,:DWORD,:DWORD,:DWORD,:DWORD ; hIEMOS, nTile, lpdwTileWidth, lpdwTileHeight, lpdwTileXCoord, lpdwTileYCoord. Returns in eax HBITMAP or NULL
-IEMOSTileWidth              PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in tile width
-IEMOSTileHeight             PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in tile height
-IEMOSTileXCoord             PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in tile x coord
-IEMOSTileYCoord             PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in tile y coord
-IEMOSTileRAW                PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in pointer to RAW tile data.
-IEMOSTilePalette            PROTO :DWORD,:DWORD             ; hIEMOS, nTile. Returns in eax pointer to the tile's specific palette (256 entries of RGBQUADs)
-IEMOSTilePaletteValue       PROTO :DWORD,:DWORD,:DWORD      ; hIEMOS, nTile, PaletteIndex. eax contains RGBQUAD or -1 if not valid.
+IEMOSTileBitmap             PROTO hIEMOS:DWORD, nTile:DWORD, lpdwTileWidth:DWORD, lpdwTileHeight:DWORD, lpdwTileXCoord:DWORD, lpdwTileYCoord:DWORD ; eax = HBITMAP or NULL
+IEMOSTileWidth              PROTO hIEMOS:DWORD, nTile:DWORD ; eax = tile width
+IEMOSTileHeight             PROTO hIEMOS:DWORD, nTile:DWORD ; eax = tile height
+IEMOSTileXCoord             PROTO hIEMOS:DWORD, nTile:DWORD ; eax = tile x coord
+IEMOSTileYCoord             PROTO hIEMOS:DWORD, nTile:DWORD ; eax = tile y coord
+IEMOSTileRAW                PROTO hIEMOS:DWORD, nTile:DWORD ; eax = pointer to RAW tile data.
+IEMOSTilePalette            PROTO hIEMOS:DWORD, nTile:DWORD ; eax = pointer to the tile's specific palette (256 entries of RGBQUADs)
+IEMOSTilePaletteValue       PROTO hIEMOS:DWORD, nTile:DWORD, PaletteIndex:DWORD ; eax = RGBQUAD or -1 if not valid.
 
 ; MOS File & Version Information:
-IEMOSFileName               PROTO :DWORD                    ; hIEMOS. Returns in eax pointer to mos full path filename
-IEMOSFileNameOnly           PROTO :DWORD,:DWORD             ; hIEMOS, lpszFileNameOnly. eax contains True or false if succesfull. strips filename of path and ext information.
-IEMOSFileSize               PROTO :DWORD                    ; hIEMOS. Returns in eax size of mos file in bytes
-IEMOSFileCompression        PROTO :DWORD                    ; hIEMOS. Returns in eax -1 = No Mos file, TRUE for MOSCV1, FALSE for MOS V1 or MOS V2 
-IEMOSVersion                PROTO :DWORD                    ; hIEMOS. Returns in eax 0 no mos, 1 = MOS V1, 2 = MOS V2, 3 = MOSC 
+IEMOSFileName               PROTO hIEMOS:DWORD ; eax = pointer to mos full path filename
+IEMOSFileNameOnly           PROTO hIEMOS:DWORD, lpszFileNameOnly:DWORD ; eax = True or false if successfull. strips filename of path and ext information.
+IEMOSFileSize               PROTO hIEMOS:DWORD ; eax = size of mos file in bytes
+IEMOSFileCompression        PROTO hIEMOS:DWORD ; eax = -1 = No Mos file, TRUE for MOSCV1, FALSE for MOS V1 or MOS V2 
+IEMOSVersion                PROTO hIEMOS:DWORD ; eax = 0 no mos, 1 = MOS V1, 2 = MOS V2, 3 = MOSC 
 
-IEMOSUncompressMOS          PROTO :DWORD, :DWORD            ; lpszMosInputFilename to uncompress, lpszMosOutputFilename (optional) to write out uncompressed mos as (null=same filename as lpszMosInputFilename)
+; MOS Bitmap Functions:
+IEMOSBitmap                 PROTO hIEMOS:DWORD ; eax = HBITMAP (of all combined tiles to create the whole bitmap) or NULL.
+
+; MOS Compression Functions:
+IEMOSUncompressMOS          PROTO lpszMosFilenameIN:DWORD, lpszMosFilenameOUT:DWORD ; lpszMosInputFilename to uncompress, lpszMosOutputFilename (optional) to write out uncompressed mos as (null=same filename as lpszMosInputFilename)
 
 ;-----------------------------------------------------------------------------------------
 ; IEMOS Structures
 ;-----------------------------------------------------------------------------------------
 IFNDEF MOSV1_HEADER
 MOSV1_HEADER            STRUCT
-    Signature           DD 0    ; 0x0000 	4 (char array) 	Signature ('MOS ')
-    Version             DD 0    ; 0x0004 	4 (char array) 	Version ('V1 ')
-    ImageWidth          DW 0    ; 0x0008 	2 (word) 	    Width (pixels)
-    ImageHeight         DW 0    ; 0x000a 	2 (word) 	    Height (pixels)
-    BlockColumns        DW 0    ; 0x000c 	2 (word) 	    Columns (blocks)
-    BlockRows           DW 0    ; 0x000e 	2 (word) 	    Rows (blocks)
-    BlockSize           DD 0    ; 0x0010 	4 (dword) 	    Block size (pixels)
-    PalettesOffset      DD 0    ; 0x0014 	4 (dword) 	    Offset (from start of file) to palettes
+    Signature           DD 0    ; 0x0000    4 (char array)  Signature ('MOS ')
+    Version             DD 0    ; 0x0004    4 (char array)  Version ('V1 ')
+    ImageWidth          DW 0    ; 0x0008    2 (word)        Width (pixels)
+    ImageHeight         DW 0    ; 0x000a    2 (word)        Height (pixels)
+    BlockColumns        DW 0    ; 0x000c    2 (word)        Columns (blocks)
+    BlockRows           DW 0    ; 0x000e    2 (word)        Rows (blocks)
+    BlockSize           DD 0    ; 0x0010    4 (dword)       Block size (pixels)
+    PalettesOffset      DD 0    ; 0x0014    4 (dword)       Offset (from start of file) to palettes
 MOSV1_HEADER            ENDS
 ENDIF
 
 IFNDEF MOSV2_HEADER
 MOSV2_HEADER            STRUCT
-    Signature           DD 0    ; 0x0000 	4 (char array) 	Signature ('MOS ')
-    Version             DD 0    ; 0x0004 	4 (char array) 	Version ('V2 ')
-    ImageWidth          DD 0    ; 0x0008 	4 (dword) 	    Width (pixels)
-    ImageHeight         DD 0    ; 0x000c 	4 (dword) 	    Height (pixels)
-    BlockEntriesCount   DD 0    ; 0x0010 	4 (dword) 	    Number of data blocks
-    BlockEntriesOffset  DD 0    ; 0x0014 	4 (dword) 	    Offset to data blocks
+    Signature           DD 0    ; 0x0000    4 (char array)  Signature ('MOS ')
+    Version             DD 0    ; 0x0004    4 (char array)  Version ('V2 ')
+    ImageWidth          DD 0    ; 0x0008    4 (dword)       Width (pixels)
+    ImageHeight         DD 0    ; 0x000c    4 (dword)       Height (pixels)
+    BlockEntriesCount   DD 0    ; 0x0010    4 (dword)       Number of data blocks
+    BlockEntriesOffset  DD 0    ; 0x0014    4 (dword)       Offset to data blocks
 MOSV2_HEADER            ENDS
 ENDIF
 

@@ -6,18 +6,19 @@ option casemap:none
 
 include masm32.inc
 includelib masm32.lib
-include IEMOS.inc
+include IEBAM.inc
 
-MOSJustFname      PROTO szFilePathName:DWORD, szFileName:DWORD
+BAMJustFname            PROTO szFilePathName:DWORD, szFileName:DWORD
+
 
 .CODE
 
 
-IEMOS_ALIGN
-;******************************************************************************
+IEBAM_ALIGN
+;**************************************************************************
 ; Strip path name to just filename Without extention
-;******************************************************************************
-MOSJustFname PROC szFilePathName:DWORD, szFileName:DWORD
+;**************************************************************************
+BAMJustFname PROC szFilePathName:DWORD, szFileName:DWORD
     LOCAL LenFilePathName:DWORD
     LOCAL nPosition:DWORD
     
@@ -59,8 +60,7 @@ MOSJustFname PROC szFilePathName:DWORD, szFileName:DWORD
     .ENDW
     mov byte ptr [edi], 0h
     ret
-MOSJustFname ENDP
+BAMJustFname ENDP
 
 
 END
-

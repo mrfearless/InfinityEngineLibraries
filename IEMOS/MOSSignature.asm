@@ -6,7 +6,7 @@ option casemap:none
 
 include IEMOS.inc
 
-MOSSignature      PROTO :DWORD
+MOSSignature      PROTO pMOS:DWORD
 
 .CODE
 

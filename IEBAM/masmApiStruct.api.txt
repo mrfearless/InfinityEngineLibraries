@@ -14,4 +14,5 @@ FRAMEV2_ENTRY,FrameWidth,FrameHeight,FrameXcoord,FrameYcoord,DataBlockIndex,Data
 CYCLEV1_ENTRY,CycleFrameCount,CycleStartFrame
 CYCLEV2_ENTRY,CycleFrameCount,CycleStartFrame
 DATABLOCK_ENTRY,PVRZPage,SourceXCoord,SourceYCoord,FrameWidth,FrameHeight,TargetXCoord,TargetYCoord
+FRAMEDATA,FrameCompressed,FrameWidth,FrameHeight,FrameXcoord,FrameYcoord,FrameSizeRAW,FrameSizeRLE,FrameSizeBMP,FrameRAW,FrameRLE,FrameBMP,FrameBitmapHandle,FrameDataBlockIndex,FrameDataBlockCount
 

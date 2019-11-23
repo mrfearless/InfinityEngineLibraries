@@ -2,7 +2,7 @@
 ;
 ; IEMOS
 ;
-; Copyright (c) 2018 by fearless
+; Copyright (c) 2019 by fearless
 ;
 ; http://github.com/mrfearless/InfinityEngineLibraries64
 ;
@@ -71,21 +71,22 @@ include IEMOS.inc
 ;-------------------------------------------------------------------------
 ; Internal functions:
 ;-------------------------------------------------------------------------
-EXTERNDEF MOSSignature      :PROTO :DWORD
-EXTERNDEF MOSJustFname      :PROTO :DWORD, :DWORD
-EXTERNDEF MOSUncompress     :PROTO :DWORD, :DWORD, :DWORD
+EXTERNDEF MOSSignature      :PROTO pMOS:DWORD
+EXTERNDEF MOSJustFname      :PROTO szFilePathName:DWORD, szFileName:DWORD
+EXTERNDEF MOSUncompress     :PROTO hMOSFile:DWORD, pMOS:DWORD, dwSize:DWORD
 
+MOSV1Mem                    PROTO pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD
+MOSV2Mem                    PROTO pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD
 
-MOSV1Mem                PROTO :DWORD, :DWORD, :DWORD, :DWORD
-MOSV2Mem                PROTO :DWORD, :DWORD, :DWORD, :DWORD
+MOSGetTileDataWidth         PROTO nTile:DWORD, dwBlockColumns:DWORD, dwBlockSize:DWORD, dwImageWidth:DWORD
+MOSGetTileDataHeight        PROTO nTile:DWORD, dwBlockRows:DWORD, dwBlockColumns:DWORD, dwBlockSize:DWORD, dwImageHeight:DWORD
 
-MOSGetTileDataWidth     PROTO :DWORD, :DWORD, :DWORD, :DWORD
-MOSGetTileDataHeight    PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
+MOSCalcDwordAligned         PROTO dwWidthOrHeight:DWORD
+MOSTileDataRAWtoBMP         PROTO pTileRAW:DWORD, pTileBMP:DWORD, dwTileSizeRAW:DWORD, dwTileSizeBMP:DWORD, dwTileWidth:DWORD
+MOSTileDataBitmap           PROTO dwTileWidth:DWORD, dwTileHeight:DWORD, pTileBMP:DWORD, dwTileSizeBMP:DWORD, pTilePalette:DWORD
+MOSBitmapToTiles            PROTO hBitmap:DWORD, lpdwTileDataArray:DWORD, lpdwPaletteArray:DWORD, lpdwImageWidth:DWORD, lpdwImageHeight:DWORD, lpdwBlockColumns:DWORD, lpdwBlockRows:DWORD
 
-MOSCalcDwordAligned     PROTO :DWORD
-MOSTileDataRAWtoBMP     PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
-MOSTileDataBitmap       PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
-MOSBitmapToTiles        PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
+MOSScaleWidthHeight         PROTO dwImageWidth:DWORD, dwImageHeight:DWORD, dwPreferredWidth:DWORD, dwPreferredHeight:DWORD, lpdwScaledWidth:DWORD, lpdwScaledHeight:DWORD
 
 
 ;-------------------------------------------------------------------------
@@ -93,25 +94,25 @@ MOSBitmapToTiles        PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD, :DWORD, :D
 ;-------------------------------------------------------------------------
 IFNDEF MOSV1_HEADER
 MOSV1_HEADER            STRUCT
-    Signature           DD 0    ; 0x0000 	4 (char array) 	Signature ('MOS ')
-    Version             DD 0    ; 0x0004 	4 (char array) 	Version ('V1 ')
-    ImageWidth          DW 0    ; 0x0008 	2 (word) 	    Width (pixels)
-    ImageHeight         DW 0    ; 0x000a 	2 (word) 	    Height (pixels)
-    BlockColumns        DW 0    ; 0x000c 	2 (word) 	    Columns (blocks)
-    BlockRows           DW 0    ; 0x000e 	2 (word) 	    Rows (blocks)
-    BlockSize           DD 0    ; 0x0010 	4 (dword) 	    Block size (pixels)
-    PalettesOffset      DD 0    ; 0x0014 	4 (dword) 	    Offset (from start of file) to palettes
+    Signature           DD 0    ; 0x0000    4 (char array)  Signature ('MOS ')
+    Version             DD 0    ; 0x0004    4 (char array)  Version ('V1 ')
+    ImageWidth          DW 0    ; 0x0008    2 (word)        Width (pixels)
+    ImageHeight         DW 0    ; 0x000a    2 (word)        Height (pixels)
+    BlockColumns        DW 0    ; 0x000c    2 (word)        Columns (blocks)
+    BlockRows           DW 0    ; 0x000e    2 (word)        Rows (blocks)
+    BlockSize           DD 0    ; 0x0010    4 (dword)       Block size (pixels)
+    PalettesOffset      DD 0    ; 0x0014    4 (dword)       Offset (from start of file) to palettes
 MOSV1_HEADER            ENDS
 ENDIF
 
 IFNDEF MOSV2_HEADER
 MOSV2_HEADER            STRUCT
-    Signature           DD 0    ; 0x0000 	4 (char array) 	Signature ('MOS ')
-    Version             DD 0    ; 0x0004 	4 (char array) 	Version ('V2 ')
-    ImageWidth          DD 0    ; 0x0008 	4 (dword) 	    Width (pixels)
-    ImageHeight         DD 0    ; 0x000c 	4 (dword) 	    Height (pixels)
-    BlockEntriesCount   DD 0    ; 0x0010 	4 (dword) 	    Number of data blocks
-    BlockEntriesOffset  DD 0    ; 0x0014 	4 (dword) 	    Offset to data blocks
+    Signature           DD 0    ; 0x0000    4 (char array)  Signature ('MOS ')
+    Version             DD 0    ; 0x0004    4 (char array)  Version ('V2 ')
+    ImageWidth          DD 0    ; 0x0008    4 (dword)       Width (pixels)
+    ImageHeight         DD 0    ; 0x000c    4 (dword)       Height (pixels)
+    BlockEntriesCount   DD 0    ; 0x0010    4 (dword)       Number of data blocks
+    BlockEntriesOffset  DD 0    ; 0x0014    4 (dword)       Offset to data blocks
 MOSV2_HEADER            ENDS
 ENDIF
 
@@ -198,7 +199,7 @@ MOSV2Header                 DB "MOS V2  ",0
 MOSCHeader                  DB "MOSCV1  ",0
 MOSXHeader                  DB 12 dup (0)
 MOSTileBitmap               DB (SIZEOF BITMAPINFOHEADER + 1024) dup (0)
-szMOSDisplayDC              DB 'DISPLAY',0
+
 
 .CODE
 
@@ -353,7 +354,7 @@ IEMOS_ALIGN
 ;------------------------------------------------------------------------------
 ; IEMOSClose - Close MOS File
 ;------------------------------------------------------------------------------
-IEMOSClose PROC USES EAX EBX hIEMOS:DWORD
+IEMOSClose PROC USES EBX hIEMOS:DWORD
     LOCAL dwOpenMode:DWORD
     LOCAL TotalTiles:DWORD
     LOCAL TileDataPtr:DWORD
@@ -524,7 +525,7 @@ IEMOS_ALIGN
 ; MOSV1Mem - Returns handle in eax of opened bam file that is already loaded 
 ; into memory. NULL if could not alloc enough mem
 ;------------------------------------------------------------------------------
-MOSV1Mem PROC USES EBX ECX EDX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD
+MOSV1Mem PROC USES EBX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD
     LOCAL hIEMOS:DWORD
     LOCAL MOSMemMapPtr:DWORD
     LOCAL OffsetPalettes:DWORD ; From raw mos
@@ -949,7 +950,7 @@ IEMOS_ALIGN
 ; MOSV2Mem - Returns handle in eax of opened bam file that is already loaded 
 ; into memory. NULL if could not alloc enough mem
 ;------------------------------------------------------------------------------
-MOSV2Mem PROC USES EBX ECX EDX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD
+MOSV2Mem PROC USES EBX pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD
     LOCAL hIEMOS:DWORD
     LOCAL MOSMemMapPtr:DWORD
     LOCAL TotalBlockEntries:DWORD
@@ -2177,6 +2178,90 @@ MOSBitmapToTiles PROC USES EBX hBitmap:DWORD, lpdwTileDataArray:DWORD, lpdwPalet
 MOSBitmapToTiles ENDP
 
 
+IEMOS_ALIGN
+MOSScaleWidthHeight PROC USES EBX dwImageWidth:DWORD, dwImageHeight:DWORD, dwPreferredWidth:DWORD, dwPreferredHeight:DWORD, lpdwScaledWidth:DWORD, lpdwScaledHeight:DWORD
+    LOCAL dwScaledWidth:DWORD
+    LOCAL dwScaledHeight:DWORD
+    LOCAL fScaling1:REAL4
+    LOCAL fScaling2:REAL4
+    LOCAL fScaling:REAL4
+    
+    finit
+    fild dwPreferredWidth
+    fild dwImageWidth
+    fdiv
+    fstp fScaling1
+    
+    fild dwPreferredHeight
+    fild dwImageHeight
+    fdiv
+    fstp fScaling2
+    
+    finit               ; init fpu
+    fld fScaling1
+    fcom fScaling2      ; compare ST(0) with the value of the real4_var variable: 180.0
+    fstsw ax            ;copy the Status Word containing the result to AX
+    fwait               ;insure the previous instruction is completed
+    sahf                ;transfer the condition codes to the CPU's flag register
+    fstp st(0)
+    jpe error_handler   ;the comparison was indeterminate
+                        ;this condition should be verified first
+                        ;then only two of the next three conditional jumps
+                        ;should become necessary, in whatever order is preferred,
+                        ;the third jump being replaced by code to handle that case
+    ja    st0_greater   ;when all flags are 0
+    jb    st0_lower     ;only the C0 bit (CF flag) would be set if no error
+    jz    both_equal    ;only the C3 bit (ZF flag) would be set if no error
+    
+error_handler:
+jmp both_equal
+    
+st0_greater:
+    fld fScaling2
+    fstp fScaling
+jmp cont
+
+st0_lower:
+    fld fScaling1
+    fstp fScaling
+jmp cont
+
+both_equal:
+    mov eax, dwImageWidth
+    mov dwScaledWidth, eax
+    mov eax, dwImageHeight
+    mov dwScaledHeight, eax
+jmp exitx
+
+
+cont:
+
+    finit
+    fld fScaling
+    fild dwImageWidth
+    fmul
+    fistp dwScaledWidth
+
+    fld fScaling
+    fild dwImageHeight
+    fmul
+    fistp dwScaledHeight
+    
+exitx:    
+    
+    .IF lpdwScaledWidth != 0
+        mov ebx, lpdwScaledWidth
+        mov eax, dwScaledWidth
+        mov [ebx], eax
+    .ENDIF
+    .IF lpdwScaledHeight != 0
+        mov ebx, lpdwScaledHeight
+        mov eax, dwScaledHeight
+        mov [ebx], eax
+    .ENDIF
+    
+    ret
+MOSScaleWidthHeight ENDP
 
 
 END

@@ -2,11 +2,7 @@
 ;
 ; IEBAM
 ;
-; Copyright (c) 2018 by fearless
-;
-; All Rights Reserved
-;
-; http://www.LetTheLight.in
+; Copyright (c) 2019 by fearless
 ;
 ; http://github.com/mrfearless/InfinityEngineLibraries
 ;
@@ -39,62 +35,61 @@
 ;==============================================================================
 
 
-;-----------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAM Prototypes
-;-----------------------------------------------------------------------------------------
-IEBAMOpen                   PROTO :DWORD, :DWORD            ; lpszBamFilename, dwOpenMode. Returns in eax a handle used in other functions: hIEBAM
-IEBAMMem                    PROTO :DWORD, :DWORD, :DWORD, :DWORD ; pBAMInMemory, lpszBamFilename, dwBamFilesize, dwOpenMode. Returns in eax a handle used in other functions: hIEBAM
-IEBAMClose                  PROTO :DWORD                    ; hIEBAM returned from IEBAMOpen.
+;------------------------------------------------------------------------------
+IEBAMOpen                   PROTO lpszBamFilename:DWORD, dwOpenMode:DWORD ; eax = handle used in other functions: hIEBAM
+IEBAMMem                    PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD ; Returns in eax a handle used in other functions: hIEBAM
+IEBAMClose                  PROTO hIEBAM:DWORD
 
-;-----------------------------------------------------------------------------------------
-; Functions for returning pointers to internal bam structure areas of interest
-IEBAMHeader                 PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to a BAMV1_HEADER structure.
-IEBAMFrameEntry             PROTO :DWORD, :DWORD            ; hIEBAM, nFrameEntry. Returns in eax pointer to a FRAMEV1_ENTRY or FRAMEV2_ENTRY structure.
-IEBAMCycleEntry             PROTO :DWORD, :DWORD            ; hIEBAM, nCycleEntry. Returns in eax pointer to a CYCLEV1_ENTRY or CYCLEV2_ENTRY structure.
-IEBAMBlockEntry             PROTO :DWORD, :DWORD            ; hIEBAM, nBlockEntry. Returns in eax pointer to a DATABLOCK_ENTRY structure. For BAM V2 Only
+; Pointers to parts of BAM file:
+IEBAMHeader                 PROTO hIEBAM:DWORD ; eax = pointer to a BAMV1_HEADER structure.
+IEBAMFrameEntry             PROTO hIEBAM:DWORD, nFrameEntry:DWORD ; eax = pointer to a FRAMEV1_ENTRY or FRAMEV2_ENTRY structure.
+IEBAMCycleEntry             PROTO hIEBAM:DWORD, nCycleEntry:DWORD ; eax = pointer to a CYCLEV1_ENTRY or CYCLEV2_ENTRY structure.
+IEBAMBlockEntry             PROTO hIEBAM:DWORD, nBlockEntry:DWORD ; eax = pointer to a DATABLOCK_ENTRY structure. For BAM V2 Only
+IEBAMFrameEntries           PROTO hIEBAM:DWORD ; eax = pointer to Frame Entries
+IEBAMCycleEntries           PROTO hIEBAM:DWORD ; eax = pointer to Cycle Entries
+IEBAMBlockEntries           PROTO hIEBAM:DWORD ; eax = pointer to Datablock Entries. For BAM V2 Only
+IEBAMFrameDataEntries       PROTO hIEBAM:DWORD ; eax = pointer to FrameData Entries
+IEBAMFrameDataEntry         PROTO hIEBAM:DWORD, nFrameEntry:DWORD ; eax = pointer to frame data
+IEBAMFrameLookupEntry       PROTO hIEBAM:DWORD, nCycle:DWORD ; eax = frame lookup 
+IEBAMFrameLookupEntries     PROTO hIEBAM:DWORD ; eax = pointer to the frame lookup indexes
+IEBAMPalette                PROTO hIEBAM:DWORD ; eax = pointer to the palette of 256 x RQBQUADs
 
-IEBAMFrameEntries           PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to Frame Entries
-IEBAMCycleEntries           PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to Cycle Entries
-IEBAMBlockEntries           PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to Datablock Entries. For BAM V2 Only
+; BAM Basic Information:
+IEBAMTotalFrameEntries      PROTO hIEBAM:DWORD ; eax = total no of Frame entries.
+IEBAMTotalCycleEntries      PROTO hIEBAM:DWORD ; eax = total no of Cycle entries.
+IEBAMTotalBlockEntries      PROTO hIEBAM:DWORD ; eax = total no of Datablock entries. For BAM V2 Only
 
-IEBAMFrameDataEntries       PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to FrameData Entries
-IEBAMFrameDataEntry         PROTO :DWORD, :DWORD            ; hIEBAM, nFrameEntry. Returns in eax pointer to frame data
+; BAM File & Version Information:
+IEBAMFileName               PROTO hIEBAM:DWORD ; eax = pointer to bam full path filename
+IEBAMFileNameOnly           PROTO hIEBAM:DWORD, lpszFileNameOnly:DWORD ; eax = True or false if successfull. strips filename of path and ext information.
+IEBAMFileSize               PROTO hIEBAM:DWORD ; eax = size of bam file in bytes
+IEBAMFileCompression        PROTO hIEBAM:DWORD ; eax = -1 - No Bam file, TRUE for BAMCV1, FALSE for BAM V1 or BAM V2 
+IEBAMVersion                PROTO hIEBAM:DWORD ; eax = 0 no bam, 1 = BAM V1, 2 = BAM V2, 3 = BAMC 
 
-IEBAMFrameLookupEntry       PROTO :DWORD, :DWORD            ; hIEBAM, nCycleEntry. Returns in eax frame lookup 
-IEBAMFrameLookupEntries     PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to the frame lookup indexes
+; BAM Frame / Cycle Information:
+IEBAMFrameLookupSequence    PROTO hIEBAM:DWORD, nCycle:DWORD, CycleIndex:DWORD ; eax = frame no in eax or -1 otherwise
+IEBAMCycleFrameCount        PROTO hIEBAM:DWORD, nCycle:DWORD ; eax = frame count for cycle in eax or 0 otherwise
+IEBAMFrameDimensions        PROTO hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD ; eax = TRUE if successful or FALSE otherwise. lpdwX contain values
+IEBAMFindMaxWidthHeight     PROTO hIEBAM:DWORD, lpdwMaxWidth:DWORD, lpdwMaxHeight:DWORD ; eax = TRUE if successful or FALSE otherwise. lpdwX contain max values on success
 
-IEBAMPalette                PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to the palette of 256 x RQBQUADs
-IEBAMPaletteEntry           PROTO :DWORD, :DWORD            ; hIEBAM, PaletteIndex. Returns in eax pointer to RGBAQUAD for index 0-255 (256 entries) or NULL if unsuccessful
+; BAM Palette / Color Functions:
+IEBAMPaletteEntry           PROTO hIEBAM:DWORD, PaletteIndex:DWORD ; eax = pointer to RGBAQUAD for index 0-255 (256 entries) or NULL if unsuccessful
+IEBAMRLEColorIndexColorRef  PROTO hIEBAM:DWORD ; Returns in eax ColorRef RGB of RLEColorIndex.
+IEBAMConvertABGRtoARGB      PROTO dwBGRA:DWORD ; Returns ColorRef RGB in eax
+IEBAMConvertARGBtoABGR      PROTO dwARGB:DWORD ; Returns RGBQUAD (ABGR) in eax
 
+; BAM Frame Bitmap Functions:
+IEBAMFrameBitmap            PROTO hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD, lpdwFrameXCoord:DWORD, lpdwFrameYCoord:DWORD
+IEBAMBitmap                 PROTO hIEBAM:DWORD, :DWORD ; eax = handle to bitmap of frame data or NULL. if nFrame == -1 create preview of all frames
 
-; Bam file information
-IEBAMTotalFrameEntries      PROTO :DWORD                    ; hIEBAM. Returns in eax total no of Frame entries.
-IEBAMTotalCycleEntries      PROTO :DWORD                    ; hIEBAM. Returns in eax total no of Cycle entries.
-IEBAMTotalBlockEntries      PROTO :DWORD                    ; hIEBAM. Returns in eax total no of Datablock entries. For BAM V2 Only
+; BAM Compression Functions:
+IEBAMUncompressBAM          PROTO lpszBamFilenameIN:DWORD, lpszBamFilenameOUT:DWORD ; lpszBamInputFilename to uncompress, lpszBamOutputFilename (optional) to write out uncompressed Bam as (null=same filename as lpszBamInputFilename)
 
-IEBAMFileName               PROTO :DWORD                    ; hIEBAM. Returns in eax pointer to bam full path filename
-IEBAMFileNameOnly           PROTO :DWORD, :DWORD            ; hIEBAM, lpszFileNameOnly. eax contains True or false if succesfull. strips filename of path and ext information.
-IEBAMFileSize               PROTO :DWORD                    ; hIEBAM. Returns in eax size of bam file in bytes
-IEBAMFileCompression        PROTO :DWORD                    ; hIEBAM. Returns in eax -1 = No Bam file, TRUE for BAMCV1, FALSE for BAM V1 or BAM V2 
-IEBAMVersion                PROTO :DWORD                    ; hIEBAM. Returns in eax 0 no bam, 1 = BAM V1, 2 = BAM V2, 3 = BAMC 
-
-
-IEBAMFrameUnRLE             PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
-IEBAMFrameRAWToFrameBMP     PROTO :DWORD, :DWORD, :DWORD, :DWORD, :DWORD
-IEBAMFrameBitmap            PROTO :DWORD, :DWORD, :DWORD    ; hWin, hIEBAM, nFrame. Returns in eax handle to bitmap of frame data or NULL
-IEBAMFrameLookupSequence    PROTO :DWORD, :DWORD, :DWORD    ; hIEBAM, nCycle, SequenceIndex. Returns frame no in eax or -1 otherwise
-IEBAMCycleFrameCount        PROTO :DWORD, :DWORD            ; hIEBAM, nCycle. Returns frame count for cycle in eax or 0 otherwise
-IEBAMFrameWidthHeight       PROTO :DWORD, :DWORD, :DWORD, :DWORD ; hIEBAM, nFrame, lpdwFrameWidth, lpdwFrameHeight. Returns in eax TRUE if succesful or FALSE otherwise. lpdwX contain values
-IEBAMFindMaxWidthHeight     PROTO :DWORD, :DWORD, :DWORD    ; hIEBAM, lpdwFrameWidth, lpdwFrameHeight. Returns in eax TRUE if succesful or FALSE otherwise. lpdwX contain max values on success
-
-
-IEBAMRLEColorIndexColorRef  PROTO :DWORD                    ; hIEBAM. Returns in eax ColorRef RGB of RLEColorIndex.
-IEBAMConvertABGRtoARGB      PROTO :DWORD                    ; hIEBAM, ABGR. Returns ColorRef RGB in eax
-IEBAMConvertARGBtoABGR      PROTO :DWORD                    ; hIEBAM, ARGB. Returns RGBQUAD (ABGR) in eax
-
-;-----------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEBAM Structures
-;-----------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 
 IFNDEF BAMV1_HEADER
 BAMV1_HEADER            STRUCT
@@ -190,6 +185,8 @@ FRAMEDATA               STRUCT
     FrameCompressed     DD 0 ; Flag for compressed RLE encoding or not
     FrameWidth          DD 0
     FrameHeight         DD 0
+    FrameXcoord         DD 0
+    FrameYcoord         DD 0
     FrameSizeRAW        DD 0 ; total dimension size of FrameRAW = width * height
     FrameSizeRLE        DD 0
     FrameSizeBMP        DD 0
@@ -215,6 +212,20 @@ BAM_VERSION_BAM_V10         EQU 1 ; BAM_V1.0
 BAM_VERSION_BAM_V20         EQU 2 ; BAM_V2.0
 BAM_VERSION_BAMCV10         EQU 3 ; BAMCV1.0 (Compressed Blocks)
 
+; IEBAMUncompress return values
+BU_SUCCESS                  EQU 0
+BU_BAM_INVALID              EQU -1
+BU_BAM_ALREADY_UNCOMPRESSED EQU -2
+BU_BAM_FORMAT_UNSUPPORTED   EQU -3
+BU_BAM_TOO_LARGE            EQU -4
+BU_BAM_OUTPUTFILE_CREATION  EQU -5
+BU_BAM_OUTPUTFILE_MAPPING   EQU -6
+BU_BAM_OUTPUTFILE_VIEW      EQU -7
+BU_BAM_INPUTFILE_OPEN       EQU -8
+BU_BAM_INPUTFILE_MAPPING    EQU -9
+BU_BAM_INPUTFILE_VIEW       EQU -10
+BU_BAM_INPUTFILE_ZEROSIZE   EQU -11
+BU_BAM_UNCOMPRESS_ERROR     EQU -12
 
 
 
