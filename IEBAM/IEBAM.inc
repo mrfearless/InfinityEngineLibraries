@@ -60,6 +60,7 @@ IEBAMPalette                PROTO hIEBAM:DWORD ; eax = pointer to the palette of
 IEBAMTotalFrameEntries      PROTO hIEBAM:DWORD ; eax = total no of Frame entries.
 IEBAMTotalCycleEntries      PROTO hIEBAM:DWORD ; eax = total no of Cycle entries.
 IEBAMTotalBlockEntries      PROTO hIEBAM:DWORD ; eax = total no of Datablock entries. For BAM V2 Only
+IEBAMRLEColorIndex          PROTO hIEBAM:DWORD ; eax = RLE color index
 
 ; BAM File & Version Information:
 IEBAMFileName               PROTO hIEBAM:DWORD ; eax = pointer to bam full path filename
@@ -81,8 +82,8 @@ IEBAMConvertABGRtoARGB      PROTO dwBGRA:DWORD ; Returns ColorRef RGB in eax
 IEBAMConvertARGBtoABGR      PROTO dwARGB:DWORD ; Returns RGBQUAD (ABGR) in eax
 
 ; BAM Frame Bitmap Functions:
-IEBAMFrameBitmap            PROTO hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD, lpdwFrameXCoord:DWORD, lpdwFrameYCoord:DWORD
-IEBAMBitmap                 PROTO hIEBAM:DWORD, :DWORD ; eax = handle to bitmap of frame data or NULL. if nFrame == -1 create preview of all frames
+IEBAMFrameBitmap            PROTO hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD, lpdwFrameXCoord:DWORD, lpdwFrameYCoord:DWORD, dwTransColor:DWORD
+IEBAMBitmap                 PROTO hIEBAM:DWORD, nFrame:DWORD, dwBackColor:DWORD, dwGridColor:DWORD ; eax = handle to bitmap of frame data or NULL. if nFrame == -1 create preview of all frames
 
 ; BAM Compression Functions:
 IEBAMUncompressBAM          PROTO lpszBamFilenameIN:DWORD, lpszBamFilenameOUT:DWORD ; lpszBamInputFilename to uncompress, lpszBamOutputFilename (optional) to write out uncompressed Bam as (null=same filename as lpszBamInputFilename)

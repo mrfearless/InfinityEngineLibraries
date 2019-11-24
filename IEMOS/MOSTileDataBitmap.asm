@@ -1,6 +1,6 @@
 ;==============================================================================
 ;
-; IEBAM Library
+; IEMOS Library
 ;
 ; Copyright (c) 2019 by fearless
 ;
@@ -22,67 +22,65 @@ includelib user32.lib
 includelib kernel32.lib
 includelib gdi32.lib
 
-include IEBAM.inc
+include IEMOS.inc
 
-EXTERNDEF BAMCalcDwordAligned   :PROTO dwWidthOrHeight:DWORD
+EXTERNDEF MOSCalcDwordAligned   :PROTO dwWidthOrHeight:DWORD
 
 .DATA
-BAMFrameBitmap              DB (SIZEOF BITMAPINFOHEADER + 1024) dup (0)
+MOSTileBitmap               DB (SIZEOF BITMAPINFOHEADER + 1024) dup (0)
 
 .CODE
 
 
-IEBAM_ALIGN
-;******************************************************************************
-; Returns in eax handle to frame data bitmap or NULL
-;******************************************************************************
-BAMFrameDataBitmap PROC USES EBX dwFrameWidth:DWORD, dwFrameHeight:DWORD, pFrameBMP:DWORD, dwFrameSizeBMP:DWORD, pFramePalette:DWORD
-    LOCAL dwFrameWidthDword:DWORD
+IEMOS_ALIGN
+;------------------------------------------------------------------------------
+; Returns in eax handle to tile data bitmap or NULL. 
+;------------------------------------------------------------------------------
+MOSTileDataBitmap PROC USES EBX dwTileWidth:DWORD, dwTileHeight:DWORD, pTileBMP:DWORD, dwTileSizeBMP:DWORD, pTilePalette:DWORD
+    LOCAL dwTileWidthDword:DWORD
     LOCAL hdc:DWORD
-    LOCAL FrameBitmapHandle:DWORD
+    LOCAL TileBitmapHandle:DWORD
     
-    Invoke RtlZeroMemory, Addr BAMFrameBitmap, (SIZEOF BITMAPINFOHEADER + 1024)
+    Invoke RtlZeroMemory, Addr MOSTileBitmap, (SIZEOF BITMAPINFOHEADER + 1024)
 
-    Invoke BAMCalcDwordAligned, dwFrameWidth
-    mov dwFrameWidthDword, eax
+    Invoke MOSCalcDwordAligned, dwTileWidth
+    mov dwTileWidthDword, eax
 
-    lea ebx, BAMFrameBitmap
+    lea ebx, MOSTileBitmap
     mov [ebx].BITMAPINFOHEADER.biSize, 40d
     
-    mov eax, dwFrameWidthDword
+    mov eax, dwTileWidthDword
     mov [ebx].BITMAPINFOHEADER.biWidth, eax
-    mov eax, dwFrameHeight
-    ;neg eax
+    mov eax, dwTileHeight
+    neg eax
     mov [ebx].BITMAPINFOHEADER.biHeight, eax
     mov [ebx].BITMAPINFOHEADER.biPlanes, 1
     mov [ebx].BITMAPINFOHEADER.biBitCount, 8
     mov [ebx].BITMAPINFOHEADER.biCompression, BI_RGB
-    mov eax, dwFrameSizeBMP
+    mov eax, dwTileSizeBMP
     mov [ebx].BITMAPINFOHEADER.biSizeImage, eax
     mov [ebx].BITMAPINFOHEADER.biXPelsPerMeter, 2835d
     mov [ebx].BITMAPINFOHEADER.biYPelsPerMeter, 2835d
-    lea eax, BAMFrameBitmap
+    lea eax, MOSTileBitmap
     lea ebx, [eax].BITMAPINFO.bmiColors
-    Invoke RtlMoveMemory, ebx, pFramePalette, 1024d
+    Invoke RtlMoveMemory, ebx, pTilePalette, 1024d
     
     ;Invoke CreateDC, Addr szMOSDisplayDC, NULL, NULL, NULL
     Invoke GetDC, 0
     mov hdc, eax
-    Invoke CreateDIBitmap, hdc, Addr BAMFrameBitmap, CBM_INIT, pFrameBMP, Addr BAMFrameBitmap, DIB_RGB_COLORS
+    Invoke CreateDIBitmap, hdc, Addr MOSTileBitmap, CBM_INIT, pTileBMP, Addr MOSTileBitmap, DIB_RGB_COLORS
     .IF eax == NULL
         IFDEF DEBUG32
             PrintText 'CreateDIBitmap Failed'
         ENDIF
     .ENDIF
-    mov FrameBitmapHandle, eax
+    mov TileBitmapHandle, eax
     ;Invoke DeleteDC, hdc
     Invoke ReleaseDC, 0, hdc
-    mov eax, FrameBitmapHandle
+    mov eax, TileBitmapHandle
     ret
-BAMFrameDataBitmap ENDP
+MOSTileDataBitmap ENDP
 
 
-
-
-IEBAM_LIBEND
+IEMOS_LIBEND
 

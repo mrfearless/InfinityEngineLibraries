@@ -16,14 +16,21 @@ option casemap:none
 include windows.inc
 include kernel32.inc
 include user32.inc
-include zlibstat.inc
 
 includelib kernel32.lib
 includelib user32.lib
-includelib zlibstat128.lib
+
+;include zlibstat123.inc
+;includelib zlibstat123.lib
+
+include zlibstat1211.inc
+includelib zlibstat1211.lib
+
+
 
 include IEBAM.inc
 
+BAMUncompress PROTO hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
 
 .CODE
 
@@ -49,8 +56,10 @@ BAMUncompress PROC USES EBX hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
     mov eax, BAMFilesize
     sub eax, 0Ch ; take away the BAMC header 12 bytes = 0xC
     mov BAMC_CompressedSize, eax ; set correct compressed size = length of file minus BAMC header length
-
-    Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, BAMC_UncompressedSize
+    
+    mov eax, BAMC_UncompressedSize
+    add eax, 64 ; for extra just in case
+    Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, eax ;BAMC_UncompressedSize
     .IF eax != NULL
         mov dest, eax
         mov eax, pBAM ;BAMMemMapPtr

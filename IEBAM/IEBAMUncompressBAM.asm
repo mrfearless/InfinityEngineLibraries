@@ -17,12 +17,13 @@ include windows.inc
 include kernel32.inc
 include user32.inc
 include masm32.inc
-include zlibstat.inc
 
 includelib kernel32.lib
 includelib user32.lib
 includelib masm32.lib
-includelib zlibstat128.lib
+
+include zlibstat1211.inc
+includelib zlibstat1211.lib
 
 include IEBAM.inc
 

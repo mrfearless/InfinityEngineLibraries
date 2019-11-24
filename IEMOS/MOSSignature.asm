@@ -1,21 +1,31 @@
+;==============================================================================
+;
+; IEMOS Library
+;
+; Copyright (c) 2019 by fearless
+;
+; http://github.com/mrfearless/InfinityEngineLibraries
+;
+;==============================================================================
 .686
 .MMX
 .XMM
 .model flat,stdcall
 option casemap:none
 
+include windows.inc
+
 include IEMOS.inc
 
-MOSSignature      PROTO pMOS:DWORD
 
 .CODE
 
 
 IEMOS_ALIGN
-;******************************************************************************
+;------------------------------------------------------------------------------
 ; Checks the MOS signatures to determine if they are valid and if MOS file is 
 ; compressed
-;******************************************************************************
+;------------------------------------------------------------------------------
 MOSSignature PROC USES EBX pMOS:DWORD
     ; check signatures to determine version
     mov ebx, pMOS
@@ -45,5 +55,6 @@ MOSSignature PROC USES EBX pMOS:DWORD
     ret
 MOSSignature endp
 
-END
+
+IEMOS_LIBEND
 

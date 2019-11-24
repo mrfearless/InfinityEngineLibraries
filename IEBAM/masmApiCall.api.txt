@@ -39,6 +39,6 @@ IEBAMFindMaxWidthHeight,hIEBAM,lpdwFrameWidth,lpdwFrameHeight
 IEBAMFrameBitmap,hIEBAM,nFrame,lpdwFrameWidth,lpdwFrameHeight,lpdwFrameXCoord,lpdwFrameYCoord
 IEBAMBitmap,hIEBAM,nFrame
 IEBAMRLEColorIndexColorRef,hIEBAM
-IEBAMConvertABGRtoARGB,hIEBAM,ABGR
-IEBAMConvertARGBtoABGR,hIEBAM,ARGB
+IEBAMConvertABGRtoARGB,dwABGR
+IEBAMConvertARGBtoABGR,dwARGB
 IEBAMUncompressBAM,lpszBamFilenameIN,lpszBamFilenameOUT

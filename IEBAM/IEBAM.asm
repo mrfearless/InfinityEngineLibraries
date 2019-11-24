@@ -49,7 +49,6 @@ includelib user32.lib
 includelib gdi32.lib
 
 
-
 ;DEBUG32 EQU 1
 ;IFDEF DEBUG32
 ;    PRESERVEXMMREGS equ 1
@@ -67,37 +66,20 @@ include IEBAM.inc
 ;------------------------------------------------------------------------------
 ; Internal functions:
 ;------------------------------------------------------------------------------
-;EXTERNDEF BAMSignature      :PROTO pBAM:DWORD
-;EXTERNDEF BAMUncompress     :PROTO hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
-;EXTERNDEF BAMJustFname      :PROTO szFilePathName:DWORD, szFileName:DWORD
+EXTERNDEF BAMSignature              :PROTO pBAM:DWORD
+EXTERNDEF BAMUncompress             :PROTO hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
+EXTERNDEF BAMJustFname              :PROTO szFilePathName:DWORD, szFileName:DWORD
 
-BAMSignature                PROTO pBAM:DWORD
-BAMUncompress               PROTO hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
-BAMJustFname                PROTO szFilePathName:DWORD, szFileName:DWORD
+EXTERNDEF BAMCalcDwordAligned       :PROTO dwWidthOrHeight:DWORD
+EXTERNDEF BAMFrameDataBitmap        :PROTO dwFrameWidth:DWORD, dwFrameHeight:DWORD, pFrameBMP:DWORD, dwFrameSizeBMP:DWORD, pFramePalette:DWORD
 
-BAMCalcDwordAligned         PROTO dwWidthOrHeight:DWORD
-BAMFrameDataBitmap          PROTO dwFrameWidth:DWORD, dwFrameHeight:DWORD, pFrameBMP:DWORD, dwFrameSizeBMP:DWORD, pFramePalette:DWORD
+EXTERNDEF BAMFrameUnRLESize         :PROTO pFrameRLE:DWORD, FrameRLESize:DWORD
+EXTERNDEF BAMFrameUnRLE             :PROTO pFrameRLE:DWORD, FrameRLESize:DWORD, pFrameRAW:DWORD, FrameRAWSize:DWORD
 
-BAMFrameUnRLE               PROTO pFrameRLE:DWORD, pFrameRAW:DWORD, FrameRLESize:DWORD, FrameRAWSize:DWORD, FrameWidth:DWORD
-BAMFrameRAWToFrameBMP       PROTO pFrameRAW:DWORD, pFrameBMP:DWORD, FrameRAWSize:DWORD, FrameBMPSize:DWORD, FrameWidth:DWORD
+EXTERNDEF BAMFrameRAWToFrameBMP     :PROTO pFrameRAW:DWORD, pFrameBMP:DWORD, FrameRAWSize:DWORD, FrameBMPSize:DWORD, FrameWidth:DWORD
 
-BAMV1Mem                    PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
-BAMV2Mem                    PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
-
-
-
-RGBCOLOR macro r:REQ,g:REQ,b:REQ    
-exitm <( ( ( ( r )  or  ( ( ( g ) )  shl  8 ) )  or  ( ( ( b ) )  shl  16 ) ) ) >
-ENDM
-
-
-.DATA
-BAMV1Header                 DB "BAM V1  ",0
-BAMV2Header                 DB "BAM V2  ",0
-BAMCHeader                  DB "BAMCV1  ",0
-BAMXHeader                  DB 12 dup (0)
-BAMBMPPalette               DB 1024 dup (0) ; BITMAPFILEHEADER <'BM', 0, 0, 0, 54d>
-
+BAMV1Mem                            PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
+BAMV2Mem                            PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
 
 
 .CODE
@@ -220,7 +202,7 @@ IEBAMOpen PROC USES EBX lpszBamFilename:DWORD, dwOpenMode:DWORD
     .ELSEIF SigReturn == BAM_VERSION_BAMCV10 ; BAMC
         Invoke BAMUncompress, hBAMFile, BAMMemMapPtr, Addr BAMFilesize
         .IF eax == 0
-            Invoke UnmapViewOfFile, BAMMemMapPtr
+            ;Invoke UnmapViewOfFile, BAMMemMapPtr
             Invoke CloseHandle, BAMMemMapHandle
             Invoke CloseHandle, hBAMFile        
             mov eax, NULL
@@ -233,13 +215,13 @@ IEBAMOpen PROC USES EBX lpszBamFilename:DWORD, dwOpenMode:DWORD
         Invoke IEBAMMem, pBAM, lpszBamFilename, BAMFilesize, dwOpenMode
         mov hIEBAM, eax
         .IF hIEBAM == NULL
-            Invoke GlobalFree, pBAM
+            ;Invoke GlobalFree, pBAM
             mov eax, NULL
             ret
         .ENDIF
    
     .ENDIF
-    ; save original version to handle for later use so we know if orignal file opened was standard BIFF or a compressed BIF_ or BIFC file, if 0 then it was in mem so we assume BIFF
+    ; save original version to handle for later use so we know if orignal file opened was standard BAM or a compressed BAMC file, if 0 then it was in mem so we assume BAM
     mov ebx, hIEBAM
     mov eax, SigReturn
     mov [ebx].BAMINFO.BAMVersion, eax
@@ -261,20 +243,31 @@ IEBAMClose PROC USES EBX hIEBAM:DWORD
     LOCAL TotalCycles:DWORD
     LOCAL nFrame:DWORD
     LOCAL nCycle:DWORD
+    LOCAL dwOpenMode:DWORD
     
     .IF hIEBAM == NULL
         mov eax, 0
         ret
     .ENDIF
-        
+    
+    mov ebx, hIEBAM
+    mov eax, [ebx].BAMINFO.BAMOpenMode
+    mov dwOpenMode, eax
+    
+    Invoke IEBAMTotalFrameEntries, hIEBAM
+    mov TotalFrames, eax
+
+    Invoke IEBAMTotalCycleEntries, hIEBAM
+    mov TotalCycles, eax
+    
+    ;PrintText 'clear mem for allocd cycle sequence lookups'
     ; clear mem for alloc'd cycle sequence lookups, and clear mem for the whole lookup data structure
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMFrameLookupPtr
     .IF eax != NULL
         mov FrameLookupEntriesPtr, eax
         mov FrameLookupOffset, eax
-        Invoke IEBAMTotalCycleEntries, hIEBAM
-        mov TotalCycles, eax
+
         mov nCycle, 0
         mov eax, 0
         .WHILE eax < TotalCycles
@@ -290,38 +283,45 @@ IEBAMClose PROC USES EBX hIEBAM:DWORD
         .ENDW
     .ENDIF        
 
+    ;PrintText 'clear mem for BAMFrameLookupPtr'
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMFrameLookupPtr   
     .IF eax != NULL
         Invoke GlobalFree, eax
     .ENDIF
-
+    
+    ;PrintText 'clear mem allocd frames'
     ; clear mem for alloc'd frames, delete handle to bitmaps for each frame if there is one and clear mem for the whole frame data structure
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMFrameDataEntriesPtr
     .IF eax != NULL
         mov FrameDataEntriesPtr, eax
         mov FrameDataOffset, eax
-        Invoke IEBAMTotalFrameEntries, hIEBAM
-        mov TotalFrames, eax
+
         mov nFrame, 0
         mov eax, 0
         .WHILE eax < TotalFrames
-            mov ebx, FrameDataOffset
-            mov eax, [ebx].FRAMEDATA.FrameRAW
-            .IF eax != NULL
-                Invoke GlobalFree, eax
+            .IF dwOpenMode == IEBAM_MODE_WRITE
+                ;PrintText 'clear FrameRAW'
+                mov ebx, FrameDataOffset
+                mov eax, [ebx].FRAMEDATA.FrameRAW
+                .IF eax != NULL
+                    Invoke GlobalFree, eax
+                .ENDIF
             .ENDIF
+            ;PrintText 'clear FrameRLE'
             mov ebx, FrameDataOffset
             mov eax, [ebx].FRAMEDATA.FrameRLE
             .IF eax != NULL
                 Invoke GlobalFree, eax
             .ENDIF
+            ;PrintText 'clear FrameBitmapHandle'
             mov ebx, FrameDataOffset
             mov eax, [ebx].FRAMEDATA.FrameBitmapHandle
             .IF eax != NULL
                 Invoke DeleteObject, eax
             .ENDIF
+            ;PrintText 'clear FrameBMP'
             mov ebx, FrameDataOffset
             mov eax, [ebx].FRAMEDATA.FrameBMP
             .IF eax != NULL
@@ -332,17 +332,18 @@ IEBAMClose PROC USES EBX hIEBAM:DWORD
             inc nFrame
             mov eax, nFrame
         .ENDW
+        ;PrintText 'finished frame data clearing'
     .ENDIF
-
+    
+    ;PrintText 'clear mem BAMFrameDataEntriesPtr'
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMFrameDataEntriesPtr
     .IF eax != NULL
         Invoke GlobalFree, eax
     .ENDIF
 
-    mov ebx, hIEBAM
-    mov eax, [ebx].BAMINFO.BAMOpenMode
-    .IF eax == IEBAM_MODE_WRITE ; Write Mode
+    .IF dwOpenMode == IEBAM_MODE_WRITE ; Write Mode
+        ;PrintText 'clear mem headers'
         mov ebx, hIEBAM
         mov eax, [ebx].BAMINFO.BAMHeaderPtr
         .IF eax != NULL
@@ -376,18 +377,19 @@ IEBAMClose PROC USES EBX hIEBAM:DWORD
 
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMVersion
+    ;PrintDec eax
     .IF eax == BAM_VERSION_BAMCV10 ; BAMC in read or write mode uncompresed bam in memory needs to be cleared
+        ;PrintText 'BAM_VERSION_BAMCV10'
         mov ebx, hIEBAM
         mov eax, [ebx].BAMINFO.BAMMemMapPtr
         .IF eax != NULL
             Invoke GlobalFree, eax
-        .ENDIF    
+        .ENDIF
     
     .ELSE ; BAM V1 or BAM V2 so if  opened in readonly, unmap file etc, otherwise free mem
-
-        mov ebx, hIEBAM
-        mov eax, [ebx].BAMINFO.BAMOpenMode
-        .IF eax == IEBAM_MODE_READONLY ; Read Only
+        ;PrintText 'BAM V1 or BAM V2'
+        .IF dwOpenMode == IEBAM_MODE_READONLY ; Read Only
+            
             mov ebx, hIEBAM
             mov eax, [ebx].BAMINFO.BAMMemMapPtr
             .IF eax != NULL
@@ -416,6 +418,7 @@ IEBAMClose PROC USES EBX hIEBAM:DWORD
 
     .ENDIF
     
+    ;PrintText 'Final GlobalFree'
     mov eax, hIEBAM
     .IF eax != NULL
         Invoke GlobalFree, eax
@@ -526,7 +529,7 @@ BAMV1Mem PROC USES EBX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:
     mov [ebx].BAMINFO.BAMMemMapPtr, eax
     
     lea eax, [ebx].BAMINFO.BAMFilename
-    Invoke lstrcpy, eax, lpszBamFilename
+    Invoke lstrcpyn, eax, lpszBamFilename, MAX_PATH
     ;Invoke szCopy, lpszBamFilename, eax
     
     mov ebx, hIEBAM
@@ -732,7 +735,7 @@ BAMV1Mem PROC USES EBX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:
         mov PalettePtr, eax
     .ENDIF
     ; copy palette to our bitmap header palette var
-    Invoke RtlMoveMemory, Addr BAMBMPPalette, PalettePtr, 1024    
+    ;Invoke RtlMoveMemory, Addr BAMBMPPalette, PalettePtr, 1024    
     
     ;mov ebx, hIEBAM
     ;mov eax, 1024d
@@ -812,6 +815,9 @@ BAMV1Mem PROC USES EBX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:
             ; alloc mem for sequence
             .IF nCycleIndexCount > 0 
                 Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, SequenceSize ;nCycleIndexCount ;SequenceSize
+                .IF eax == NULL
+                    ret
+                .ENDIF
                 mov SequencePtr, eax
                 mov eax, nCycleIndexStart
                 mov ebx, 2d ; word array size
@@ -960,21 +966,43 @@ BAMV1Mem PROC USES EBX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:
             mov ebx, FrameHeight
             mul ebx
             mov FrameSizeBMP, eax
-
+            
+            IFDEF DEBUG32
+            .IF nFrame == 97
+                PrintText '-------------'
+                PrintDec nFrame
+                PrintDec FrameWidth
+                PrintDec FrameHeight
+                PrintDec FrameWidthDwordAligned
+                PrintDec FrameSizeRAW
+                PrintDec FrameSizeRLE
+                PrintDec FrameSizeBMP
+            .ENDIF
+            ENDIF
+            
+            
             .IF FrameSizeRAW != 0
-                Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, FrameSizeRAW
+                mov eax, FrameSizeRAW
+                add eax, 4d ; extra margin for overread
+                Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, eax ;FrameSizeRAW
                 mov FrameDataRawPtr, eax
             .ELSE
                 mov FrameDataRawPtr, 0
             .ENDIF
             .IF FrameSizeRLE != 0
-                Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, FrameSizeRLE
+                mov eax, FrameSizeRLE
+                add eax, 4d ; extra margin for overread
+                Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, eax ;FrameSizeRLE
                 mov FrameDataRlePtr, eax
             .ELSE
                 mov FrameDataRlePtr, 0
             .ENDIF
             .IF FrameSizeBMP != 0
-                Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, FrameSizeBMP
+                mov eax, FrameSizeBMP
+                add eax, 1024d 
+                ; added for bad BAMC compressed rle bam frames: sphorpuf.bam frame 97 etc - to prevent stack/heap corruption 0xc0000374 on exit
+                ; classic sphorpuf.bam seems to be issue, EE version is different - resized (and doesnt crash)
+                Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, eax ;FrameSizeBMP
                 mov FrameDataBmpPtr, eax
             .ELSE
                 mov FrameDataBmpPtr, 0
@@ -1007,6 +1035,7 @@ BAMV1Mem PROC USES EBX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:
             mov eax, BAMMemMapPtr
             add eax, FrameDataOffset
             .IF FrameCompressed == 1 ; uncompressed
+                ;PrintText 'uncompressed frame'
                 .IF FrameDataRawPtr != 0
                     Invoke RtlMoveMemory, FrameDataRawPtr, eax, FrameSizeRAW
                 .ENDIF
@@ -1016,10 +1045,12 @@ BAMV1Mem PROC USES EBX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:
                 Invoke RtlMoveMemory, FrameDataRlePtr, eax, FrameSizeRLE
                 mov eax, FrameSizeRLE
                 .IF eax == FrameSizeRAW ; already uncompressed so just copy memory
+                    ;PrintText 'compressed - already uncompressed frame'
                     Invoke RtlMoveMemory, FrameDataRawPtr, FrameDataRlePtr, FrameSizeRLE
                     Invoke RtlMoveMemory, FrameDataBmpPtr, FrameDataRlePtr, FrameSizeRLE
                 
                 .ELSEIF eax > FrameSizeRAW ; invalid bam, copy last bam frame to this
+                    ;PrintText 'compressed - invalid bam'
                     mov eax, nFrame
                     inc eax
                     .IF eax == TotalFrameEntries ; last frame problem RIPPLES_2.BAM
@@ -1067,14 +1098,52 @@ BAMV1Mem PROC USES EBX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:
                     .ENDIF
                         
                 .ELSE ; otherwise unRLE mem to raw storage
-                    Invoke BAMFrameUnRLE, FrameDataRlePtr, FrameDataRawPtr, FrameSizeRLE, FrameSizeRAW, FrameWidth ; unRLE compressed frame
-                    .IF eax == -1
+                    ;PrintText 'compressed - unRLE bam'
+                    IFDEF DEBUG32
+                    .IF nFrame == 97
+                        DbgDump FrameDataRlePtr, FrameSizeRLE
                     .ENDIF
-                    mov FrameSizeRAW, eax
-                    mov ebx, FrameDataEntryPtr
-                    mov [ebx].FRAMEDATA.FrameSizeRAW, eax ; put correct raw size here
+                    ENDIF
                     
-                    Invoke BAMFrameRAWToFrameBMP, FrameDataRawPtr, FrameDataBmpPtr, FrameSizeRAW, FrameSizeBMP, FrameWidth
+;                    Invoke BAMFrameUnRLESize, FrameDataRlePtr, FrameSizeRLE
+;                    .IF eax > FrameSizeRAW ; resize buffers for unrle and raw to bmp
+;                        mov FrameSizeRAW, eax
+;                        IFDEF DEBUG32
+;                        PrintText 'resizing raw buffer!'
+;                        ENDIF
+;                        mov eax, FrameDataRawPtr
+;                        .IF eax != 0
+;                            Invoke GlobalFree, eax
+;                        .ENDIF
+;                        Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, FrameSizeRAW
+;                        mov FrameDataRawPtr, eax
+;                        
+;                        mov ebx, FrameDataEntryPtr
+;                        mov eax, FrameDataRawPtr
+;                        mov [ebx].FRAMEDATA.FrameRAW, eax
+;                        mov eax, FrameSizeRAW
+;                        mov [ebx].FRAMEDATA.FrameSizeRAW, eax 
+;                        
+;                        Invoke BAMFrameUnRLE, FrameDataRlePtr, FrameSizeRLE, FrameDataRawPtr
+;                        
+;                        ;Invoke RtlMoveMemory, FrameDataBmpPtr, FrameDataRawPtr, FrameSizeRAW
+;                        Invoke BAMFrameRAWToFrameBMP, FrameDataRawPtr, FrameDataBmpPtr, FrameSizeRAW, FrameSizeBMP, FrameWidth
+;                        
+;                    .ELSE
+                        
+                        Invoke BAMFrameUnRLE, FrameDataRlePtr, FrameSizeRLE, FrameDataRawPtr, FrameSizeRAW ;, FrameWidth ; unRLE compressed frame
+                        mov FrameSizeRAW, eax
+                        IFDEF DEBUG32
+                        .IF nFrame == 97
+                            PrintText 'New size: '
+                            PrintDec FrameSizeRAW
+                        .ENDIF
+                        ENDIF
+                        mov ebx, FrameDataEntryPtr
+                        mov [ebx].FRAMEDATA.FrameSizeRAW, eax ; put correct raw size here
+                        
+                        Invoke BAMFrameRAWToFrameBMP, FrameDataRawPtr, FrameDataBmpPtr, FrameSizeRAW, FrameSizeBMP, FrameWidth
+;                    .ENDIF
                 .ENDIF
             .ENDIF
             
@@ -1101,7 +1170,7 @@ IEBAM_ALIGN
 ;------------------------------------------------------------------------------
 ; BAMV2Mem - Returns handle in eax of opened bam file that is already loaded into memory. NULL if could not alloc enough mem
 ;------------------------------------------------------------------------------
-BAMV2Mem PROC USES EBX ECX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
+BAMV2Mem PROC USES EBX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
     LOCAL hIEBAM:DWORD
     LOCAL BAMMemMapPtr:DWORD
     LOCAL TotalFrameEntries:DWORD

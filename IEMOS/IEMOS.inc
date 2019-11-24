@@ -34,9 +34,9 @@
 ;
 ;==============================================================================
 
-;-----------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; IEMOS Prototypes
-;-----------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IEMOSOpen                   PROTO lpszMosFilename:DWORD, dwOpenMode:DWORD ; eax = handle used in other functions: hIEMOS
 IEMOSMem                    PROTO pMOSInMemory:DWORD, lpszMosFilename:DWORD, dwMosFilesize:DWORD, dwOpenMode:DWORD ; eax = handle used in other functions: hIEMOS
 IEMOSClose                  PROTO hIEMOS:DWORD
@@ -60,7 +60,6 @@ IEMOSColumnsRows            PROTO hIEMOS:DWORD, lpdwColumns:DWORD, lpdwRows:DWOR
 IEMOSPixelBlockSize         PROTO hIEMOS:DWORD ; eax = pixel block size
 
 ; MOS Tile Data Information:
-IEMOSTileBitmap             PROTO hIEMOS:DWORD, nTile:DWORD, lpdwTileWidth:DWORD, lpdwTileHeight:DWORD, lpdwTileXCoord:DWORD, lpdwTileYCoord:DWORD ; eax = HBITMAP or NULL
 IEMOSTileWidth              PROTO hIEMOS:DWORD, nTile:DWORD ; eax = tile width
 IEMOSTileHeight             PROTO hIEMOS:DWORD, nTile:DWORD ; eax = tile height
 IEMOSTileXCoord             PROTO hIEMOS:DWORD, nTile:DWORD ; eax = tile x coord
@@ -77,14 +76,16 @@ IEMOSFileCompression        PROTO hIEMOS:DWORD ; eax = -1 = No Mos file, TRUE fo
 IEMOSVersion                PROTO hIEMOS:DWORD ; eax = 0 no mos, 1 = MOS V1, 2 = MOS V2, 3 = MOSC 
 
 ; MOS Bitmap Functions:
+IEMOSTileBitmap             PROTO hIEMOS:DWORD, nTile:DWORD, lpdwTileWidth:DWORD, lpdwTileHeight:DWORD, lpdwTileXCoord:DWORD, lpdwTileYCoord:DWORD ; eax = HBITMAP or NULL
 IEMOSBitmap                 PROTO hIEMOS:DWORD ; eax = HBITMAP (of all combined tiles to create the whole bitmap) or NULL.
 
 ; MOS Compression Functions:
 IEMOSUncompressMOS          PROTO lpszMosFilenameIN:DWORD, lpszMosFilenameOUT:DWORD ; lpszMosInputFilename to uncompress, lpszMosOutputFilename (optional) to write out uncompressed mos as (null=same filename as lpszMosInputFilename)
 
-;-----------------------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
 ; IEMOS Structures
-;-----------------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 IFNDEF MOSV1_HEADER
 MOSV1_HEADER            STRUCT
     Signature           DD 0    ; 0x0000    4 (char array)  Signature ('MOS ')
@@ -150,9 +151,45 @@ DATABLOCK_ENTRY         STRUCT
 DATABLOCK_ENTRY         ENDS
 ENDIF
 
+IFNDEF MOSINFO
+MOSINFO                     STRUCT
+    MOSOpenMode             DD 0
+    MOSFilename             DB MAX_PATH DUP (0)
+    MOSFilesize             DD 0
+    MOSVersion              DD 0
+    MOSCompressed           DD 0
+    MOSHeaderPtr            DD 0
+    MOSHeaderSize           DD 0
+    MOSImageWidth           DD 0
+    MOSImageHeight          DD 0
+    MOSBlockColumns         DD 0 ; MOS V1
+    MOSBlockRows            DD 0 ; MOS V1
+    MOSBlockSize            DD 0 ; MOS V1
+    MOSTotalTiles           DD 0 ; MOS V1
+    MOSPaletteEntriesPtr    DD 0 ; no interal palette for MOS V2
+    MOSPaletteEntriesSize   DD 0 ; MOS V1
+    MOSTileLookupEntriesPtr DD 0 ; MOS V1 ; TileLookup Entries
+    MOSTileLookupEntriesSize DD 0 ; MOS V1
+    MOSTileDataPtr          DD 0 
+    MOSTileDataSize         DD 0
+    MOSBlockEntriesPtr      DD 0 ; for MOS V2
+    MOSBlockEntriesSize     DD 0 ; for MOS V2
+    MOSMemMapPtr            DD 0
+    MOSMemMapHandle         DD 0
+    MOSFileHandle           DD 0    
+MOSINFO                     ENDS
+ENDIF
+
 
 .CONST
-
+;------------------------------------------
+; Conditional for IEMOS Library DLL compiling
+;------------------------------------------
+IFDEF IEMOS_DLL
+    IEMOS_LIBEND TEXTEQU <>
+ELSE
+    IEMOS_LIBEND TEXTEQU <END>
+ENDIF
 IEMOS_ALIGN                 TEXTEQU <ALIGN 16>
 ; IEMOSOpen open mode:
 IEMOS_MODE_WRITE            EQU 0

@@ -14,12 +14,17 @@
 option casemap:none
 
 include windows.inc
+include kernel32.inc
+includelib kernel32.Lib
 
 include IEBAM.inc
 
 EXTERNDEF IEBAMFrameDataEntry   :PROTO hIEBAM:DWORD, nFrameEntry:DWORD
 EXTERNDEF IEBAMPalette          :PROTO hIEBAM:DWORD
 EXTERNDEF BAMFrameDataBitmap    :PROTO dwFrameWidth:DWORD, dwFrameHeight:DWORD, pFrameBMP:DWORD, dwFrameSizeBMP:DWORD, pFramePalette:DWORD
+
+.DATA
+BAMPaletteTmp DB 1024 DUP (0)
 
 .CODE
 
@@ -30,7 +35,7 @@ IEBAM_ALIGN
 ; to, are filled in if eax is a HBITMAP (!NULL), otherwise vars (if supplied) 
 ; will be set to 0
 ;------------------------------------------------------------------------------
-IEBAMFrameBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD, lpdwFrameXCoord:DWORD, lpdwFrameYCoord:DWORD
+IEBAMFrameBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD, lpdwFrameXCoord:DWORD, lpdwFrameYCoord:DWORD, dwTransColor:DWORD
     LOCAL FramePalette:DWORD
     LOCAL FrameDataEntry:DWORD
     LOCAL FrameWidth:DWORD
@@ -95,12 +100,30 @@ IEBAMFrameBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD,
         jmp IEBAMFrameBitmapExit
     .ENDIF
     mov FramePalette, eax
-
-    Invoke BAMFrameDataBitmap, FrameWidth, FrameHeight, FrameBMP, FrameSizeBMP, FramePalette
-    .IF eax != NULL ; save bitmap handle back to TILEDATA struct
+    
+    ; Set palette transparency if dwTransColor is not -1
+    .IF dwTransColor != -1
+        Invoke RtlMoveMemory, Addr BAMPaletteTmp, FramePalette, 1024
+        Invoke IEBAMRLEColorIndex, hIEBAM
+        ;mov ebx, 4
+        ;mul ebx
+        ;lea ebx, BAMPaletteTmp
+        ;add eax, ebx
+        
+        lea ebx, BAMPaletteTmp
+        lea ebx, [ebx+eax*4]
+        Invoke IEBAMConvertARGBtoABGR, dwTransColor
+        ;mov eax, dwTransColor
+        mov [ebx], eax
+        Invoke BAMFrameDataBitmap, FrameWidth, FrameHeight, FrameBMP, FrameSizeBMP, Addr BAMPaletteTmp
         mov FrameBitmapHandle, eax
-        mov ebx, FrameDataEntry
-        mov [ebx].FRAMEDATA.FrameBitmapHandle, eax
+    .ELSE
+        Invoke BAMFrameDataBitmap, FrameWidth, FrameHeight, FrameBMP, FrameSizeBMP, FramePalette
+        .IF eax != NULL ; save bitmap handle back to TILEDATA struct
+            mov FrameBitmapHandle, eax
+            mov ebx, FrameDataEntry
+            mov [ebx].FRAMEDATA.FrameBitmapHandle, eax
+        .ENDIF
     .ENDIF
 
 IEBAMFrameBitmapExit:
