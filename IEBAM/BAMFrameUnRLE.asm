@@ -121,7 +121,7 @@ BAMFrameUnRLE PROC USES ECX EDI ESI pFrameRLE:DWORD, FrameRLESize:DWORD, pFrameR
 
     mov eax, FrameSize
     ret
-BAMFrameUnRLE endp
+BAMFrameUnRLE ENDP
 
 
 IEBAM_ALIGN

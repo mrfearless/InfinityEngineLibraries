@@ -38,7 +38,7 @@ IEBAMFileCompression PROC USES EBX hIEBAM:DWORD
         mov eax, FALSE
     .ENDIF
     ret
-IEBAMFileCompression endp
+IEBAMFileCompression ENDP
 
 
 

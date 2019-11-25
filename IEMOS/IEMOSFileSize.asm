@@ -33,7 +33,7 @@ IEMOSFileSize PROC USES EBX hIEMOS:DWORD
     mov ebx, hIEMOS
     mov eax, [ebx].MOSINFO.MOSFilesize
     ret
-IEMOSFileSize endp
+IEMOSFileSize ENDP
 
 
 

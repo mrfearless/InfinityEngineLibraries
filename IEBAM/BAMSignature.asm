@@ -44,7 +44,7 @@ BAMSignature PROC pBAM:DWORD
         mov eax, BAM_VERSION_INVALID
     .ENDIF
     ret
-BAMSignature endp
+BAMSignature ENDP
 
 
 IEBAM_LIBEND

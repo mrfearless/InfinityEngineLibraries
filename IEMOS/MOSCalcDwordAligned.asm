@@ -51,7 +51,7 @@ MOSCalcDwordAligned PROC USES ECX EDX dwWidthOrHeight:DWORD
     .ENDIF
     ; eax contains dword aligned value   
     ret
-MOSCalcDwordAligned endp
+MOSCalcDwordAligned ENDP
 
 
 

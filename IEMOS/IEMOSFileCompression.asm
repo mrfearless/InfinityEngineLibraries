@@ -38,7 +38,7 @@ IEMOSFileCompression PROC USES EBX hIEMOS:DWORD
         mov eax, FALSE
     .ENDIF
     ret
-IEMOSFileCompression endp
+IEMOSFileCompression ENDP
 
 
 

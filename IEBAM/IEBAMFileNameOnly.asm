@@ -38,7 +38,7 @@ IEBAMFileNameOnly PROC hIEBAM:DWORD, lpszFileNameOnly:DWORD
     
     mov eax, TRUE
     ret
-IEBAMFileNameOnly endp
+IEBAMFileNameOnly ENDP
 
 
 

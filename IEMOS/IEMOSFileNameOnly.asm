@@ -39,7 +39,7 @@ IEMOSFileNameOnly PROC hIEMOS:DWORD, lpszFileNameOnly:DWORD
     
     mov eax, TRUE
     ret
-IEMOSFileNameOnly endp
+IEMOSFileNameOnly ENDP
 
 
 

@@ -77,7 +77,7 @@ BAMUncompress PROC USES EBX hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
     .ENDIF                  
     mov eax, 0        
     ret
-BAMUncompress endp
+BAMUncompress ENDP
 
 
 

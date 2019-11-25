@@ -53,7 +53,7 @@ MOSSignature PROC USES EBX pMOS:DWORD
         mov eax, MOS_VERSION_INVALID
     .ENDIF
     ret
-MOSSignature endp
+MOSSignature ENDP
 
 
 IEMOS_LIBEND

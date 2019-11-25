@@ -33,7 +33,7 @@ IEBAMFileSize PROC USES EBX hIEBAM:DWORD
     mov ebx, hIEBAM
     mov eax, [ebx].BAMINFO.BAMFilesize
     ret
-IEBAMFileSize endp
+IEBAMFileSize ENDP
 
 
 

@@ -48,7 +48,7 @@ IEMOSFileName PROC USES EBX hIEMOS:DWORD
         mov eax, MosFilename
     .ENDIF
     ret
-IEMOSFileName endp
+IEMOSFileName ENDP
 
 
 

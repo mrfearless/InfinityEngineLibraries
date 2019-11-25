@@ -70,7 +70,7 @@ BAMCalcDwordAligned PROC USES ECX EDX dwWidthOrHeight:DWORD
 ;    .ENDIF
 ;    ; eax contains dword aligned value   
 ;    ret
-BAMCalcDwordAligned endp
+BAMCalcDwordAligned ENDP
 
 
 IEBAM_LIBEND

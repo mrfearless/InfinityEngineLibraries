@@ -17,7 +17,7 @@ include windows.inc
 
 include IEBAM.inc
 
-EXTERNDEF IEBAMFrameLookupEntry     :PROTO hIEBAM:DWORD
+EXTERNDEF IEBAMFrameLookupEntry     :PROTO hIEBAM:DWORD, nCycle:DWORD
 
 .CODE
 
@@ -71,7 +71,7 @@ IEBAMFrameLookupSequence PROC USES EBX hIEBAM:DWORD, nCycle:DWORD, CycleIndex:DW
         mov eax, -1
     .ENDIF    
     ret
-IEBAMFrameLookupSequence endp
+IEBAMFrameLookupSequence ENDP
 
 
 

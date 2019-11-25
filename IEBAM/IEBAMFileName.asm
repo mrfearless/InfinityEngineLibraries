@@ -46,7 +46,7 @@ IEBAMFileName PROC USES EBX hIEBAM:DWORD
         mov eax, BamFilename
     .ENDIF
     ret
-IEBAMFileName endp
+IEBAMFileName ENDP
 
 
 

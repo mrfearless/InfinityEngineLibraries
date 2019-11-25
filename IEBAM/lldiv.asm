@@ -31,7 +31,7 @@ HIWORD  equ     [4]
 ;       ECX
 ;
 
-__alldiv        proc    near
+__alldiv        PROC    near
                 assume  cs:_TEXT
 
         push    edi
@@ -188,7 +188,10 @@ L8:
 
         ret     16
 
-__alldiv        endp
+__alldiv        ENDP
 
-_TEXT           ends
-                end
+_TEXT           ENDS
+
+                END
+                ;IEBAM_LIBEND
+

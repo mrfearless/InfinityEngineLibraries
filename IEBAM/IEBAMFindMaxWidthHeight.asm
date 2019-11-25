@@ -89,7 +89,7 @@ IEBAMFindMaxWidthHeight PROC USES EBX hIEBAM:DWORD, lpdwMaxWidth:DWORD, lpdwMaxH
     mov eax, 0    
     ret
 
-IEBAMFindMaxWidthHeight endp
+IEBAMFindMaxWidthHeight ENDP
 
 
 

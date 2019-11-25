@@ -50,7 +50,7 @@ IEBAMPaletteEntry PROC USES EBX hIEBAM:DWORD, PaletteIndex:DWORD
     mul ebx
     add eax, PaletteOffset
     ret
-IEBAMPaletteEntry endp
+IEBAMPaletteEntry ENDP
 
 
 

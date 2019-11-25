@@ -1237,7 +1237,8 @@ BAMV2Mem PROC USES EBX pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:
     mov [ebx].BAMINFO.BAMMemMapPtr, eax
     
     lea eax, [ebx].BAMINFO.BAMFilename
-    Invoke lstrcpy, eax, lpszBamFilename
+    Invoke lstrcpyn, eax, lpszBamFilename, MAX_PATH
+    ;Invoke lstrcpy, eax, lpszBamFilename
     ;Invoke szCopy, lpszBamFilename, eax
     
     mov ebx, hIEBAM

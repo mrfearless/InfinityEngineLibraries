@@ -87,7 +87,7 @@ BAMFrameRAWToFrameBMP PROC USES EDI ESI pFrameRAW:DWORD, pFrameBMP:DWORD, FrameR
         mov eax, BMPCurrentPos
     .ENDW
     ret
-BAMFrameRAWToFrameBMP endp
+BAMFrameRAWToFrameBMP ENDP
 
 
 

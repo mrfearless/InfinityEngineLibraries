@@ -39,7 +39,7 @@ IEBAMCycleFrameCount PROC USES EBX hIEBAM:DWORD, nCycle:DWORD
     mov ebx, eax
     movzx eax, word ptr [ebx].CYCLEV1_ENTRY.CycleFrameCount
     ret
-IEBAMCycleFrameCount endp
+IEBAMCycleFrameCount ENDP
 
 
 

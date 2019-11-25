@@ -56,7 +56,7 @@ IEBAMRLEColorIndexColorRef PROC USES EBX hIEBAM:DWORD
     Invoke IEBAMConvertABGRtoARGB, ABGR
     AND eax, 00FFFFFFh ; to mask off alpha
     ret
-IEBAMRLEColorIndexColorRef endp
+IEBAMRLEColorIndexColorRef ENDP
 
 
 
