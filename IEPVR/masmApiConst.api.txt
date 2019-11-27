@@ -1,0 +1,8 @@
+;------------------------------------------------------------------------------------------------
+; IEPVR x86 Library
+;
+; Paste this text at the end of \Radasm\masm\masmApiConst.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+2IEPVROpen,IEPVR_MODE_WRITE,IEPVR_MODE_READONLY
+4IEPVRMem,IEPVR_MODE_WRITE,IEPVR_MODE_READONLY

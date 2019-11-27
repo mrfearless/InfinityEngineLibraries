@@ -1,0 +1,88 @@
+/*****************************************************************************
+* ie_pvr.hsl - Created by fearless
+* 
+* Structure definitions for the Infinity Engine .pvr file format 
+* For use with BreakPoint HexWorkshop (http://www.hexworkshop.com)
+*
+*****************************************************************************
+* Revision History:
+*
+* 27/11/2019 - fearless - Original creation
+*
+*****************************************************************************/
+ 
+#include "standard-types.hsl"
+
+#pragma displayname("Infinity Engine pvr File Format") ;
+#pragma fileextensions(".pvr;.pvrz;") ;
+#pragma byteorder(little_endian);
+
+
+/*****************************************************************************
+* PVRZ_HEADER Type Definition
+*****************************************************************************/
+typedef struct PVRZ_HEADER
+{
+	DWORD UncompressLength;
+	blob PVRZlibData[__getDocSize() - 4];
+} PVRZ_HEADER ;
+
+
+/*****************************************************************************
+* PVR3_HEADER Type Definition
+*****************************************************************************/
+typedef struct PVR3_HEADER
+{
+	DWORD Version;
+	DWORD Flags;
+	UQUAD PixelFormat;
+	DWORD ColorSpace;
+	DWORD ChannelType;
+	DWORD ImageHeight;
+	DWORD ImageWidth;
+	DWORD ImageDepth;
+	DWORD NoSurfaces;
+	DWORD NoFaces;
+	DWORD MIPMapCount;
+	DWORD MetaDataSize;
+} PVR3_HEADER ;
+
+
+
+/*****************************************************************************
+* PVR3_METADATA Type Definition
+*****************************************************************************/
+typedef struct PVR3_METADATA
+{
+	DWORD FourCC;
+	DWORD Key;
+	DWORD DataSize;
+	blob Data[DataSize];
+} PVR3_METADATA ;
+
+
+
+/*****************************************************************************
+* Actual pvr File Structure as defined
+*****************************************************************************/
+#pragma show()
+struct PVR
+{
+	#pragma lockAt(0)
+	PVR3_HEADER PVR3Header;
+	if (PVR3Header.MetaDataSize > 0)
+	{
+		PVR3_METADATA PVRMetadata;
+		struct PVR3_TEXTURE_DATA {
+			blob TextureData[ __getDocSize() - ( __getSizeOf(PVR3Header) + __getSizeOf(PVRMetadata) )];
+		};
+	}
+	else
+	{
+		struct PVR3_TEXTURE_DATA {
+			blob TextureData[ __getDocSize() - ( __getSizeOf(PVR3Header) )];
+		};
+	};
+ 
+}; 
+

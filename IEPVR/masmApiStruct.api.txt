@@ -1,0 +1,10 @@
+;------------------------------------------------------------------------------------------------
+; IEPVR x86 Library
+;
+; Paste this text at the end of \Radasm\masm\masmApiStruct.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+PVR3_HEADER,Version,Flags,PixelFormat,ColorSpace,ChannelType,ImageHeight,ImageWidth,ImageDepth,NoSurfaces,NoFaces,MIPMapCount,MetaDataSize
+PVR3_METADATA,FourCC,Key,DataSize,Data
+PVRZ_HEADER,UncompressedSize,UncompressedData
+

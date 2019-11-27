@@ -1,0 +1,11 @@
+;------------------------------------------------------------------------------------------------
+; IEPVR x86 Library
+;
+; Paste this text at the end of \Radasm\masm\masmApiCall.api to add these to Radasm
+;
+;------------------------------------------------------------------------------------------------
+IEPVROpen,lpszPvrFilename,dwOpenMode
+IEPVRMem,pPVRInMemory,lpszPvrFilename,dwPvrFilesize,dwOpenMode
+IEPVRClose,hIEPVR
+
+IEPVRHeader,hIEPVR
