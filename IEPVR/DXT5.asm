@@ -10,18 +10,28 @@
 .686
 .MMX
 .XMM
-.model flat,stdcall
+.model flat,C
 option casemap:none
+include \masm32\macros\macros.asm
 
 include windows.inc
+include user32.inc
+include kernel32.inc
+
+include user32.inc
+includelib Kernel32.Lib
+
 include IEPVR.inc
 
-DXTDBlockDxt5             PROTO block:DWORD, pixels:DWORD ; Decmopresses single DXT5 block
-DXTDImageBackscanDxt5     PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT5 image into a backscan bitmap (ie HBITMAP)
+;DEBUG32 EQU 1
+
+
+DXTDBlockDxt5             PROTO C block:DWORD, pixels:DWORD ; Decmopresses single DXT5 block
+DXTDImageBackscanDxt5     PROTO STDCALL ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT5 image into a backscan bitmap (ie HBITMAP)
 DXTDImageBackscanDxt5PURE PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT5 image into a backscan bitmap (ie HBITMAP)
 DXTDImageBackscanDxt5SSE  PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT5 image into a backscan bitmap (ie HBITMAP)
 
-EXTERNDEF DXTSSE :PROTO
+EXTERNDEF DXTSSE          :PROTO
 
 .DATA
 ; External definition of aRGB565Lookup lookup table
@@ -37,11 +47,17 @@ IEPVR_ALIGN
 ;------------------------------------------------------------------------------
 ; Decompresses entire DXT1 image
 ;------------------------------------------------------------------------------
-DXTDImageBackscanDxt5 PROC dwWidth:DWORD, dwHeight:DWORD, pbBlock:DWORD, pdwPixels:DWORD
+DXTDImageBackscanDxt5 PROC STDCALL dwWidth:DWORD, dwHeight:DWORD, pbBlock:DWORD, pdwPixels:DWORD
     Invoke DXTSSE
     .IF eax == TRUE
+        IFDEF DEBUG32
+        Invoke OutputDebugString, CTEXT("DXTDImageBackscanDxt5SSE")
+        ENDIF
         Invoke DXTDImageBackscanDxt5SSE, dwWidth, dwHeight, pbBlock, pdwPixels
     .ELSE
+        IFDEF DEBUG32
+        Invoke OutputDebugString, CTEXT("DXTDImageBackscanDxt5PURE")
+        ENDIF
         Invoke DXTDImageBackscanDxt5PURE, dwWidth, dwHeight, pbBlock, pdwPixels
     .ENDIF
     ret
@@ -52,9 +68,7 @@ IEPVR_ALIGN
 ;------------------------------------------------------------------------------
 ; Decompresses DXT5 block
 ;------------------------------------------------------------------------------
-OPTION PROLOGUE:NONE
-OPTION EPILOGUE:NONE
-DXTDBlockDxt5 PROC pbBlock:DWORD, pdwPixels:DWORD
+DXTDBlockDxt5 PROC C pbBlock:DWORD, pdwPixels:DWORD
 	; Allocate space for color table
 	sub esp, 24
 	; Save registers
@@ -210,8 +224,6 @@ lp1:
 
 	ret
 DXTDBlockDxt5 ENDP
-OPTION PROLOGUE:PrologueDef
-OPTION EPILOGUE:EpilogueDef
 
 
 IEPVR_ALIGN
@@ -220,8 +232,6 @@ IEPVR_ALIGN
 ; Width and height must be a multiple of 4. To align dim, use this formula: ((dim + 3) / 4) * 4
 ; Pixels must be DWORDs
 ;------------------------------------------------------------------------------
-OPTION PROLOGUE:NONE
-OPTION EPILOGUE:NONE
 DXTDImageBackscanDxt5PURE PROC dwWidth:DWORD, dwHeight:DWORD, pbBlock:DWORD, pdwPixels:DWORD
 	sub esp, 64			; Allocate pixel block
 	push edi			; Save registers
@@ -305,8 +315,6 @@ col:
 	add esp, 64			; Deallocate pixel block
 	ret
 DXTDImageBackscanDxt5PURE ENDP
-OPTION PROLOGUE:PrologueDef
-OPTION EPILOGUE:EpilogueDef
 
 
 IEPVR_ALIGN
@@ -315,8 +323,6 @@ IEPVR_ALIGN
 ; Width and height must be a multiple of 4. To align dim, use this formula: ((dim + 3) / 4) * 4
 ; Pixels must be DWORDs
 ;------------------------------------------------------------------------------
-OPTION PROLOGUE:NONE
-OPTION EPILOGUE:NONE
 DXTDImageBackscanDxt5SSE PROC dwWidth:DWORD, dwHeight:DWORD, pbBlock:DWORD, pdwPixels:DWORD
 	sub esp, 64			; Allocate pixel block
 	push edi			; Save registers
@@ -376,8 +382,6 @@ col:
 	add esp, 64			; Deallocate pixel block
 	ret
 DXTDImageBackscanDxt5SSE ENDP
-OPTION PROLOGUE:PrologueDef
-OPTION EPILOGUE:EpilogueDef
 
 
 IEPVR_LIBEND

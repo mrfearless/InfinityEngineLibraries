@@ -22,14 +22,23 @@ includelib user32.lib
 includelib kernel32.lib
 includelib gdi32.lib
 
+;DEBUG32 EQU 1
+;IFDEF DEBUG32
+;    PRESERVEXMMREGS equ 1
+;    includelib M:\Masm32\lib\Debug32.lib
+;    DBG32LIB equ 1
+;    DEBUGEXE textequ <'M:\Masm32\DbgWin.exe'>
+;    include M:\Masm32\include\debug32.inc
+;ENDIF
+
 include IEPVR.inc
 
 EXTERNDEF PVRCalcDwordAligned       :PROTO dwWidthOrHeight:DWORD
 
-EXTERNDEF DXTDImageBackscanDxt1     :PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT1 image into a backscan bitmap (ie HBITMAP)
-EXTERNDEF DXTDImageBackscanDxt3     :PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT3 image into a backscan bitmap (ie HBITMAP)
-EXTERNDEF DXTDImageBackscanDxt5     :PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT5 image into a backscan bitmap (ie HBITMAP)
-
+EXTERNDEF DXTDImageBackscanDxt1     :PROTO STDCALL ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT1 image into a backscan bitmap (ie HBITMAP)
+EXTERNDEF DXTDImageBackscanDxt3     :PROTO STDCALL ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT3 image into a backscan bitmap (ie HBITMAP)
+EXTERNDEF DXTDImageBackscanDxt5     :PROTO STDCALL ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT5 image into a backscan bitmap (ie HBITMAP)
+EXTERNDEF DXTSSE                    :PROTO STDCALL
 
 .DATA
 PVRBitmap DB (SIZEOF BITMAPINFOHEADER) dup (0)
@@ -53,6 +62,10 @@ IEPVRBitmap PROC USES EBX hIEPVR:DWORD
     LOCAL dwPixelFormat:DWORD
     LOCAL pTextureData:DWORD
     
+    IFDEF DEBUG32
+    PrintText 'IEPVRBitmap'
+    ENDIF
+    
     .IF hIEPVR == NULL
         mov eax, NULL
         ret
@@ -63,6 +76,12 @@ IEPVRBitmap PROC USES EBX hIEPVR:DWORD
         mov eax, NULL
         ret
     .ENDIF
+    
+    IFDEF DEBUG32
+    PrintText 'IEPVRTextureDimensions'
+    PrintDec dwImageWidth
+    PrintDec dwImageHeight
+    ENDIF
     
     Invoke IEPVRPixelFormat, hIEPVR
     .IF eax == -1
@@ -75,11 +94,24 @@ IEPVRBitmap PROC USES EBX hIEPVR:DWORD
     .ENDIF
     mov dwPixelFormat, eax
     
+    IFDEF DEBUG32
+    PrintText 'IEPVRPixelFormat'
+    PrintDec dwPixelFormat
+    ENDIF
+    
     Invoke IEPVRTextureData, hIEPVR
     .IF eax == NULL
         ret
     .ENDIF
     mov pTextureData, eax
+    
+    
+    
+    IFDEF DEBUG32
+    DbgDump pTextureData, 16
+    PrintText 'IEPVRTextureData'
+    PrintDec pTextureData
+    ENDIF
     
     Invoke RtlZeroMemory, Addr PVRBitmap, SIZEOF BITMAPINFOHEADER
     
@@ -91,10 +123,11 @@ IEPVRBitmap PROC USES EBX hIEPVR:DWORD
     mul ebx
     mov ebx, 4
     mul ebx
+    add eax, 4096
     mov dwImageSize, eax
     
     lea ebx, PVRBitmap
-    mov [ebx].BITMAPINFOHEADER.biSize, 40d
+    mov [ebx].BITMAPINFOHEADER.biSize, SIZEOF BITMAPINFOHEADER ;40d
     
     mov eax, dwImageWidthDword
     mov [ebx].BITMAPINFOHEADER.biWidth, eax
@@ -114,13 +147,34 @@ IEPVRBitmap PROC USES EBX hIEPVR:DWORD
     Invoke CreateDIBSection, hdc, Addr PVRBitmap, DIB_RGB_COLORS, Addr pvBitsMem, NULL, 0
     mov hBitmap, eax
     
-    mov eax, dwPixelFormat
-    .IF eax == DXT1
-        Invoke DXTDImageBackscanDxt1, dwImageWidthDword, dwImageHeightDword, pTextureData, pvBitsMem
-    .ELSEIF eax == DXT3
-        Invoke DXTDImageBackscanDxt3, dwImageWidthDword, dwImageHeightDword, pTextureData, pvBitsMem
-    .ELSEIF eax == DXT5
-        Invoke DXTDImageBackscanDxt5, dwImageWidthDword, dwImageHeightDword, pTextureData, pvBitsMem
+    IFDEF DEBUG32
+    PrintText 'CreateDIBSection'
+    PrintDec hBitmap
+    PrintDec pvBitsMem
+    ENDIF
+    
+    .IF hBitmap != 0
+        mov eax, dwPixelFormat
+        .IF eax == DXT1
+            IFDEF DEBUG32
+            PrintText 'Invoke DXTDImageBackscanDxt1'
+            ENDIF
+            Invoke DXTDImageBackscanDxt1, dwImageWidthDword, dwImageHeightDword, pTextureData, pvBitsMem
+        .ELSEIF eax == DXT3
+            IFDEF DEBUG32
+            PrintText 'Invoke DXTDImageBackscanDxt3'
+            ENDIF
+            Invoke DXTDImageBackscanDxt3, dwImageWidthDword, dwImageHeightDword, pTextureData, pvBitsMem
+        .ELSEIF eax == DXT5
+            IFDEF DEBUG32
+            PrintText 'Invoke DXTDImageBackscanDxt5'
+            ENDIF
+            Invoke DXTDImageBackscanDxt5, dwImageWidthDword, dwImageHeightDword, pTextureData, pvBitsMem
+        .ENDIF
+        
+        IFDEF DEBUG32
+        PrintText 'Finished DXT'
+        ENDIF
     .ENDIF
     
     Invoke ReleaseDC, 0, hdc

@@ -54,11 +54,10 @@ include \masm32\macros\macros.asm
 include windows.inc
 include kernel32.inc
 include user32.inc
-include gdi32.inc
 
 includelib kernel32.lib
 includelib user32.lib
-includelib gdi32.lib
+
 
 include IEPVR.inc
 
@@ -68,11 +67,9 @@ include IEPVR.inc
 ;------------------------------------------------------------------------------
 ; Internal functions:
 ;------------------------------------------------------------------------------
-PVRSignature              PROTO pPVR:DWORD, dwPVRFilesize:DWORD
+PVRSignature              PROTO pPVR:DWORD
 PVRUncompress             PROTO hPVRFile:DWORD, pPVR:DWORD, dwSize:DWORD
 PVRJustFname              PROTO szFilePathName:DWORD, szFileName:DWORD
-
-PVRMem                    PROTO pPVRInMemory:DWORD, lpszPvrFilename:DWORD, dwPvrFilesize:DWORD, dwOpenMode:DWORD
 
 PVRCalcDwordAligned       PROTO dwWidthOrHeight:DWORD
 
@@ -83,6 +80,7 @@ DXTDBlockDxt3             PROTO block:DWORD, pixels:DWORD ; Decmopresses single 
 DXTDImageBackscanDxt3     PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT3 image into a backscan bitmap (ie HBITMAP)
 DXTDBlockDxt5             PROTO block:DWORD, pixels:DWORD ; Decmopresses single DXT5 block
 DXTDImageBackscanDxt5     PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT5 image into a backscan bitmap (ie HBITMAP)
+
 
 
 .CODE
@@ -143,7 +141,7 @@ IEPVROpen PROC USES EBX lpszPvrFilename:DWORD, dwOpenMode:DWORD
     .ENDIF
     mov PVRMemMapPtr, eax
 
-    Invoke PVRSignature, PVRMemMapPtr, PVRFilesize
+    Invoke PVRSignature, PVRMemMapPtr
     mov SigReturn, eax
     .IF SigReturn == PVR_VERSION_INVALID ; not a valid pvr file
         Invoke UnmapViewOfFile, PVRMemMapPtr
@@ -221,6 +219,28 @@ IEPVRClose PROC USES EBX hIEPVR:DWORD
     mov eax, [ebx].PVRINFO.PVROpenMode
     mov dwOpenMode, eax
 
+
+    .IF dwOpenMode == IEPVR_MODE_WRITE ; Write Mode
+        ;PrintText 'clear mem headers'
+        mov ebx, hIEPVR
+        mov eax, [ebx].PVRINFO.PVRHeaderPtr
+        .IF eax != NULL
+            Invoke GlobalFree, eax
+        .ENDIF
+
+        mov ebx, hIEPVR
+        mov eax, [ebx].PVRINFO.PVRMetaDataPtr
+        .IF eax != NULL
+            Invoke GlobalFree, eax
+        .ENDIF
+        
+        mov ebx, hIEPVR
+        mov eax, [ebx].PVRINFO.PVRTextureDataPtr
+        .IF eax != NULL
+            Invoke GlobalFree, eax
+        .ENDIF        
+    .ENDIF
+
     mov ebx, hIEPVR
     mov eax, [ebx].PVRINFO.PVRVersion
     .IF eax == PVR_VERSION_PVRZ ; PVRZ in read or write mode uncompresed pvr in memory needs to be cleared
@@ -269,12 +289,22 @@ IEPVR_ALIGN
 ;------------------------------------------------------------------------------
 ; PVRMem - Returns handle in eax of opened pvr file that is already loaded into memory. NULL if could not alloc enough mem
 ;------------------------------------------------------------------------------
-PVRMem PROC USES EBX pPVRInMemory:DWORD, lpszPvrFilename:DWORD, dwPvrFilesize:DWORD, dwOpenMode:DWORD
+IEPVRMem PROC USES EBX pPVRInMemory:DWORD, lpszPvrFilename:DWORD, dwPvrFilesize:DWORD, dwOpenMode:DWORD
     LOCAL hIEPVR:DWORD
     LOCAL PVRMemMapPtr:DWORD
+    LOCAL MetaDataPtr:DWORD
+    LOCAL MetaDataSize:DWORD
+    LOCAL TextureDataPtr:DWORD
+    LOCAL TextureDataSize:DWORD
+    LOCAL OffsetTextureData:DWORD
+    LOCAL OffsetMetaData:DWORD
 
     mov eax, pPVRInMemory
     mov PVRMemMapPtr, eax       
+    
+    IFDEF DEBUG32
+    PrintText 'IEPVRMem'
+    ENDIF
     
     ;----------------------------------
     ; Alloc mem for our IEPVR Handle
@@ -298,6 +328,28 @@ PVRMem PROC USES EBX pPVRInMemory:DWORD, lpszPvrFilename:DWORD, dwPvrFilesize:DW
     mov eax, dwPvrFilesize
     mov [ebx].PVRINFO.PVRFilesize, eax
 
+    IFDEF DEBUG32
+    PrintText 'Double check file in mem is PVR'
+    ENDIF
+    ;----------------------------------
+    ; Double check file in mem is PVR
+    ;----------------------------------
+    Invoke PVRSignature, PVRMemMapPtr
+    .IF eax != PVR_VERSION_PVR3
+;        .IF dwOpenMode == IEPVR_MODE_WRITE
+;            mov eax, PVRMemMapPtr
+;            .IF eax != NULL
+;                Invoke GlobalFree, eax
+;            .ENDIF
+;        .ENDIF
+        ;Invoke GlobalFree, hIEPVR
+        mov eax, NULL
+        ret
+    .ENDIF
+
+    IFDEF DEBUG32
+    PrintText 'PVR Header'
+    ENDIF
     ;----------------------------------
     ; PVR Header
     ;----------------------------------
@@ -321,26 +373,119 @@ PVRMem PROC USES EBX pPVRInMemory:DWORD, lpszPvrFilename:DWORD, dwPvrFilesize:DW
     mov eax, SIZEOF PVR3_HEADER
     mov [ebx].PVRINFO.PVRHeaderSize, eax   
 
+    IFDEF DEBUG32
+    PrintText 'PVR offsets etc'
+    ENDIF
     ;----------------------------------
-    ; Double check file in mem is PVR
+    ; Get offsets and size etc
     ;----------------------------------
-    Invoke PVRSignature, PVRMemMapPtr, dwPvrFilesize
-    .IF eax != PVR_VERSION_PVR3
+    mov ebx, hIEPVR
+    mov ebx, [ebx].PVRINFO.PVRHeaderPtr
+    mov eax, [ebx].PVR3_HEADER.MetaDataSize
+    mov MetaDataSize, eax
+    add eax, SIZEOF PVR3_HEADER
+    mov OffsetTextureData, eax
+    add eax, PVRMemMapPtr
+    mov TextureDataPtr, eax
+    mov eax, dwPvrFilesize
+    sub eax, OffsetTextureData
+    mov TextureDataSize, eax
+    mov eax, SIZEOF PVR3_HEADER
+    mov OffsetMetaData, eax
+    add eax, PVRMemMapPtr
+    mov MetaDataPtr, eax
+    
+    
+    IFDEF DEBUG32
+    PrintDec PVRMemMapPtr
+    PrintDec OffsetTextureData
+    PrintDec OffsetMetaData
+    PrintDec MetaDataPtr
+    PrintDec MetaDataSize
+    PrintDec TextureDataPtr
+    PrintDec TextureDataSize
+    ENDIF
+
+    IFDEF DEBUG32
+    PrintText 'PVR Meta Data Table'
+    ENDIF
+    ;----------------------------------
+    ; PVR Meta Data Table
+    ;----------------------------------
+    .IF MetaDataSize != 0
         .IF dwOpenMode == IEPVR_MODE_WRITE
+            Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, MetaDataSize
+            .IF eax == NULL
+                mov ebx, hIEPVR
+                mov eax, [ebx].PVRINFO.PVRHeaderPtr
+                .IF eax != NULL
+                    Invoke GlobalFree, eax
+                .ENDIF
+                Invoke GlobalFree, hIEPVR
+                mov eax, NULL
+                ret
+            .ENDIF    
+            mov ebx, hIEPVR
+            mov [ebx].PVRINFO.PVRMetaDataPtr, eax
+            mov ebx, PVRMemMapPtr
+            add ebx, OffsetMetaData
+            Invoke RtlMoveMemory, eax, ebx, MetaDataSize
+        .ELSE
+            mov ebx, hIEPVR
             mov eax, PVRMemMapPtr
+            add eax, OffsetMetaData
+            mov [ebx].PVRINFO.PVRMetaDataPtr, eax
+        .ENDIF
+        mov ebx, hIEPVR
+        mov eax, MetaDataSize
+        mov [ebx].PVRINFO.PVRMetaDataSize, eax   
+    .ENDIF
+
+    IFDEF DEBUG32
+    PrintText 'PVR Texture Data'
+    ENDIF
+    ;----------------------------------
+    ; PVR Texture Data
+    ;----------------------------------
+    .IF dwOpenMode == IEPVR_MODE_WRITE
+        Invoke GlobalAlloc, GMEM_FIXED or GMEM_ZEROINIT, TextureDataSize
+        .IF eax == NULL
+            mov ebx, hIEPVR
+            mov eax, [ebx].PVRINFO.PVRHeaderPtr
             .IF eax != NULL
                 Invoke GlobalFree, eax
             .ENDIF
-        .ENDIF
-        Invoke GlobalFree, hIEPVR
-        mov eax, NULL
-        ret
+            mov ebx, hIEPVR
+            mov eax, [ebx].PVRINFO.PVRMetaDataPtr
+            .IF eax != NULL
+                Invoke GlobalFree, eax
+            .ENDIF
+            Invoke GlobalFree, hIEPVR
+            mov eax, NULL
+            ret
+        .ENDIF    
+        mov ebx, hIEPVR
+        mov [ebx].PVRINFO.PVRTextureDataPtr, eax
+        mov ebx, PVRMemMapPtr
+        add ebx, OffsetTextureData
+        Invoke RtlMoveMemory, eax, ebx, MetaDataSize
+    .ELSE
+        mov ebx, hIEPVR
+        mov eax, PVRMemMapPtr
+        add eax, OffsetTextureData
+        mov [ebx].PVRINFO.PVRTextureDataPtr, eax
     .ENDIF
+    mov ebx, hIEPVR
+    mov eax, TextureDataSize
+    mov [ebx].PVRINFO.PVRTextureDataSize, eax
     
-
+    IFDEF DEBUG32
+    PrintText 'PVR return handle'
+    PrintDec hIEPVR
+    ENDIF
     mov eax, hIEPVR
     ret
-PVRMem ENDP
+IEPVRMem ENDP
 
 
 
