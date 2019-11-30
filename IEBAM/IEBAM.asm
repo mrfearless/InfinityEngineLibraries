@@ -217,7 +217,7 @@ IEBAMOpen PROC USES EBX lpszBamFilename:DWORD, dwOpenMode:DWORD
         Invoke IEBAMMem, pBAM, lpszBamFilename, BAMFilesize, dwOpenMode
         mov hIEBAM, eax
         .IF hIEBAM == NULL
-            ;Invoke GlobalFree, pBAM
+            Invoke GlobalFree, pBAM
             mov eax, NULL
             ret
         .ENDIF

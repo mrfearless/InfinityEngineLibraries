@@ -144,7 +144,7 @@ Group=Modules,..Base,..Color,..Compress,..Bitmap,..FrameInfo,..BasicInfo,..Helpe
 47=6
 48=5
 [AutoLoad]
-AutoLoad=2,44,33,10,36,8,41,42
+AutoLoad=2
 [RADebugBP]
 1=
 3=
@@ -200,7 +200,7 @@ MilestoneOnTime=2
 MilestoneOnDate=0
 MilestoneOnDateWhen=1
 MilestoneOnDateStatus=0
-MilestoneOnDateDate=29
+MilestoneOnDateDate=30
 MilestoneOnDateTimeYear=2014
 MilestoneOnDateTimeMonth=11
 MilestoneOnDateTimeDate=18
@@ -224,9 +224,9 @@ ProductVer2Range=0
 ProductVer3Range=0
 ProductVer4Range=0
 [PTimer]
-PTimer=502409314
+PTimer=508019734
 [Collapse]
-1=136314880,546,285753352,8,
+1=136314880,546,540680,10,1
 3=
 2=1512
 4=
@@ -275,9 +275,9 @@ PTimer=502409314
 47=
 48=
 [Size]
-1=0,0,0,0,18708
+1=0,0,0,0,15699
 3=0,0,0,0,360
-2=0,0,0,0,12894
+2=0,0,0,0,11258
 4=0,0,0,0,361
 5=0,0,0,0,365
 7=0,0,0,0,0
@@ -339,13 +339,13 @@ GroupExpand=1,1,1,1,0,0,1,1,1,1,1,0
 [BreakPoint]
 0=
 [Find]
-1="IEBAMHeader"
-2="PROTO "
-3=":DWORD"
-4="endp"
-5="PROTO"
-6="BAMBMPPalette"
-7="ecx"
-8="edx"
-9="ebx"
-10="IEBAMFrameRAWToFrameBMP"
+1="BAMCompressed"
+2="IEBAMHeader"
+3="PROTO "
+4=":DWORD"
+5="endp"
+6="PROTO"
+7="BAMBMPPalette"
+8="ecx"
+9="edx"
+10="ebx"
