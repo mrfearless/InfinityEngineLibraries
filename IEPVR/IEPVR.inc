@@ -45,6 +45,28 @@ IEPVRClose                  PROTO hIEPVR:DWORD
 
 ; Pointers to parts of PVR file:
 IEPVRHeader                 PROTO hIEPVR:DWORD ; eax = pointer to a PVR3_HEADER structure.
+IEPVRTextureData            PROTO hIEPVR:DWORD ; eax = pointer to a texture data
+IEPVRMetaData               PROTO hIEPVR:DWORD ; eax = pointer to a meta data
+
+; PVR Basic Information:
+IEPVRTextureDimensions      PROTO hIEPVR:DWORD, lpdwImageWidth:DWORD, lpdwImageHeight:DWORD
+IEPVRTextureDataSize        PROTO hIEPVR:DWORD ; eax = size of texture data
+IEPVRMetaDataSize           PROTO hIEPVR:DWORD ; eax = size of meta data
+IEPVRPixelFormat            PROTO hIEPVR:DWORD ; eax = PVR Pixel Format constant
+
+; PVR File & Version Information:
+IEPVRFileName               PROTO hIEPVR:DWORD ; eax = pointer to PVR full path filename
+IEPVRFileNameOnly           PROTO hIEPVR:DWORD, lpszFileNameOnly:DWORD ; eax = True or false if successfull. strips filename of path and ext information.
+IEPVRFileSize               PROTO hIEPVR:DWORD ; eax = size of bam file in bytes
+IEPVRFileCompression        PROTO hIEPVR:DWORD ; eax = -1 - No PVR file, TRUE for PVRZ, FALSE for PVR3
+IEPVRVersion                PROTO hIEPVR:DWORD ; eax = 0 no PVR, 1 = PVR3, 3 = PVRZ 
+
+; PVR Bitmap Functions:
+IEPVRBitmap                 PROTO hIEPVR:DWORD ; eax = HBITMAP or null
+
+; PVR Compression Functions:
+IEPVRUncompressPVR          PROTO lpszPvrFilenameIN:DWORD, lpszPvrFilenameOUT:DWORD ; lpszPvrInputFilename to uncompress, lpszPvrOutputFilename (optional) to write out uncompressed PVR as (null=same filename as lpszBamInputFilename)
+
 
 ;------------------------------------------------------------------------------
 ; IEPVR Structures
@@ -219,5 +241,18 @@ PVR3_KEY3_DATASIZE          EQU 3
 PVR3_KEY4_DATASIZE          EQU 12
 PVR3_KEY5_DATASIZE          EQU 0 ; variable
 
-
+; IEPVRUncompressPVR return values
+PU_SUCCESS                  EQU 0
+PU_PVR_INVALID              EQU -1
+PU_PVR_ALREADY_UNCOMPRESSED EQU -2
+PU_PVR_FORMAT_UNSUPPORTED   EQU -3
+PU_PVR_TOO_LARGE            EQU -4
+PU_PVR_OUTPUTFILE_CREATION  EQU -5
+PU_PVR_OUTPUTFILE_MAPPING   EQU -6
+PU_PVR_OUTPUTFILE_VIEW      EQU -7
+PU_PVR_INPUTFILE_OPEN       EQU -8
+PU_PVR_INPUTFILE_MAPPING    EQU -9
+PU_PVR_INPUTFILE_VIEW       EQU -10
+PU_PVR_INPUTFILE_ZEROSIZE   EQU -11
+PU_PVR_UNCOMPRESS_ERROR     EQU -12
 

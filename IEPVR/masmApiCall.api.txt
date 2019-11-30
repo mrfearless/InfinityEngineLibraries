@@ -9,3 +9,20 @@ IEPVRMem,pPVRInMemory,lpszPvrFilename,dwPvrFilesize,dwOpenMode
 IEPVRClose,hIEPVR
 
 IEPVRHeader,hIEPVR
+IEPVRTextureData,hIEPVR
+IEPVRMetaData,hIEPVR
+
+IEPVRTextureDimensions,hIEPVR,lpdwImageWidth,lpdwImageHeight
+IEPVRTextureDataSize,hIEPVR
+IEPVRMetaDataSize,hIEPVR
+IEPVRPixelFormat,hIEPVR
+
+IEPVRFileName,hIEPVR
+IEPVRFileNameOnly,hIEPVR,lpszFileNameOnly
+IEPVRFileSize,hIEPVR
+IEPVRFileCompression,hIEPVR
+IEPVRVersion,hIEPVR
+
+IEPVRBitmap,hIEPVR
+
+IEPVRUncompressPVR,lpszPvrFilenameIN,lpszPvrFilenameOUT

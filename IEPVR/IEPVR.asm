@@ -52,8 +52,6 @@ include \masm32\macros\macros.asm
 ;ENDIF
 
 include windows.inc
-
-include windows.inc
 include kernel32.inc
 include user32.inc
 include gdi32.inc
@@ -77,6 +75,14 @@ PVRJustFname              PROTO szFilePathName:DWORD, szFileName:DWORD
 PVRMem                    PROTO pPVRInMemory:DWORD, lpszPvrFilename:DWORD, dwPvrFilesize:DWORD, dwOpenMode:DWORD
 
 PVRCalcDwordAligned       PROTO dwWidthOrHeight:DWORD
+
+; DXT Decompressor asm functions by Matej Tomcik
+DXTDBlockDxt1             PROTO block:DWORD, pixels:DWORD ; Decmopresses single DXT1 block
+DXTDImageBackscanDxt1     PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT1 image into a backscan bitmap (ie HBITMAP)
+DXTDBlockDxt3             PROTO block:DWORD, pixels:DWORD ; Decmopresses single DXT3 block
+DXTDImageBackscanDxt3     PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT3 image into a backscan bitmap (ie HBITMAP)
+DXTDBlockDxt5             PROTO block:DWORD, pixels:DWORD ; Decmopresses single DXT5 block
+DXTDImageBackscanDxt5     PROTO ImageWidth:DWORD, ImageHeight:DWORD, inputImage:DWORD, outputPixels:DWORD ; Decompresses entire DXT5 image into a backscan bitmap (ie HBITMAP)
 
 
 .CODE
