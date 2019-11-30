@@ -74,6 +74,7 @@ IEBAMFrameLookupSequence    PROTO hIEBAM:DWORD, nCycle:DWORD, CycleIndex:DWORD ;
 IEBAMCycleFrameCount        PROTO hIEBAM:DWORD, nCycle:DWORD ; eax = frame count for cycle in eax or 0 otherwise
 IEBAMFrameDimensions        PROTO hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD ; eax = TRUE if successful or FALSE otherwise. lpdwX contain values
 IEBAMFindMaxWidthHeight     PROTO hIEBAM:DWORD, lpdwMaxWidth:DWORD, lpdwMaxHeight:DWORD ; eax = TRUE if successful or FALSE otherwise. lpdwX contain max values on success
+IEBAMFrameCompressed        PROTO hIEBAM:DWORD, nFrame:DWORD
 
 ; BAM Palette / Color Functions:
 IEBAMPaletteEntry           PROTO hIEBAM:DWORD, PaletteIndex:DWORD ; eax = pointer to RGBAQUAD for index 0-255 (256 entries) or NULL if unsuccessful
@@ -249,6 +250,10 @@ BAM_VERSION_INVALID         EQU 0 ; Not a BAM or invalid
 BAM_VERSION_BAM_V10         EQU 1 ; BAM_V1.0
 BAM_VERSION_BAM_V20         EQU 2 ; BAM_V2.0
 BAM_VERSION_BAMCV10         EQU 3 ; BAMCV1.0 (Compressed Blocks)
+
+; IEBAMBitmap parameter defaults:
+BAM_ALL_FRAMES              EQU -1
+BAM_USE_DEFAULT             EQU -1
 
 ; IEBAMUncompress return values
 BU_SUCCESS                  EQU 0

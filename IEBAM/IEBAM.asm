@@ -66,20 +66,22 @@ include IEBAM.inc
 ;------------------------------------------------------------------------------
 ; Internal functions:
 ;------------------------------------------------------------------------------
-EXTERNDEF BAMSignature              :PROTO pBAM:DWORD
-EXTERNDEF BAMUncompress             :PROTO hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
-EXTERNDEF BAMJustFname              :PROTO szFilePathName:DWORD, szFileName:DWORD
+BAMSignature              PROTO pBAM:DWORD
+BAMUncompress             PROTO hBAMFile:DWORD, pBAM:DWORD, dwSize:DWORD
+BAMJustFname              PROTO szFilePathName:DWORD, szFileName:DWORD
 
-EXTERNDEF BAMCalcDwordAligned       :PROTO dwWidthOrHeight:DWORD
-EXTERNDEF BAMFrameDataBitmap        :PROTO dwFrameWidth:DWORD, dwFrameHeight:DWORD, pFrameBMP:DWORD, dwFrameSizeBMP:DWORD, pFramePalette:DWORD
+BAMV1Mem                  PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
+BAMV2Mem                  PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
 
-EXTERNDEF BAMFrameUnRLESize         :PROTO pFrameRLE:DWORD, FrameRLESize:DWORD
-EXTERNDEF BAMFrameUnRLE             :PROTO pFrameRLE:DWORD, FrameRLESize:DWORD, pFrameRAW:DWORD, FrameRAWSize:DWORD
+BAMCalcDwordAligned       PROTO dwWidthOrHeight:DWORD
+BAMFrameDataBitmap        PROTO dwFrameWidth:DWORD, dwFrameHeight:DWORD, pFrameBMP:DWORD, dwFrameSizeBMP:DWORD, pFramePalette:DWORD
 
-EXTERNDEF BAMFrameRAWToFrameBMP     :PROTO pFrameRAW:DWORD, pFrameBMP:DWORD, FrameRAWSize:DWORD, FrameBMPSize:DWORD, FrameWidth:DWORD
+BAMFrameUnRLESize         PROTO pFrameRLE:DWORD, FrameRLESize:DWORD
+BAMFrameUnRLE             PROTO pFrameRLE:DWORD, FrameRLESize:DWORD, pFrameRAW:DWORD, FrameRAWSize:DWORD
 
-BAMV1Mem                            PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
-BAMV2Mem                            PROTO pBAMInMemory:DWORD, lpszBamFilename:DWORD, dwBamFilesize:DWORD, dwOpenMode:DWORD
+BAMFrameRAWToFrameBMP      PROTO pFrameRAW:DWORD, pFrameBMP:DWORD, FrameRAWSize:DWORD, FrameBMPSize:DWORD, FrameWidth:DWORD
+
+
 
 
 .CODE

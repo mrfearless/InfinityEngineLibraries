@@ -74,6 +74,8 @@ IEBAMBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, dwBackColor:DWORD, dwGridC
     LOCAL ColY:DWORD
     LOCAL xpos:DWORD
     LOCAL ypos:DWORD
+    LOCAL bAllFrames:DWORD
+    LOCAL dwFrame:DWORD
     LOCAL rect:RECT
     
     .IF hIEBAM == NULL
@@ -87,12 +89,59 @@ IEBAMBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, dwBackColor:DWORD, dwGridC
     .ENDIF
     mov TotalFrames, eax
     
-    Invoke IEBAMFindMaxWidthHeight, hIEBAM, Addr dwImageWidth, Addr dwImageHeight
-    .IF dwImageWidth == 0 && dwImageHeight == 0
-        mov eax, NULL
-        ret
-    .ENDIF
+    mov bAllFrames, FALSE
     
+    mov eax, TotalFrames
+    .IF eax > 1 && nFrame == -1 ; more than 1 frame and all specified
+        Invoke IEBAMFindMaxWidthHeight, hIEBAM, Addr dwImageWidth, Addr dwImageHeight
+        .IF dwImageWidth == 0 && dwImageHeight == 0
+            mov eax, NULL
+            ret
+        .ENDIF
+        
+        mov eax, dwImageWidth
+        mov RowXadjust, eax
+        mov eax, dwImageHeight
+        mov ColYadjust, eax
+        
+        mov eax, TotalFrames
+        .IF eax >= 16 ; create a 4x4 grid of bam frames
+            shl dwImageWidth, 2 ; x4
+            shl dwImageHeight, 2 ; x4
+        .ELSEIF eax >= 12 ; create a 4x3 grid
+            shl dwImageWidth, 2 ; x4
+            mov eax, dwImageHeight
+            shl dwImageHeight, 1 ; x2
+            add dwImageHeight, eax ; +1 = x3
+        .ELSEIF eax >= 8 ; create a 4x2 grid
+            shl dwImageWidth, 2 ; x4
+            shl dwImageHeight, 1 ; x2
+        .ELSEIF eax >= 4 ; create a 4x1 grid
+            shl dwImageWidth, 2 ; x4
+        .ELSE ; create an Xx1 grid
+            mov eax, dwImageWidth
+            mov ebx, TotalFrames
+            mul ebx
+            mov dwImageWidth, eax
+        .ENDIF
+
+        
+        mov bAllFrames, TRUE
+        
+    .ELSEIF eax > 1 && nFrame != -1 ; more than 1 frame and a specific frame specified
+        Invoke IEBAMFrameDimensions, hIEBAM, nFrame, Addr dwImageWidth, Addr dwImageHeight
+        mov eax, nFrame
+        mov dwFrame, eax
+        
+    .ELSEIF eax == 1 && nFrame == -1 ; 1 frame and all specified
+        Invoke IEBAMFrameDimensions, hIEBAM, 0, Addr dwImageWidth, Addr dwImageHeight
+        mov dwFrame, 0
+    
+    .ELSEIF eax == 1 && nFrame != 1 ; 1 frame and specific frame specified
+        Invoke IEBAMFrameDimensions, hIEBAM, 0, Addr dwImageWidth, Addr dwImageHeight
+        mov dwFrame, 0
+        
+    .ENDIF
     ;Invoke CreateDC, Addr szMOSDisplayDC, NULL, NULL, NULL
     Invoke GetDC, 0
     mov hdc, eax
@@ -103,21 +152,6 @@ IEBAMBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, dwBackColor:DWORD, dwGridC
     Invoke CreateCompatibleDC, hdc
     mov hdcFrame, eax
     
-    .IF nFrame == -1
-        mov eax, dwImageWidth
-        mov RowXadjust, eax
-        mov eax, dwImageHeight
-        mov ColYadjust, eax
-        ;.IF TotalFrames >= 16 ; create a 4x4 grid of bam frames
-        
-        ;.ELSE ; create a 4
-            
-        ;.ENDIF
-        shl dwImageWidth, 2 ; x4
-        shl dwImageHeight, 2 ; x4
-    .ELSE    
-        
-    .ENDIF
     Invoke CreateCompatibleBitmap, hdc, dwImageWidth, dwImageHeight
     mov hBitmap, eax
     
@@ -152,7 +186,7 @@ IEBAMBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, dwBackColor:DWORD, dwGridC
     Invoke SaveDC, hdcFrame
     mov SavedDCFrame, eax
     
-    .IF nFrame == -1
+    .IF bAllFrames == TRUE; nFrame == -1
 
         mov nCol, 0
         mov nRow, 0
@@ -273,7 +307,7 @@ IEBAMBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, dwBackColor:DWORD, dwGridC
         
     .ELSE
         
-        Invoke IEBAMFrameBitmap, hIEBAM, nFrame, Addr FrameW, Addr FrameH, Addr FrameX, Addr FrameY, dwBackColor
+        Invoke IEBAMFrameBitmap, hIEBAM, dwFrame, Addr FrameW, Addr FrameH, Addr FrameX, Addr FrameY, dwBackColor
         .IF eax != NULL
             mov hFrameBitmap, eax
             Invoke SelectObject, hdcFrame, hFrameBitmap

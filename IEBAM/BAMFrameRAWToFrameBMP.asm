@@ -47,7 +47,7 @@ BAMFrameRAWToFrameBMP PROC USES EDI ESI pFrameRAW:DWORD, pFrameBMP:DWORD, FrameR
     mov RAWCurrentPos, 0
     mov eax, FrameRAWSize
     mov BMPCurrentPos, eax
-    .WHILE eax > 0
+    .WHILE sdword ptr eax > 0
         
         mov eax, BMPCurrentPos
         .IF eax < FrameWidth

@@ -6,10 +6,11 @@
 ; Paste this text at the end of \Radasm\masm\masmApiCall.api to add these to Radasm
 ;
 ;------------------------------------------------------------------------------------------------
-IEBAMOpen,lpszBamFilename,dwOpenMode
+IEBAMOpen,lpszBamFilename, dwOpenMode
 IEBAMMem,pBAMInMemory,lpszBamFilename,dwBamFilesize,dwOpenMode
 IEBAMClose,hIEBAM
-IEBAMHeader,hIEBAM.
+
+IEBAMHeader,hIEBAM
 IEBAMFrameEntry,hIEBAM,nFrameEntry
 IEBAMCycleEntry,hIEBAM,nCycleEntry
 IEBAMBlockEntry,hIEBAM,nBlockEntry
@@ -18,27 +19,34 @@ IEBAMCycleEntries,hIEBAM
 IEBAMBlockEntries,hIEBAM
 IEBAMFrameDataEntries,hIEBAM
 IEBAMFrameDataEntry,hIEBAM,nFrameEntry
-IEBAMFrameLookupEntry,hIEBAM,nCycleEntry
+IEBAMFrameLookupEntry,hIEBAM,nCycle
 IEBAMFrameLookupEntries,hIEBAM
 IEBAMPalette,hIEBAM
-IEBAMPaletteEntry,hIEBAM,PaletteIndex
+
 IEBAMTotalFrameEntries,hIEBAM
 IEBAMTotalCycleEntries,hIEBAM
 IEBAMTotalBlockEntries,hIEBAM
+IEBAMRLEColorIndex,hIEBAM
+
 IEBAMFileName,hIEBAM
 IEBAMFileNameOnly,hIEBAM,lpszFileNameOnly
 IEBAMFileSize,hIEBAM
 IEBAMFileCompression,hIEBAM
 IEBAMVersion,hIEBAM
-IEBAMFrameUnRLE,pFrameRLE,pFrameRAW,FrameRLESize,FrameRAWSize,FrameWidth
-IEBAMFrameRAWToFrameBMP,pFrameRAW,pFrameBMP,FrameRAWSize,FrameBMPSize,FrameWidth
-IEBAMFrameLookupSequence,hIEBAM,nCycle,SequenceIndex
+
+IEBAMFrameLookupSequence,hIEBAM,nCycle,CycleIndex
 IEBAMCycleFrameCount,hIEBAM,nCycle
 IEBAMFrameDimensions,hIEBAM,nFrame,lpdwFrameWidth,lpdwFrameHeight
-IEBAMFindMaxWidthHeight,hIEBAM,lpdwFrameWidth,lpdwFrameHeight
-IEBAMFrameBitmap,hIEBAM,nFrame,lpdwFrameWidth,lpdwFrameHeight,lpdwFrameXCoord,lpdwFrameYCoord
-IEBAMBitmap,hIEBAM,nFrame
+IEBAMFindMaxWidthHeight,hIEBAM,lpdwMaxWidth,lpdwMaxHeight
+IEBAMFrameCompressed,hIEBAM,nFrame
+
+IEBAMPaletteEntry,hIEBAM,PaletteIndex
 IEBAMRLEColorIndexColorRef,hIEBAM
-IEBAMConvertABGRtoARGB,dwABGR
+IEBAMConvertABGRtoARGB,dwBGRA
 IEBAMConvertARGBtoABGR,dwARGB
+
+IEBAMFrameBitmap, hIEBAM,nFrame,lpdwFrameWidth,lpdwFrameHeight,lpdwFrameXCoord,lpdwFrameYCoord,dwTransColor
+IEBAMBitmap,hIEBAM,nFrame,dwBackColor,dwGridColor
+
 IEBAMUncompressBAM,lpszBamFilenameIN,lpszBamFilenameOUT
+

@@ -34,10 +34,18 @@ IEBAM_ALIGN
 ; IEBAMFrameBitmap - Returns in eax HBITMAP or NULL. Optional variables pointed 
 ; to, are filled in if eax is a HBITMAP (!NULL), otherwise vars (if supplied) 
 ; will be set to 0
+; If dwTransColor is -1 returns the frame bitmap as it is. If dwTransColor is
+; any other COLORREF value, returns bitmap with background of that color and 
+; sets the RLE Color Index (transparent value) to the dwTransColor value
+; Bitmaps returned if dwTransColor is -1 are freed automatically when library
+; is closed. Those returned if dwTransColor is not -1 should be freed with
+; DeleteObject when no longer required.
+; TODO: do we need bitmap handle ?
 ;------------------------------------------------------------------------------
 IEBAMFrameBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD, lpdwFrameHeight:DWORD, lpdwFrameXCoord:DWORD, lpdwFrameYCoord:DWORD, dwTransColor:DWORD
     LOCAL FramePalette:DWORD
     LOCAL FrameDataEntry:DWORD
+    LOCAL FrameCompressed:DWORD
     LOCAL FrameWidth:DWORD
     LOCAL FrameHeight:DWORD
     LOCAL FrameXCoord:DWORD
@@ -77,11 +85,15 @@ IEBAMFrameBitmap PROC USES EBX hIEBAM:DWORD, nFrame:DWORD, lpdwFrameWidth:DWORD,
     mov FrameXCoord, eax
     mov eax, [ebx].FRAMEDATA.FrameYcoord
     mov FrameYCoord, eax
+    mov eax, [ebx].FRAMEDATA.FrameCompressed
+    mov FrameCompressed, eax
     
     mov eax, [ebx].FRAMEDATA.FrameBitmapHandle
     .IF eax != 0
-        mov FrameBitmapHandle, eax
-        jmp IEBAMFrameBitmapExit
+        .IF dwTransColor == -1
+            mov FrameBitmapHandle, eax
+            jmp IEBAMFrameBitmapExit
+        .ENDIF
     .ENDIF    
     
     mov eax, [ebx].FRAMEDATA.FrameSizeBMP
